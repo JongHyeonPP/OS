@@ -152,8 +152,8 @@ int g_reminders_list = 0;
 
 /* Calendar */
 int g_calendar_visible = 0;
-int g_calendar_month = 5;
-int g_calendar_year = 2026;
+int g_calendar_month = 0;
+int g_calendar_year = 0;
 
 /* AirPlay */
 int g_airplay_visible = 0;
@@ -184,7 +184,20 @@ int g_screen_shared = 0;  /* orange dot = screen being shared */
 /* AirDrop panel */
 int g_airdrop_visible  = 0;
 int g_airdrop_sending  = 0;  /* 0=idle 1=scanning 2=sending */
-int g_airdrop_progress = 0;  /* 0-100 */
+int g_airdrop_progress = 0;
+/* Music lyrics */
+/* Lock screen overlay */
+
+/* Music lyrics */
+/* Lock screen overlay */
+
+/* Music lyrics */
+/* Lock screen overlay */
+
+/* Music lyrics */
+/* Lock screen overlay */
+
+
 
 /* Handoff state */
 int g_handoff_visible = 0;
@@ -358,10 +371,7 @@ int g_photos_saturation = 50;
 int g_photos_edit_tool  = 0; /* 0=Adjust, 1=Crop, 2=Filter */
 
 /* =========================================================================
- * App Store download state: bitmask of downloading apps (bits 0-3)
  * ======================================================================= */
-int      g_appstore_downloading = 0; /* bitmask */
-uint32_t g_appstore_dl_tick[4]  = {0,0,0,0};
 
 /* =========================================================================
  * Dictionary interactive search state
@@ -1394,7 +1404,6 @@ void draw_scene(int mx, int my) {
     if (g_focus_filter_visible) focus_filter_draw();
     if (g_icloud_visible) icloud_panel_draw();
     if (g_bt_visible) bluetooth_dialog_draw();
-    if (g_kbshort_visible) keyboard_shortcuts_draw();
     if (g_timemachine_visible) time_machine_draw();
     if (g_colormeter_visible) color_meter_draw();
     if (g_notifhist_visible) notif_history_draw();

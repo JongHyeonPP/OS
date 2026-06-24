@@ -21,7 +21,6 @@ static void overlay_append_text(char *buf, int *pos, int max, const char *text) 
     }
     buf[*pos] = 0;
 }
-
 static void status_set_runtime_about(void) {
     runtime_system_info_t sys;
     int pos = 0;
@@ -810,7 +809,7 @@ void mission_control_draw(void) {
                 vga_fill_rect(tx+1, ct_y, thumb_w-2, ct_h, RGB(255,252,190));
                 int li; for (li=0;li<4&&li*8<ct_h-8;li++)
                     vga_fill_rect(tx+6, ct_y+6+li*8, thumb_w-14, 2, RGB(220,210,140));
-                vga_draw_string_trans(tx+4, ct_y+3, "Shop..", RGB(80,60,0));
+                vga_draw_string_trans(tx+4, ct_y+3, "Shop..", RGB(80,80,60));
             } else if (str_eq(w->title,"Clock")) {
                 vga_fill_rect(tx+1, ct_y, thumb_w-2, ct_h, RGB(245,245,245));
                 int cx4=tx+thumb_w/2, cy4=ct_y+ct_h/2, r4=ct_h/3;
@@ -1661,8 +1660,8 @@ const char *g_menubar_titles[N_MENUS] = {
 };
 /* Items per menu — "---" = separator, NULL = end */
 const char *g_menu_items[N_MENUS][MAX_MENU_ITEMS] = {
-    { "About MyOS", "---", "Settings...", "---", "Lock Screen", "---", "Restart...", "Shut Down...", NULL },
-    { "New Window", "Close Window", "---", "Get Info", "---", "Print...", "Share...", NULL, NULL, NULL },
+    { "About MyOS", "---", "Settings...", "Mission Control", "Stage Manager", "---", "Lock Screen", "---", "Restart...", "Shut Down...", NULL },
+    { "New Window", "Close Window", "---", "Get Info", "---", "Print...", "Share...", "iPhone Mirroring", "Universal Control", "Game Center", "Continuity Camera", "Screen Recording", NULL },
     { NULL },
     { "Finder", "Terminal", "Calculator", "Clock", "TextEdit", NULL },
     { NULL },
@@ -1818,6 +1817,22 @@ void dropdown_action(int menu_idx, int item_idx) {
                 aw->space=g_current_space;
                 g_num_windows++;
             }
+        } else if (str_eq(label, "Mission Control")) {
+            g_mc_visible = !g_mc_visible; return;
+        } else if (str_eq(label, "Stage Manager")) {
+            g_stage_manager = !g_stage_manager; return;
+        } else if (str_eq(label, "Mission Control")) {
+            g_mc_visible = !g_mc_visible; return;
+        } else if (str_eq(label, "Stage Manager")) {
+            g_stage_manager = !g_stage_manager; return;
+        } else if (str_eq(label, "Mission Control")) {
+            g_mc_visible = !g_mc_visible; return;
+        } else if (str_eq(label, "Stage Manager")) {
+            g_stage_manager = !g_stage_manager; return;
+        } else if (str_eq(label, "Mission Control")) {
+            g_mc_visible = !g_mc_visible; return;
+        } else if (str_eq(label, "Stage Manager")) {
+            g_stage_manager = !g_stage_manager; return;
         } else if (str_eq(label, "Lock Screen")) {
             extern int g_locked; extern int g_lock_pw_len; extern char g_lock_pw[];
             g_locked=1; g_lock_pw_len=0; g_lock_pw[0]=0; return;
@@ -2857,19 +2872,19 @@ void term_process_command(void) {
         if (cmd[2]==' ' && cmd[3]) term_println("cd: permission denied");
         else term_println("/root");
     } else if (cmd[0]=='m'&&cmd[1]=='k'&&cmd[2]=='d'&&cmd[3]=='i'&&cmd[4]=='r') {
-        if (cmd[5]==' '&&cmd[6]) { term_println("mkdir: directory created"); }
+        if (cmd[5]==' '&&cmd[6]) { term_println("mkdir: filesystem mutation unavailable"); }
         else term_println("mkdir: missing operand");
     } else if (cmd[0]=='t'&&cmd[1]=='o'&&cmd[2]=='u'&&cmd[3]=='c'&&cmd[4]=='h') {
-        if (cmd[5]==' '&&cmd[6]) { term_println(""); }
+        if (cmd[5]==' '&&cmd[6]) { term_println("touch: filesystem mutation unavailable"); }
         else term_println("touch: missing file operand");
     } else if (cmd[0]=='r'&&cmd[1]=='m') {
-        if (cmd[2]==' '&&cmd[3]) { term_println("rm: removed"); }
+        if (cmd[2]==' '&&cmd[3]) { term_println("rm: filesystem mutation unavailable"); }
         else term_println("rm: missing operand");
     } else if (cmd[0]=='c'&&cmd[1]=='a'&&cmd[2]=='t') {
         if (cmd[3]==' '&&cmd[4]) { term_println("cat: No such file"); }
         else term_println("cat: missing operand");
     } else if (cmd[0]=='k'&&cmd[1]=='i'&&cmd[2]=='l'&&cmd[3]=='l') {
-        term_println("kill: process terminated");
+        term_println("kill: process control unavailable");
     } else if (CMD_IS("man")) {
         term_println("What manual page do you want?");
         term_println("Try: man ls, man grep, man vi");
@@ -2880,13 +2895,13 @@ void term_process_command(void) {
         term_println("4  help");
         term_println("5  history");
     } else if (CMD_IS("open .") || CMD_IS("open")) {
-        term_println("Opening Finder...");
+        term_println("open: GUI launch unavailable from terminal");
     } else if (CMD_IS("gui")) {
         term_print_runtime_gui();
     } else if (CMD_IS("reboot")) {
-        term_println("Rebooting MyOS...");
+        term_println("reboot: unavailable from terminal");
     } else if (CMD_IS("shutdown")) {
-        term_println("System going down NOW!");
+        term_println("shutdown: unavailable from terminal");
     } else if (CMD_IS("fortune") || CMD_IS("quote")) {
         term_println("\"Keep it simple.\" - Unix");
     } else if (CMD_IS("banner")) {
@@ -2910,20 +2925,16 @@ void term_process_command(void) {
     } else if (CMD_IS("sw_vers")) {
         term_print_runtime_swvers();
     } else if (CMD_IS("git status") || CMD_IS("git")) {
-        term_println("On branch main");
-        term_println("nothing to commit, working tree clean");
+        term_println("git: repository status unavailable");
     } else if (CMD_IS("diskutil list") || CMD_IS("diskutil")) {
         term_print_runtime_diskutil();
     } else if (CMD_IS("caffeinate")) {
-        term_println("[caffeinate] Screensaver disabled.");
+        term_println("caffeinate: power assertion unavailable");
     } else if (CMD_IS("defaults")) {
         term_println("defaults: read/write preferences");
         term_println("Usage: defaults read/write <domain> <key>");
     } else if (CMD_IS("launchctl list")) {
-        term_println("PID  Status  Label");
-        term_println("  2  0       com.myos.gui");
-        term_println("  3  0       com.myos.clock");
-        term_println("  -  0       com.myos.updater");
+        term_println("launchctl: service manager unavailable");
     } else if (CMD_IS("arch")) {
         runtime_system_info_t sys;
         runtime_get_system_info(&sys);
@@ -2990,12 +3001,11 @@ void term_process_command(void) {
     } else if (CMD_IS("curl") || CMD_IS("wget")) {
         term_println("curl: try specifying a URL");
     } else if (cmd[0]=='c'&&cmd[1]=='u'&&cmd[2]=='r'&&cmd[3]=='l'&&cmd[4]==' ') {
-        term_println("  % Total    % Received");
-        term_println("100  1024  100  1024  0 --:-- ETA");
+        term_println("curl: network fetch unavailable");
     } else if (CMD_IS("tar")) {
         term_println("tar: try: tar -xzf file.tar.gz");
     } else if (CMD_IS("chmod") || CMD_IS("chown")) {
-        term_println("changed permissions");
+        term_println("chmod: permission changes unavailable");
     } else if (CMD_IS("ln")) {
         term_println("ln: missing file operand");
     } else if (CMD_IS("alias")) {
@@ -3005,7 +3015,7 @@ void term_process_command(void) {
     } else if (CMD_IS("export")) {
         term_println("export: list: HOME PATH SHELL TERM");
     } else if (CMD_IS("source") || CMD_IS(". ~/.profile")) {
-        term_println("profile sourced");
+        term_println("source: profile unavailable");
     } else if (CMD_IS("htop")) {
         term_println("htop: use 'top' instead");
     } else if (CMD_IS("lsblk")) {
@@ -3307,13 +3317,13 @@ void widget_bar_draw(void) {
         int wdx=wx+486, wdy=wy;
         vga_fill_rect_alpha(wdx, wdy, 160, WIDGET_BAR_H, RGB(255,245,150), 230);
         gui_draw_rounded_rect_outline(wdx, wdy, 160, WIDGET_BAR_H, 6, RGB(200,190,80));
-        vga_draw_string_trans(wdx+8, wdy+6, "Quick Notes", RGB(80,60,0));
+        vga_draw_string_trans(wdx+8, wdy+6, "Quick Notes", RGB(80,80,60));
         vga_draw_hline(wdx+4, wdy+18, 152, RGB(200,190,80));
-        vga_draw_string_trans(wdx+8, wdy+22, "- Buy groceries", RGB(60,40,0));
-        vga_draw_string_trans(wdx+8, wdy+34, "- Call dentist", RGB(60,40,0));
-        vga_draw_string_trans(wdx+8, wdy+46, "- MyOS demo ready", RGB(60,40,0));
-        vga_draw_string_trans(wdx+8, wdy+58, "- Ship v1.0!", RGB(60,40,0));
-        vga_draw_string_trans(wdx+8, wdy+72, "+ Add note...", RGB(150,120,0));
+        vga_draw_string_trans(wdx+8, wdy+22, "- Buy groceries", RGB(60,60,40));
+        vga_draw_string_trans(wdx+8, wdy+34, "- Call dentist", RGB(60,60,40));
+        vga_draw_string_trans(wdx+8, wdy+46, "- MyOS demo ready", RGB(60,60,40));
+        vga_draw_string_trans(wdx+8, wdy+58, "- Ship v1.0!", RGB(60,60,40));
+        vga_draw_string_trans(wdx+8, wdy+72, "+ Add note...", RGB(150,150,120));
     }
 
     /* Widget 5: Now Playing mini */
@@ -4603,6 +4613,14 @@ void calendar_draw(void) {
     vga_fill_rect(dx, dy, dw, 48, RGB(22,22,30));
     vga_draw_string_trans(dx+24, dy+16, "<", RGB(0,122,255));
     vga_draw_string_trans(dx+dw-18, dy+16, ">", RGB(0,122,255));
+    datetime_t now_dt;
+    get_current_datetime(&now_dt);
+    if (g_calendar_year < 1) {
+        g_calendar_year = now_dt.year;
+        g_calendar_month = now_dt.month - 1;
+    }
+    if (g_calendar_month < 0) g_calendar_month = 0;
+    if (g_calendar_month > 11) g_calendar_month = 11;
     static const char *months[]={"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
     char mstr[16]; int mi=0;
     { const char *s=months[g_calendar_month]; while(*s) mstr[mi++]=*s++; }
@@ -4616,9 +4634,8 @@ void calendar_draw(void) {
     int di; for(di=0;di<7;di++)
         vga_draw_string_trans(dx+20+di*68, dy+56, dnames[di], RGB(150,150,170));
     vga_draw_hline(dx, dy+74, dw, RGB(52,52,68));
-    static const int days_in_month[]={31,28,31,30,31,30,31,31,30,31,30,31};
-    int dim=days_in_month[g_calendar_month];
-    int start_dow=(g_calendar_month+2+g_calendar_year*365/12)%7;
+    int dim=datetime_days_in_month(g_calendar_year, g_calendar_month + 1);
+    int start_dow=datetime_day_of_week(g_calendar_year, g_calendar_month + 1, 1);
     static const int evdays[]={5,12,18,24,28};
     static const char *evnames[]={"Meeting","Dentist","Lunch","Review","Trip"};
     static const uint32_t evcols[]={RGB(255,59,48),RGB(52,199,89),RGB(0,122,255),RGB(255,149,0),RGB(175,82,222)};
@@ -4626,7 +4643,9 @@ void calendar_draw(void) {
         int pos=day-1+start_dow;
         int col=pos%7, row=pos/7;
         int cx2=dx+20+col*68, cy2=dy+82+row*52;
-        int is_today=(day==24 && g_calendar_month==5 && g_calendar_year==2026);
+        int is_today=(day==now_dt.day &&
+                      g_calendar_month + 1 == now_dt.month &&
+                      g_calendar_year == now_dt.year);
         if(is_today){
             gui_draw_circle(cx2+12, cy2+12, 14, RGB(255,59,48));
             vga_draw_string_trans(day<10?(cx2+8):(cx2+4), cy2+7,
@@ -4656,28 +4675,229 @@ void airplay_draw(void) {
     vga_draw_string_trans(dx+(dw-7*8)/2, dy+14, "AirPlay", RGB(235,235,240));
     vga_draw_hline(dx, dy+44, dw, RGB(62,62,76));
     vga_draw_string_trans(dx+16, dy+54, "OUTPUT TO:", RGB(115,115,138));
-    static const struct{const char *nm;const char *sub;int active;} devs[]={
-        {"This Mac","Built-in Display",1},{"Samsung 4K TV","Living Room",0},
-        {"Apple TV","Bedroom",0},{"LG OLED","Office",0}};
-    int di; for(di=0;di<4;di++){
-        int dy2=dy+72+di*54;
-        gui_draw_rounded_rect(dx+12, dy2, dw-24, 44, 8, devs[di].active?RGB(0,80,195):RGB(42,42,55));
-        if(di==0){
-            gui_draw_circle(dx+34, dy2+22, 14, RGB(80,80,100));
-            vga_draw_string_trans(dx+28, dy2+17, "MC", RGB(200,200,215));
-        } else if(di==2){
-            gui_draw_circle(dx+34, dy2+22, 14, RGB(0,80,180));
-            vga_draw_string_trans(dx+29, dy2+17, "TV", RGB(255,255,255));
-        } else {
-            gui_draw_rounded_rect(dx+22, dy2+12, 22, 20, 3, RGB(60,60,80));
-            vga_draw_string_trans(dx+25, dy2+16, "TV", RGB(180,180,200));
-        }
-        vga_draw_string_trans(dx+56, dy2+10, devs[di].nm, devs[di].active?RGB(255,255,255):RGB(215,215,228));
-        vga_draw_string_trans(dx+56, dy2+26, devs[di].sub, devs[di].active?RGB(190,220,255):RGB(145,145,165));
-        if(devs[di].active){gui_draw_circle(dx+dw-24, dy2+22, 8, RGB(200,255,200)); gui_draw_circle_outline(dx+dw-24, dy2+22, 8, RGB(100,200,100));}
-        if(di<3) vga_draw_hline(dx+16, dy2+44, dw-32, RGB(52,52,68));
-    }
+    gui_draw_rounded_rect(dx+12, dy+72, dw-24, 54, 8, RGB(42,42,55));
+    gui_draw_circle(dx+34, dy+99, 14, RGB(80,80,100));
+    vga_draw_string_trans(dx+28, dy+94, "MC", RGB(200,200,215));
+    vga_draw_string_trans(dx+56, dy+88, "This Mac", RGB(255,255,255));
+    vga_draw_string_trans(dx+56, dy+106, "Built-in display", RGB(190,220,255));
+    vga_draw_hline(dx+16, dy+144, dw-32, RGB(52,52,68));
+    vga_draw_string_trans(dx+16, dy+166, "No AirPlay receivers found", RGB(200,200,215));
+    vga_draw_string_trans(dx+16, dy+184, "Discovery service unavailable", RGB(145,145,165));
     int by3=dy+dh-38; vga_draw_hline(dx, by3, dw, RGB(62,62,76));
-    vga_draw_string_trans(dx+16, by3+12, "Mirror Screen", RGB(0,122,255));
+    vga_draw_string_trans(dx+16, by3+12, "AirPlay unavailable", RGB(140,140,155));
     vga_draw_string_trans(dx+dw-52, by3+12, "Done", RGB(0,122,255));
+}
+
+/* Returns 1 if click consumed, 0 otherwise */
+int new_overlays_click(int mx, int my) {
+    #define HIT(x,y,w2,h2) (mx>=(x)&&mx<(x)+(w2)&&my>=(y)&&my<(y)+(h2))
+    #define HITR(cx2,cy2,r2) (((mx-(cx2))*(mx-(cx2))+(my-(cy2))*(my-(cy2)))<=(r2)*(r2))
+
+    /* Crash Reporter */
+    if (g_crash_visible) {
+        int dw=460, dh=200;
+        int dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) return 0;
+        int by2=dy+dh-44;
+        if (HIT(dx+dw-110, by2, 90, 30)) { g_crash_visible=0; return 1; }
+        return 1;
+    }
+
+    /* System Update */
+    if (g_update_visible) {
+        int dw=520, dh=360, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_update_visible=0; return 1; }
+        int by2=dy+dh-50;
+        if (HIT(dx+dw-110, by2, 90, 32)) { g_update_visible=0; return 1; }
+        return 1;
+    }
+
+    /* Focus Filter */
+    if (g_focus_filter_visible) {
+        int dw=480, dh=380, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_focus_filter_visible=0; return 1; }
+        int t2; for(t2=0;t2<4;t2++){
+            if (HIT(dx+20+t2*112, dy+56, 100, 28)) { g_focus_filter_mode=t2; return 1; }
+        }
+        int by2=dy+dh-44;
+        if (HIT(dx+20, by2, 80, 30)) { g_focus_filter_visible=0; return 1; }
+        if (HIT(dx+dw-100, by2, 80, 30)) { g_focus_filter_visible=0; toast_show("Focus Filters","Applied",RGB(100,65,165)); return 1; }
+        return 1;
+    }
+
+    /* iCloud */
+    if (g_icloud_visible) {
+        int dw=380, dh=320, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_icloud_visible=0; return 1; }
+        int by2=dy+dh-40;
+        if (HIT(dx+dw-100, by2-5, 80, 26)) { g_icloud_visible=0; return 1; }
+        return 1;
+    }
+
+    /* Bluetooth */
+    if (g_bt_visible) {
+        int dw=400, dh=320, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_bt_visible=0; return 1; }
+        int by2=dy+dh-42;
+        if (HIT(dx+20, by2, 80, 28)) { g_bt_visible=0; return 1; }
+        if (HIT(dx+dw-100, by2, 80, 28)) { g_bt_visible=0; return 1; }
+        return 1;
+    }
+
+    /* Keyboard Shortcuts */
+    if (g_kbshort_visible) {
+        int dw=570, dh=450, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_kbshort_visible=0; return 1; }
+        if (g_kbshort_page>0 && HIT(dx+20,dy+dh-36,70,24)) { g_kbshort_page--; return 1; }
+        if (g_kbshort_page<2 && HIT(dx+dw-90,dy+dh-36,70,24)) { g_kbshort_page++; return 1; }
+        if (g_kbshort_page==2 && HIT(dx+dw-90,dy+dh-36,70,24)) { g_kbshort_visible=0; return 1; }
+        return 1;
+    }
+
+    /* Time Machine */
+    if (g_timemachine_visible) {
+        int dw=480, dh=350, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_timemachine_visible=0; return 1; }
+        int by2=dy+dh-44;
+        if (HIT(dx+20, by2, 150, 28)) { toast_show("Time Machine","Backup service unavailable",RGB(120,120,140)); return 1; }
+        if (HIT(dx+dw-100, by2, 80, 28)) { g_timemachine_visible=0; return 1; }
+        return 1;
+    }
+
+    /* Color Meter */
+    if (g_colormeter_visible) {
+        g_colormeter_visible=0; return 1;
+    }
+
+    /* Notification History */
+    if (g_notifhist_visible) {
+        int dw=340, dh=460, dx=VGA_WIDTH-dw-8, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_notifhist_visible=0; return 1; }
+        int by2=dy+dh-42;
+        if (HIT(dx+20, by2+8, 80, 20)) { toast_show("Notifications","No history to clear",RGB(100,100,120)); return 1; }
+        if (HIT(dx+dw-100, by2+8, 80, 26)) { g_notifhist_visible=0; return 1; }
+        return 1;
+    }
+
+    /* WiFi Panel */
+    if (g_wifi_visible) {
+        int dw=340, dh=380, dx=VGA_WIDTH-dw-12, dy=28;
+        if (!HIT(dx,dy,dw,dh)) { g_wifi_visible=0; return 1; }
+        if (HIT(dx+16, dy+28, dw-32, 20) || HIT(dx+12, dy+80, dw-24, 210)) {
+            toast_show("Wi-Fi","Wireless interface unavailable",RGB(150,150,165));
+            return 1;
+        }
+        int by2=dy+dh-38;
+        if (HIT(dx+dw-72, by2, 72, 20)) { g_wifi_visible=0; return 1; }
+        return 1;
+    }
+
+    /* Display Settings */
+    if (g_display_visible) {
+        int dw=480, dh=380, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_display_visible=0; return 1; }
+        int by3=dy+dh-44;
+        if (HIT(dx+dw-100, by3, 80, 28)) { g_display_visible=0; return 1; }
+        int bry=dy+68;
+        int bx=dx+140, bw=dw-170;
+        if (HIT(bx, bry, bw, 16)) { g_display_brightness=(mx-bx)*100/bw; if(g_display_brightness>100)g_display_brightness=100; if(g_display_brightness<0)g_display_brightness=0; return 1; }
+        return 1;
+    }
+
+    /* Sound Settings */
+    if (g_sound_visible) {
+        int dw=460, dh=360, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_sound_visible=0; return 1; }
+        int by3=dy+dh-44;
+        if (HIT(dx+dw-100, by3, 80, 28)) { g_sound_visible=0; return 1; }
+        int sy=dy+64;
+        int vx=dx+178, vw=dw-210;
+        if (HIT(vx, sy, vw, 16)) { g_sound_volume=(mx-vx)*100/vw; if(g_sound_volume>100)g_sound_volume=100; if(g_sound_volume<0)g_sound_volume=0; return 1; }
+        return 1;
+    }
+
+    /* Activity Monitor */
+    if (g_actmon_visible) {
+        int dw=580, dh=420, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_actmon_visible=0; return 1; }
+        if (HIT(dx+dw-100, dy+dh-36, 80, 26)) { g_actmon_visible=0; return 1; }
+        return 1;
+    }
+
+    /* FaceTime */
+    if (g_facetime_visible) {
+        int dw=360, dh=280, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) return 0;
+        int btn_y=dy+dh-70;
+        if (HITR(dx+dw/2-80, btn_y+20, 28)) { g_facetime_visible=0; return 1; }
+        if (HITR(dx+dw/2+80, btn_y+20, 28)) { toast_show("FaceTime","Call service unavailable",RGB(80,80,100)); return 1; }
+        return 1;
+    }
+
+    /* Privacy */
+    if (g_privacy_visible) {
+        int dw=500, dh=400, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_privacy_visible=0; return 1; }
+        int ti; for(ti=0;ti<4;ti++){
+            if (HIT(dx+16+ti*120, dy+56, 112, 26)) { g_privacy_tab=ti; return 1; }
+        }
+        if (HIT(dx+dw-100, dy+dh-44, 80, 28)) { g_privacy_visible=0; return 1; }
+        return 1;
+    }
+
+    /* Reminders */
+    if (g_reminders_visible) {
+        int dw=460, dh=420, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_reminders_visible=0; return 1; }
+        if (g_reminders_list==0) {
+            int li; for(li=0;li<7;li++) {
+                if (HIT(dx+16, dy+56+li*46, dw-32, 38)) { g_reminders_list=1; return 1; }
+            }
+            int by3=dy+dh-46;
+            if (HIT(dx+20, by3+9, 120, 28)) { toast_show("Reminders","List creation unavailable",RGB(120,120,140)); return 1; }
+        } else {
+            if (HIT(dx+20, dy+60, 60, 16)) { g_reminders_list=0; return 1; }
+            int by3=dy+dh-46;
+            if (HIT(dx+20, by3+9, 120, 28)) { toast_show("Reminders","Reminder creation unavailable",RGB(120,120,140)); return 1; }
+            if (HIT(dx+dw-90, by3+9, 70, 28)) { g_reminders_list=0; return 1; }
+        }
+        return 1;
+    }
+
+    /* Calendar */
+    if (g_calendar_visible) {
+        int dw=500, dh=420, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+        if (!HIT(dx,dy,dw,dh)) { g_calendar_visible=0; return 1; }
+        if (g_calendar_year < 1) {
+            datetime_t now_dt;
+            get_current_datetime(&now_dt);
+            g_calendar_year = now_dt.year;
+            g_calendar_month = now_dt.month - 1;
+        }
+        if (HIT(dx+16, dy+8, 24, 24)) {
+            if (--g_calendar_month < 0) { g_calendar_month=11; g_calendar_year--; }
+            return 1;
+        }
+        if (HIT(dx+dw-24, dy+8, 24, 24)) {
+            if (++g_calendar_month > 11) { g_calendar_month=0; g_calendar_year++; }
+            return 1;
+        }
+        if (HIT(dx+(dw-16*8)/2, dy+dh-38, 16*8, 20)) { toast_show("Calendar","Event creation unavailable",RGB(120,120,140)); return 1; }
+        return 1;
+    }
+
+    /* AirPlay */
+    if (g_airplay_visible) {
+        int dw=280, dh=320, dx=VGA_WIDTH-dw-12, dy=28;
+        if (!HIT(dx,dy,dw,dh)) { g_airplay_visible=0; return 1; }
+        int by3=dy+dh-38;
+        if (HIT(dx+16, by3, 150, 20)) { toast_show("AirPlay","AirPlay unavailable",RGB(120,120,140)); return 1; }
+        if (HIT(dx+dw-52, by3, 52, 20)) { g_airplay_visible=0; return 1; }
+        if (HIT(dx+12, dy+72, dw-24, 140)) { toast_show("AirPlay","Discovery service unavailable",RGB(120,120,140)); return 1; }
+        return 1;
+    }
+
+    #undef HIT
+    #undef HITR
+    return 0;
 }

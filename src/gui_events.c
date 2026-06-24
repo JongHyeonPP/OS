@@ -57,7 +57,6 @@ static int gui_needs_realtime_frame(void) {
     if (g_wt_visible && g_wt_done == 1) return 1;
     if (g_handoff_visible) return 1;
     if (g_pb_flash_tick > 0) return 1;
-    if (g_appstore_downloading) return 1;
     if (g_brk_active || g_pong_active || g_snake_active) return 1;
     { int bi; for (bi=0; bi<NUM_DOCK_ICONS; bi++) if (g_dock_bounce[bi]>0) return 1; }
     { int wi; for (wi=0; wi<g_num_windows; wi++) if (g_win_close_anim[wi]>0) return 1; }
@@ -182,6 +181,16 @@ void gui_run(void) {
             }
             /* Unlock lock screen */
             if (g_locked) { g_locked = 0; dirty = 1; goto end_left_press; }
+            /* New overlay click handlers */
+            if (new_overlays_click(mx, my)) { dirty=1; goto end_left_press; }
+            /* New overlay click handlers */
+            if (new_overlays_click(mx, my)) { dirty=1; goto end_left_press; }
+            /* New overlay click handlers */
+            if (new_overlays_click(mx, my)) { dirty=1; goto end_left_press; }
+            /* New overlay click handlers */
+            if (new_overlays_click(mx, my)) { dirty=1; goto end_left_press; }
+            /* Overlay click handlers */
+            if (new_overlays_click(mx, my)) { dirty=1; goto end_left_press; }
             /* Toast action buttons */
             if (g_toast_visible) {
                 int ttx = VGA_WIDTH - TOAST_W - 10;
@@ -1648,30 +1657,27 @@ void gui_run(void) {
                 }
                 break;
             }
-            /* App Store GET button clicks */
+            /* App Store action buttons */
             for (i = 0; i < g_num_windows; i++) {
                 gui_window_t *w = &g_windows[i];
                 if (!w->visible || !w->title || !str_eq(w->title,"App Store")) continue;
                 if (i != top_win_idx) continue;
                 int cy_as = w->y+TITLEBAR_H+1;
-                int ch_as = w->h-TITLEBAR_H-19;
-                int aw_as = (w->w-12)/2, ah_as = 44;
-                int cr_as = cy_as + 28 + 60;
+                int feat_cols_as = (w->w > 320) ? 3 : 2;
+                int faw_as = (w->w-8)/feat_cols_as - 4;
+                int fah_as = 62;
+                int feature_y_as = cy_as + 28 + 4 + 26 + 80 + 8 + 14;
                 int ai2;
-                for (ai2=0;ai2<4;ai2++) {
-                    int ac2=ai2%2, ar2=ai2/2;
-                    int ax2=w->x+4+ac2*(aw_as+4), ay2=cr_as+ar2*(ah_as+4);
-                    int btn_x2=ax2+aw_as-34, btn_y2=ay2+12;
-                    if (mx>=btn_x2 && mx<btn_x2+28 && my>=btn_y2 && my<btn_y2+16) {
-                        if (!(g_appstore_downloading & (1<<ai2))) {
-                            g_appstore_downloading |= (1<<ai2);
-                            g_appstore_dl_tick[ai2] = timer_ticks();
-                            toast_show("App Store","Downloading...",RGB(0,122,255));
-                        }
+                for (ai2=0;ai2<6;ai2++) {
+                    int ac2=ai2%feat_cols_as, ar2=ai2/feat_cols_as;
+                    int ax2=w->x+4+ac2*(faw_as+4), ay2=feature_y_as+ar2*(fah_as+4);
+                    int btn_x2=ax2+faw_as-36, btn_y2=ay2+fah_as-22;
+                    if (ay2 + fah_as > w->y+w->h-19-6) break;
+                    if (mx>=btn_x2 && mx<btn_x2+32 && my>=btn_y2 && my<btn_y2+14) {
+                        toast_show("App Store","Download service unavailable",RGB(120,120,130));
                         dirty=1; goto end_left_press;
                     }
                 }
-                (void)ch_as;
             }
             /* Calculator button clicks */
             for (i = 0; i < g_num_windows; i++) {
@@ -2457,6 +2463,15 @@ void gui_run(void) {
                     } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
                     } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
                     } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
+                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
+                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
+                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
+                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
+                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
+                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
+                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
+                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
+                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
                     } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
                     } else if (g_update_visible) { g_update_visible=0; dirty=1;
                     } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
@@ -2471,6 +2486,82 @@ void gui_run(void) {
                     } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
                     } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
                     } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
+                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
+                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
+                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
+                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
+                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
+                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
+                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
+                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
+                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
+                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
+                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
+                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
+                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
+                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
+                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
+                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
+                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
+                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
+                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
+                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
+                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
+                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
+                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
+                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
+                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
+                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
+                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
+                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
+                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
+                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
+                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
+                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
+                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
+                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
+                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
+                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
+                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
+                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
+                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
+                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
+                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
+                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
+                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
+                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
+                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
+                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
+                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
+                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
+                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
+                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
+                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
+                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
+                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
+                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
+                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
+                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
+                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
+                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
+                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
+                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
+                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
+                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
+                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
+                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
+                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
+                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
+                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
+                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
+                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
+                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
+                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
+                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
+                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
+                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
+                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
+                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
                     } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
                     } else if (g_update_visible) { g_update_visible=0; dirty=1;
                     } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;

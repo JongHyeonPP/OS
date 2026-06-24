@@ -2685,26 +2685,9 @@ int draw_apps_group1(int idx) {
             /* Stars */
             { int si3; for(si3=0;si3<feat_apps[fi].rating&&si3<5;si3++)
                   vga_draw_char_trans(fax+48+si3*8, fay+34, '*', RGB(255,180,0)); }
-            /* Price / GET button */
-            if (g_appstore_downloading & (1<<fi)) {
-                uint32_t el = timer_ticks() - g_appstore_dl_tick[fi];
-                int pr = (int)(el*100/3000); if(pr>100)pr=100;
-                if (pr>=100) {
-                    g_appstore_downloading &= ~(1<<fi);
-                    gui_draw_rounded_rect(fax+faw-34, fay+fah-22, 30, 14, 3, RGB(52,199,89));
-                    vga_draw_string_trans(fax+faw-28, fay+fah-19, "OPEN", RGB(255,255,255));
-                } else {
-                    vga_fill_rect(fax+faw-36, fay+fah-20, 30, 10, as_sep);
-                    vga_fill_rect(fax+faw-36, fay+fah-20, pr*30/100, 10, RGB(0,122,255));
-                    gui_draw_rounded_rect_outline(fax+faw-36, fay+fah-20, 30, 10, 3, RGB(0,122,255));
-                }
-            } else {
-                gui_draw_rounded_rect(fax+faw-36, fay+fah-22, 32, 14, 7, RGB(0,122,255));
-                if (feat_apps[fi].price[0]=='F')
-                    vga_draw_string_trans(fax+faw-30, fay+fah-19, "GET", RGB(255,255,255));
-                else
-                    vga_draw_string_trans(fax+faw-34, fay+fah-19, feat_apps[fi].price, RGB(255,255,255));
-            }
+            /* Store actions are visible but disabled until an install backend exists. */
+            gui_draw_rounded_rect(fax+faw-36, fay+fah-22, 32, 14, 7, as_sep);
+            vga_draw_string_trans(fax+faw-30, fay+fah-19, "N/A", as_sub);
         }
         return 1;
     }
