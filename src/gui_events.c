@@ -18,6 +18,39 @@ static int gui_top_window_named(const char *title) {
            str_eq(g_windows[top].title, title);
 }
 
+static void textedit_clear_selection(void) {
+    g_edit_sel_start = 0;
+    g_edit_sel_end = 0;
+}
+
+static int textedit_selection_bounds(int *start, int *end) {
+    int s = g_edit_sel_start;
+    int e = g_edit_sel_end;
+    if (s < 0) s = 0;
+    if (e < 0) e = 0;
+    if (s > g_edit_len) s = g_edit_len;
+    if (e > g_edit_len) e = g_edit_len;
+    if (e < s) {
+        int tmp = s;
+        s = e;
+        e = tmp;
+    }
+    if (e <= s) return 0;
+    *start = s;
+    *end = e;
+    return 1;
+}
+
+static int textedit_delete_selection(void) {
+    int s, e, k;
+    if (!textedit_selection_bounds(&s, &e)) return 0;
+    for (k = e; k <= g_edit_len; k++)
+        g_edit_text[s + k - e] = g_edit_text[k];
+    g_edit_len -= (e - s);
+    textedit_clear_selection();
+    return 1;
+}
+
 static int gui_needs_realtime_frame(void) {
     if (g_saver_on || g_toast_visible || g_tile_flash > 0) return 1;
     if (g_siri_visible) return 1;
@@ -1651,7 +1684,7 @@ void gui_run(void) {
                     g_edit_color = (g_edit_color + 1) % 4; dirty=1; goto end_left_press;
                 }
                 /* Click on text area = focus */
-                if (my > tby2+22) { g_edit_focused = 1; dirty=1; goto end_left_press; }
+                if (my > tby2+22) { g_edit_focused = 1; textedit_clear_selection(); dirty=1; goto end_left_press; }
             }
             /* Music window button clicks */
             for (i = 0; i < g_num_windows; i++) {
@@ -1954,7 +1987,14 @@ void gui_run(void) {
         }
 
         /* Left release */
+        int released_drag_idx = -1;
         if (!(mb & MOUSE_LEFT) && (prev_btn & MOUSE_LEFT)) {
+            for (i = 0; i < g_num_windows; i++) {
+                if (g_windows[i].visible && g_windows[i].dragging && !g_windows[i].resizing) {
+                    released_drag_idx = i;
+                    break;
+                }
+            }
             for (i = 0; i < g_num_buttons; i++) {
                 if (g_buttons[i].pressed) {
                     if (g_buttons[i].win_idx >= -1 &&
@@ -2020,28 +2060,28 @@ void gui_run(void) {
             }
         }
 
-        /* Window snapping: released at left/right edge → snap to half-screen */
-        if (!(mb & MOUSE_LEFT) && (prev_btn & MOUSE_LEFT)) {
-            for (i = 0; i < g_num_windows; i++) {
-                gui_window_t *w = &g_windows[i];
-                if (!w->visible || w->maximized) continue;
-                /* Was dragging AND released near left/right edge */
-                if (w->x <= 2 && w->y <= MENUBAR_H + 4) {
+        /* Window snapping: cursor at screen edge on drag release → tile */
+        if (!(mb & MOUSE_LEFT) && (prev_btn & MOUSE_LEFT) && released_drag_idx >= 0) {
+            gui_window_t *w = &g_windows[released_drag_idx];
+            if (w->visible && !w->maximized) {
+                int snap_h = DOCK_Y - MENUBAR_H;
+                if (mx < 28) {
                     /* Snap to left half */
-                    if (!w->maximized) {
-                        w->orig_x=w->x; w->orig_y=w->y; w->orig_w=w->w; w->orig_h=w->h;
-                        w->x=0; w->y=MENUBAR_H;
-                        w->w=VGA_WIDTH/2; w->h=DOCK_Y-MENUBAR_H;
-                        dirty=1;
-                    }
-                } else if (w->x + w->w >= VGA_WIDTH - 2 && w->y <= MENUBAR_H + 4) {
+                    w->orig_x=w->x; w->orig_y=w->y; w->orig_w=w->w; w->orig_h=w->h;
+                    w->x=0; w->y=MENUBAR_H; w->w=VGA_WIDTH/2; w->h=snap_h;
+                    w->maximized=0;
+                    dirty=1;
+                } else if (mx > VGA_WIDTH - 28) {
                     /* Snap to right half */
-                    if (!w->maximized) {
-                        w->orig_x=w->x; w->orig_y=w->y; w->orig_w=w->w; w->orig_h=w->h;
-                        w->x=VGA_WIDTH/2; w->y=MENUBAR_H;
-                        w->w=VGA_WIDTH/2; w->h=DOCK_Y-MENUBAR_H;
-                        dirty=1;
-                    }
+                    w->orig_x=w->x; w->orig_y=w->y; w->orig_w=w->w; w->orig_h=w->h;
+                    w->x=VGA_WIDTH/2; w->y=MENUBAR_H; w->w=VGA_WIDTH/2; w->h=snap_h;
+                    w->maximized=0;
+                    dirty=1;
+                } else if (my < MENUBAR_H + 8) {
+                    /* Snap to full screen */
+                    w->orig_x=w->x; w->orig_y=w->y; w->orig_w=w->w; w->orig_h=w->h;
+                    w->x=0; w->y=MENUBAR_H; w->w=VGA_WIDTH; w->h=snap_h;
+                    w->maximized=1; dirty=1;
                 }
             }
         }
@@ -2128,7 +2168,15 @@ void gui_run(void) {
                     }
                     dirty = 1; ch = keyboard_poll(); continue;
                 }
-                if (g_saver_on) { g_saver_on = 0; dirty = 1; ch = keyboard_poll(); continue; }
+                if (g_saver_on) {
+                    if (ch == ' ') {
+                        /* Space cycles screensaver mode instead of waking */
+                        g_saver_mode = (g_saver_mode + 1) % 3;
+                    } else {
+                        g_saver_on = 0;
+                    }
+                    dirty = 1; ch = keyboard_poll(); continue;
+                }
                 /* Mail compose pre-chain */
                 if (g_mail_compose && g_mail_focused_field > 0 && ch != KEY_ESC) {
                     char *mfld = NULL; int *mlen = NULL; int mmax = 0;
@@ -3220,10 +3268,43 @@ void gui_run(void) {
                         else dirty = 1;
                     }
                 } else if (ch == '\t') {
-                    /* Tab = toggle Spotlight */
-                    g_spot_visible = !g_spot_visible;
-                    g_spot_qlen = 0; g_spot_query[0] = 0; g_spot_sel = 0;
-                    dirty = 1;
+                    /* Tab completion in Terminal, else toggle Spotlight */
+                    if (!g_edit_focused && !g_safari_url_focused && gui_top_window_named("Terminal") && term_input_len > 0) {
+                        /* Complete to first matching command */
+                        static const char *cmds[] = {
+                            "ls","ls -la","ls -a","pwd","date","uptime","uname","uname -a",
+                            "whoami","hostname","ps","top","htop","df","free","dmesg",
+                            "sysinfo","neofetch","ifconfig","netstat","route","ip a",
+                            "sw_vers","diskutil list","lsblk","lscpu","lscpu",
+                            "git status","make","brew","python3","node","ssh","curl",
+                            "caffeinate","launchctl list","arch","env","history","alias",
+                            "help","clear","exit","gui","reboot","shutdown","banner","fortune",
+                            NULL
+                        };
+                        int ci3;
+                        for (ci3=0; cmds[ci3]; ci3++) {
+                            int match=1, ti3;
+                            for (ti3=0; ti3<term_input_len; ti3++) {
+                                if (!cmds[ci3][ti3] || cmds[ci3][ti3]!=term_input[ti3]) { match=0; break; }
+                            }
+                            if (match && str_len(cmds[ci3]) > term_input_len) {
+                                /* Complete to this command */
+                                int fi3;
+                                for (fi3=0; cmds[ci3][fi3]; fi3++) {
+                                    term_input[fi3] = cmds[ci3][fi3];
+                                }
+                                term_input_len = fi3;
+                                term_input[fi3] = 0;
+                                dirty = 1;
+                                break;
+                            }
+                        }
+                    } else {
+                        /* Tab = toggle Spotlight */
+                        g_spot_visible = !g_spot_visible;
+                        g_spot_qlen = 0; g_spot_query[0] = 0; g_spot_sel = 0;
+                        dirty = 1;
+                    }
                 } else if (g_siri_visible) {
                     /* Siri input */
                     if (ch == KEY_ESC || ch == 0x1B) {
@@ -3401,15 +3482,20 @@ void gui_run(void) {
                 } else if (g_edit_focused && gui_top_window_named("TextEdit")) {
                     /* TextEdit input */
                     if (ch == KEY_BACKSPACE) {
-                        if (g_edit_len > 0) g_edit_text[--g_edit_len] = 0;
+                        if (!textedit_delete_selection() && g_edit_len > 0)
+                            g_edit_text[--g_edit_len] = 0;
                     } else if (ch == KEY_ENTER) {
+                        textedit_delete_selection();
                         if (g_edit_len < TEXTEDIT_MAXCHARS - 1) {
                             g_edit_text[g_edit_len++] = '\n';
                             g_edit_text[g_edit_len] = 0;
                         }
-                    } else if (ch >= 0x20 && ch < 0x7F && g_edit_len < TEXTEDIT_MAXCHARS - 1) {
-                        g_edit_text[g_edit_len++] = (char)ch;
-                        g_edit_text[g_edit_len] = 0;
+                    } else if (ch >= 0x20 && ch < 0x7F) {
+                        textedit_delete_selection();
+                        if (g_edit_len < TEXTEDIT_MAXCHARS - 1) {
+                            g_edit_text[g_edit_len++] = (char)ch;
+                            g_edit_text[g_edit_len] = 0;
+                        }
                     }
                     dirty = 1;
                 } else if (gui_top_window_named("Calculator")) {

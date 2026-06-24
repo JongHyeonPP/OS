@@ -1018,6 +1018,17 @@ int draw_apps_group1(int idx) {
         /* Draw text with word-wrap at character level */
         {
             int cx = wx, cy = wy, j2 = 0;
+            int sel_start = g_edit_sel_start;
+            int sel_end = g_edit_sel_end;
+            if (sel_start < 0) sel_start = 0;
+            if (sel_end < 0) sel_end = 0;
+            if (sel_start > g_edit_len) sel_start = g_edit_len;
+            if (sel_end > g_edit_len) sel_end = g_edit_len;
+            if (sel_end < sel_start) {
+                int stmp = sel_start;
+                sel_start = sel_end;
+                sel_end = stmp;
+            }
             /* Compute current length if not yet */
             if (g_edit_len == 0) {
                 while (g_edit_text[g_edit_len]) g_edit_len++;
@@ -1030,10 +1041,15 @@ int draw_apps_group1(int idx) {
                     if (c == '\n') { j2++; continue; }
                 }
                 uint32_t tcol = (g_edit_color > 0 && g_edit_color < 4) ? txt_colors[g_edit_color] : (g_pref_darkmode?RGB(220,220,224):COLOR_TEXT);
+                int char_w = (g_edit_font_size == 2) ? 10 : 8;
+                if (j2 >= sel_start && j2 < sel_end) {
+                    vga_fill_rect(cx, cy-1, char_w, lh, RGB(0,122,255));
+                    tcol = RGB(255,255,255);
+                }
                 vga_draw_char_trans(cx, cy, c, tcol);
                 if (g_edit_bold) vga_draw_char_trans(cx+1, cy, c, tcol);
                 if (g_edit_italic) vga_draw_char_trans(cx, cy+1, c, tcol);
-                cx += (g_edit_font_size == 2) ? 10 : 8; j2++;
+                cx += char_w; j2++;
             }
             /* Blinking cursor at end */
             if (g_edit_focused && idx == win_top_visible()) {

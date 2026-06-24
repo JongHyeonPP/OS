@@ -4,6 +4,10 @@
 
 static int32_t calc_clamp_i64(int64_t v);
 static int32_t calc_apply_op(int32_t a, int32_t b, char op);
+static int spot_unit_convert(const char *q, int qlen, char *out, int out_max);
+
+static char s_textedit_clipboard[TEXTEDIT_MAXCHARS];
+static int  s_textedit_clip_len;
 
 static void overlay_append_text(char *buf, int *pos, int max, const char *text) {
     int i = 0;
@@ -1198,8 +1202,15 @@ void spotlight_draw(void) {
         }
     }
 
+    /* Unit conversion (e.g. "100 km in miles") */
+    int unit_valid = 0;
+    char unit_result[48]; unit_result[0] = 0;
+    if (!calc_valid && g_spot_qlen >= 5) {
+        unit_valid = spot_unit_convert(g_spot_query, g_spot_qlen, unit_result, 47);
+    }
+
     /* Clamp selection */
-    int total_items = n_results + (calc_valid?1:0) + (g_spot_qlen>0?1:0); /* +1 web search */
+    int total_items = n_results + (calc_valid?1:0) + (unit_valid?1:0) + (g_spot_qlen>0?1:0); /* +1 web search */
     if (g_spot_sel < 0) g_spot_sel = 0;
     if (g_spot_sel >= total_items && total_items > 0) g_spot_sel = total_items - 1;
 
@@ -1211,7 +1222,9 @@ void spotlight_draw(void) {
     } else if (n_results > 0 || calc_valid) {
         /* Top Hit row: 52, then remaining rows 28 each, then web search 28 */
         int remaining = (n_results > 1) ? (n_results - 1) : 0;
-        panel_extra = 8 + 52 + (remaining > 0 ? 6 + remaining*28 : 0) + (calc_valid ? 28 : 0) + 32; /* web */
+        panel_extra = 8 + 52 + (remaining > 0 ? 6 + remaining*28 : 0) + (calc_valid ? 28 : 0) + (unit_valid ? 28 : 0) + 32; /* web */
+    } else if (unit_valid) {
+        panel_extra = 8 + 28 + 32; /* unit + web */
     } else if (g_spot_qlen > 0) {
         panel_extra = 36; /* just web search */
     }
@@ -1364,6 +1377,27 @@ void spotlight_draw(void) {
             resbuf[ri3]=0;
             vga_draw_string_trans(sx+38, ry+4, resbuf, ctxt);
             vga_draw_string_trans(sx+38, ry+16, "Calculator", csub);
+            ry += 28;
+            global_idx++;
+        }
+
+        /* Unit Conversion row */
+        if (unit_valid) {
+            int is_sel = (g_spot_sel == global_idx);
+            if (is_sel)
+                gui_draw_rounded_rect(sx+4, ry-2, SPOTLIGHT_W-8, 30, 4, RGB(0,122,255));
+            uint32_t utxt = is_sel ? RGB(255,255,255) : RGB(20,20,30);
+            uint32_t usub = is_sel ? RGB(200,225,255) : RGB(140,140,140);
+            if (n_results == 0 && !calc_valid) {
+                vga_draw_string_trans(sx+12, ry-4, "CONVERSION", RGB(130,130,140));
+                ry += 10;
+            } else {
+                vga_draw_hline(sx+8, ry-2, SPOTLIGHT_W-16, RGB(215,215,220));
+            }
+            vga_fill_rect(sx+12, ry+1, 20, 20, RGB(0,190,140));
+            vga_draw_string_trans(sx+14, ry+5, "->", RGB(255,255,255));
+            vga_draw_string_trans(sx+38, ry+4, unit_result, utxt);
+            vga_draw_string_trans(sx+38, ry+16, "Conversion", usub);
             ry += 28;
             global_idx++;
         }
@@ -1592,9 +1626,9 @@ const char *g_menubar_titles[N_MENUS] = {
 const char *g_menu_items[N_MENUS][MAX_MENU_ITEMS] = {
     { "About MyOS", "---", "Settings...", "---", "Lock Screen", "---", "Restart...", "Shut Down...", NULL },
     { "New Window", "Close Window", "---", "Get Info", "---", "Print...", "Share...", NULL, NULL, NULL },
-    { "Undo", "---", "Cut", "Copy", "Paste", NULL },
+    { NULL },
     { "Finder", "Terminal", "Calculator", "Clock", "TextEdit", NULL },
-    { "Bring All to Front", NULL },
+    { NULL },
     { "Quick Help", "---", "About MyOS", NULL }
 };
 
@@ -1622,20 +1656,16 @@ static const char *menu_shortcut(const char *label) {
     if (str_eq(label, "Quit"))         return "^Q";
     if (str_eq(label, "New Window"))   return "^N";
     if (str_eq(label, "Close Window")) return "^W";
-    if (str_eq(label, "Undo"))         return "^Z";
-    if (str_eq(label, "Redo"))         return "^Y";
     if (str_eq(label, "Cut"))          return "^X";
     if (str_eq(label, "Copy"))         return "^C";
     if (str_eq(label, "Paste"))        return "^V";
     if (str_eq(label, "Select All"))   return "^A";
-    if (str_eq(label, "Find"))         return "^F";
     if (str_eq(label, "Get Info"))     return "^I";
     if (str_eq(label, "Settings..."))  return "^,";
     if (str_eq(label, "Print..."))     return "^P";
     if (str_eq(label, "Share..."))     return "^S";
     if (str_eq(label, "New Tab"))      return "^T";
     if (str_eq(label, "Reload Page"))  return "^R";
-    if (str_eq(label, "New Note"))     return "^N";
     if (str_eq(label, "Play"))         return "^P";
     if (str_eq(label, "Next"))         return "^]";
     if (str_eq(label, "Previous"))     return "^[";
@@ -1701,22 +1731,82 @@ int dropdown_hit(int mx, int my) {
     return item;
 }
 
+static void textedit_clear_selection_overlay(void) {
+    g_edit_sel_start = 0;
+    g_edit_sel_end = 0;
+}
+
+static int textedit_selection_bounds_overlay(int *start, int *end) {
+    int s = g_edit_sel_start;
+    int e = g_edit_sel_end;
+    if (s < 0) s = 0;
+    if (e < 0) e = 0;
+    if (s > g_edit_len) s = g_edit_len;
+    if (e > g_edit_len) e = g_edit_len;
+    if (e < s) {
+        int tmp = s;
+        s = e;
+        e = tmp;
+    }
+    if (e <= s) return 0;
+    *start = s;
+    *end = e;
+    return 1;
+}
+
+static int textedit_delete_selection_overlay(void) {
+    int s, e, k;
+    if (!textedit_selection_bounds_overlay(&s, &e)) return 0;
+    for (k = e; k <= g_edit_len; k++)
+        g_edit_text[s + k - e] = g_edit_text[k];
+    g_edit_len -= (e - s);
+    textedit_clear_selection_overlay();
+    return 1;
+}
+
+static int textedit_copy_selection_overlay(void) {
+    int s, e, k;
+    if (!textedit_selection_bounds_overlay(&s, &e)) return 0;
+    s_textedit_clip_len = e - s;
+    if (s_textedit_clip_len >= TEXTEDIT_MAXCHARS)
+        s_textedit_clip_len = TEXTEDIT_MAXCHARS - 1;
+    for (k = 0; k < s_textedit_clip_len; k++)
+        s_textedit_clipboard[k] = g_edit_text[s + k];
+    s_textedit_clipboard[s_textedit_clip_len] = 0;
+    return 1;
+}
+
+static int textedit_paste_clipboard_overlay(void) {
+    int k;
+    if (s_textedit_clip_len <= 0) return 0;
+    textedit_delete_selection_overlay();
+    for (k = 0; k < s_textedit_clip_len && g_edit_len < TEXTEDIT_MAXCHARS - 1; k++) {
+        g_edit_text[g_edit_len++] = s_textedit_clipboard[k];
+    }
+    g_edit_text[g_edit_len] = 0;
+    textedit_clear_selection_overlay();
+    return k > 0;
+}
+
 /* Perform action for dropdown item */
 void dropdown_action(int menu_idx, int item_idx) {
     const char *label = g_menu_items[menu_idx][item_idx];
+    int active_idx = win_top_visible();
+    const char *active_title = (active_idx >= 0 && g_windows[active_idx].title) ? g_windows[active_idx].title : NULL;
     /* MyOS menu */
     if (menu_idx == 0) {
         if (str_eq(label, "About MyOS")) {
             int j;
             for (j=0;j<g_num_windows;j++) {
-                if (g_windows[j].title && str_eq(g_windows[j].title,"About MyOS"))
+                if (g_windows[j].title && str_eq(g_windows[j].title,"About This Mac"))
                     { g_windows[j].visible=1; win_bring_to_front(j); return; }
             }
             if (g_num_windows < MAX_WINDOWS) {
                 gui_window_t *aw = &g_windows[g_num_windows];
-                aw->x=280; aw->y=120; aw->w=240; aw->h=200;
-                aw->title="About MyOS"; aw->visible=1; aw->focused=0;
+                aw->x=VGA_WIDTH/2-130; aw->y=VGA_HEIGHT/2-130; aw->w=260; aw->h=260;
+                aw->title="About This Mac"; aw->visible=1; aw->focused=0;
                 aw->dragging=0; aw->maximized=0;
+                aw->space=g_current_space;
                 g_num_windows++;
             }
         } else if (str_eq(label, "Lock Screen")) {
@@ -1741,6 +1831,7 @@ void dropdown_action(int menu_idx, int item_idx) {
                 sw->x=260; sw->y=80; sw->w=280; sw->h=280;
                 sw->title="Settings"; sw->visible=1; sw->focused=0;
                 sw->dragging=0; sw->maximized=0;
+                sw->space=g_current_space;
                 g_num_windows++;
             }
         }
@@ -1750,11 +1841,66 @@ void dropdown_action(int menu_idx, int item_idx) {
         if (str_eq(label, "New Window")) {
             if (g_num_windows < MAX_WINDOWS) {
                 gui_window_t *w = &g_windows[g_num_windows];
-                w->x=250; w->y=120; w->w=240; w->h=180;
-                w->title="Info"; w->visible=1; w->focused=0; w->dragging=0;
+                if (active_title && str_eq(active_title, "Terminal")) {
+                    w->x=100; w->y=100; w->w=290; w->h=220; w->title="Terminal";
+                } else {
+                    w->x=250; w->y=120; w->w=240; w->h=180; w->title="Info";
+                }
+                w->visible=1; w->focused=0; w->dragging=0; w->maximized=0;
+                w->space=g_current_space;
                 g_num_windows++;
             }
-        } else if (str_eq(label, "Close Window")) {
+        } else if (str_eq(label, "New")) {
+            if (active_title && str_eq(active_title, "TextEdit")) {
+                g_edit_text[0] = 0;
+                g_edit_len = 0;
+                textedit_clear_selection_overlay();
+                g_edit_focused = 1;
+            }
+        } else if (str_eq(label, "New Message")) {
+            g_mail_compose = 1;
+            g_mail_focused_field = 1;
+            g_mail_to[0]=0; g_mail_to_len=0;
+            g_mail_subject[0]=0; g_mail_subject_len=0;
+            g_mail_body[0]=0; g_mail_body_len=0;
+        } else if (str_eq(label, "New Event")) {
+            int cy, cm;
+            g_cal_offset = 0;
+            gui_calendar_month_from_offset(0, &cy, &cm);
+            g_cal_sel_day = gui_calendar_today_day_for_month(cy, cm);
+            if (g_cal_sel_day <= 0) g_cal_sel_day = 1;
+            g_cal_popup = 1;
+            g_cal_evt_input[0] = 0;
+            g_cal_evt_input_len = 0;
+        } else if (str_eq(label, "New Tab") && active_title && str_eq(active_title, "Safari")) {
+            safari_normalize_state();
+            if (g_safari_tab_count < SAFARI_MAX_TABS) {
+                str_cpy(g_safari_tab_urls[g_safari_active_tab], g_safari_url);
+                g_safari_active_tab = g_safari_tab_count++;
+                g_safari_tab_urls[g_safari_active_tab][0] = 0;
+                str_cpy(g_safari_tab_titles[g_safari_active_tab], "New Tab");
+                g_safari_url[0] = 0;
+                g_safari_url_focused = 1;
+            }
+        } else if (str_eq(label, "Close Tab") && active_title && str_eq(active_title, "Safari")) {
+            int j;
+            safari_normalize_state();
+            if (g_safari_tab_count > 1) {
+                for (j = g_safari_active_tab; j < g_safari_tab_count - 1; j++) {
+                    str_cpy(g_safari_tab_urls[j], g_safari_tab_urls[j + 1]);
+                    str_cpy(g_safari_tab_titles[j], g_safari_tab_titles[j + 1]);
+                }
+                g_safari_tab_count--;
+                if (g_safari_active_tab >= g_safari_tab_count)
+                    g_safari_active_tab = g_safari_tab_count - 1;
+                str_cpy(g_safari_url, g_safari_tab_urls[g_safari_active_tab]);
+            } else {
+                str_cpy(g_safari_url, "about:home");
+                str_cpy(g_safari_tab_urls[0], g_safari_url);
+                str_cpy(g_safari_tab_titles[0], "Home");
+                g_safari_url_focused = 0;
+            }
+        } else if (str_eq(label, "Close Window") || str_eq(label, "Close")) {
             /* Close topmost window */
             win_close(win_top_visible());
         } else if (str_eq(label, "Get Info")) {
@@ -1778,23 +1924,27 @@ void dropdown_action(int menu_idx, int item_idx) {
             gui_window_t *nw=&g_windows[g_num_windows];
             nw->x=180;nw->y=100;nw->w=220;nw->h=280;
             nw->title="Calculator";nw->visible=1;nw->focused=0;nw->dragging=0;nw->maximized=0;
+            nw->space=g_current_space;
             g_num_windows++;
         } else if (str_eq(label,"Clock") && g_num_windows<MAX_WINDOWS) {
             gui_window_t *nw=&g_windows[g_num_windows];
             nw->x=50;nw->y=80;nw->w=180;nw->h=220;
             nw->title="Clock";nw->visible=1;nw->focused=0;nw->dragging=0;nw->maximized=0;
+            nw->space=g_current_space;
             g_num_windows++;
             toast_show("Clock", "Analog & digital time", RGB(0,122,255));
         } else if (str_eq(label,"TextEdit") && g_num_windows<MAX_WINDOWS) {
             gui_window_t *nw=&g_windows[g_num_windows];
             nw->x=120;nw->y=80;nw->w=310;nw->h=260;
             nw->title="TextEdit";nw->visible=1;nw->focused=0;nw->dragging=0;nw->maximized=0;
+            nw->space=g_current_space;
             g_edit_focused=1;
             g_num_windows++;
         } else if (str_eq(label,"Terminal") && g_num_windows<MAX_WINDOWS) {
             gui_window_t *nw=&g_windows[g_num_windows];
             nw->x=100;nw->y=100;nw->w=290;nw->h=220;
             nw->title="Terminal";nw->visible=1;nw->focused=0;nw->dragging=0;nw->maximized=0;
+            nw->space=g_current_space;
             g_num_windows++;
         } else if (str_eq(label,"Finder") && g_num_windows<MAX_WINDOWS) {
             /* Finder is always already open; just bring to front */
@@ -1820,6 +1970,7 @@ void dropdown_action(int menu_idx, int item_idx) {
                 gui_window_t *nwks = &g_windows[g_num_windows];
                 nwks->x=120; nwks->y=60; nwks->w=340; nwks->h=300;
                 nwks->title="Keyboard Shortcuts"; nwks->visible=1; nwks->focused=0;
+                nwks->space=g_current_space;
                 g_num_windows++;
             }
         }
@@ -1827,34 +1978,233 @@ void dropdown_action(int menu_idx, int item_idx) {
     /* App-specific: Shell menu (Terminal) */
     if (str_eq(label,"Clear")) {
         int j; for (j=0;j<TERM_LINES;j++) term_history[j][0]=0; term_num_lines=0;
-    } else if (str_eq(label,"New Tab")) {
-        toast_show("Terminal","New tab opened",RGB(30,30,30));
-    } else if (str_eq(label,"Close Tab")) {
-        toast_show("Terminal","Tab closed",RGB(30,30,30));
     }
     /* TextEdit Format actions */
-    if (str_eq(label,"Bold")) { toast_show("TextEdit","Bold applied",RGB(255,180,40)); }
-    else if (str_eq(label,"Italic")) { toast_show("TextEdit","Italic applied",RGB(255,180,40)); }
-    else if (str_eq(label,"Select All")) { /* select all in TextEdit */ }
+    if (str_eq(label,"Bold")) {
+        g_edit_bold = !g_edit_bold;
+        g_edit_focused = 1;
+    }
+    else if (str_eq(label,"Italic")) {
+        g_edit_italic = !g_edit_italic;
+        g_edit_focused = 1;
+    }
+    else if (str_eq(label,"Font Size")) {
+        g_edit_font_size = (g_edit_font_size + 1) % 3;
+        g_edit_focused = 1;
+    }
+    else if (str_eq(label,"Plain Text")) {
+        g_edit_bold = 0;
+        g_edit_italic = 0;
+        g_edit_font_size = 1;
+        g_edit_color = 0;
+        g_edit_focused = 1;
+    }
+    else if (str_eq(label,"Copy")) {
+        if (textedit_copy_selection_overlay())
+            toast_show("TextEdit","Copied",RGB(255,180,40));
+        else
+            toast_show("TextEdit","No selection",RGB(120,120,130));
+    }
+    else if (str_eq(label,"Cut")) {
+        if (textedit_copy_selection_overlay()) {
+            textedit_delete_selection_overlay();
+            toast_show("TextEdit","Cut",RGB(255,180,40));
+        } else {
+            toast_show("TextEdit","No selection",RGB(120,120,130));
+        }
+    }
+    else if (str_eq(label,"Paste")) {
+        if (textedit_paste_clipboard_overlay()) {
+            g_edit_focused = 1;
+            toast_show("TextEdit","Pasted",RGB(255,180,40));
+        } else {
+            toast_show("TextEdit","Clipboard empty",RGB(120,120,130));
+        }
+    }
+    else if (str_eq(label,"Select All")) {
+        int top = win_top_visible();
+        if (g_edit_len == 0) {
+            while (g_edit_len < TEXTEDIT_MAXCHARS - 1 && g_edit_text[g_edit_len]) g_edit_len++;
+        }
+        if (top >= 0 && g_windows[top].title && str_eq(g_windows[top].title, "TextEdit") && g_edit_len > 0) {
+            g_edit_sel_start = 0;
+            g_edit_sel_end = g_edit_len;
+            g_edit_focused = 1;
+            toast_show("TextEdit","All text selected",RGB(255,180,40));
+        } else {
+            g_edit_sel_start = 0;
+            g_edit_sel_end = 0;
+            toast_show("TextEdit","Nothing to select",RGB(120,120,130));
+        }
+    }
     /* Music controls */
-    if (str_eq(label,"Play") || str_eq(label,"Pause")) {
-        toast_show("Music","Playback toggled",RGB(252,60,68));
+    if (str_eq(label,"Play")) {
+        g_music_playing = 1;
+    } else if (str_eq(label,"Pause")) {
+        g_music_playing = 0;
     } else if (str_eq(label,"Next")) {
-        toast_show("Music","Next track",RGB(252,60,68));
+        g_music_track = (g_music_track + 1) % 5;
+        g_music_playing = 1;
     } else if (str_eq(label,"Previous")) {
-        toast_show("Music","Previous track",RGB(252,60,68));
+        g_music_track = (g_music_track + 4) % 5;
+        g_music_playing = 1;
     }
     /* Safari */
-    if (str_eq(label,"Reload Page")) { toast_show("Safari","Page reloaded",RGB(40,160,220)); }
-    else if (str_eq(label,"Clear History")) { toast_show("Safari","History cleared",RGB(40,160,220)); }
+    if (str_eq(label,"Reload Page") && active_title && str_eq(active_title, "Safari")) {
+        safari_normalize_state();
+        str_cpy(g_safari_tab_urls[g_safari_active_tab], g_safari_url);
+        toast_show("Safari","Page reloaded",RGB(40,160,220));
+    } else if (str_eq(label,"Home") && active_title && str_eq(active_title, "Safari")) {
+        safari_normalize_state();
+        str_cpy(g_safari_url, "about:home");
+        str_cpy(g_safari_tab_urls[g_safari_active_tab], g_safari_url);
+        str_cpy(g_safari_tab_titles[g_safari_active_tab], "Home");
+        g_safari_url_focused = 0;
+    }
     /* Maps */
-    if (str_eq(label,"Current Location")) { toast_show("Maps","Locating...",RGB(60,200,80)); }
+    if (str_eq(label,"Current Location")) {
+        runtime_weather_info_t wth;
+        runtime_get_weather_info(&wth);
+        toast_show("Maps",wth.location,RGB(60,200,80));
+    }
     /* Clock */
-    if (str_eq(label,"Add Alarm")) { toast_show("Clock","Alarm added",RGB(80,80,240)); }
-    if (str_eq(label,"Timer")) { toast_show("Clock","Timer started",RGB(80,80,240)); }
-    /* Photos */
-    if (str_eq(label,"Enhance")) { toast_show("Photos","Photo enhanced",RGB(240,80,160)); }
-    else if (str_eq(label,"Crop")) { toast_show("Photos","Crop mode",RGB(240,80,160)); }
+    if (str_eq(label,"World Clock")) { g_clock_tab = 0; }
+    else if (str_eq(label,"Timer")) { g_clock_tab = 2; }
+    else if (str_eq(label,"Stopwatch")) { g_clock_tab = 3; }
+    /* Calendar */
+    if (str_eq(label,"Go to Today")) {
+        int cy, cm;
+        g_cal_offset = 0;
+        gui_calendar_month_from_offset(0, &cy, &cm);
+        g_cal_sel_day = gui_calendar_today_day_for_month(cy, cm);
+        g_cal_popup = 0;
+    }
+    /* Mail */
+    if (str_eq(label,"Inbox")) {
+        g_mail_compose = 0;
+        g_mail_focused_field = 0;
+        g_mail_sel_msg = 0;
+    }
+}
+
+static int spot_unit_convert(const char *q, int qlen, char *out, int out_max) {
+    /* Parse: "<number> <from> in <to>" or "<number> <from> to <to>" */
+    if (!q || !out || out_max <= 0 || qlen <= 0) return 0;
+    out[0] = 0;
+    int i = 0;
+    while (i < qlen && q[i] == ' ') i++;
+    if (i >= qlen || q[i] < '0' || q[i] > '9') return 0;
+    int32_t num = 0;
+    while (i < qlen && q[i] >= '0' && q[i] <= '9') {
+        if (num > 214748364 || (num == 214748364 && q[i] > '7')) return 0;
+        num = num * 10 + (int32_t)(q[i] - '0');
+        i++;
+    }
+    while (i < qlen && q[i] == ' ') i++;
+    /* Extract from_unit (lowercase) */
+    char fu[12]; int flen = 0;
+    while (i < qlen && q[i] != ' ' && flen < 11) {
+        char c = q[i]; if (c >= 'A' && c <= 'Z') c += 32;
+        fu[flen++] = c; i++;
+    }
+    fu[flen] = 0;
+    if (!flen) return 0;
+    while (i < qlen && q[i] == ' ') i++;
+    /* Expect "in" or "to" */
+    if (i + 1 >= qlen) return 0;
+    char k0 = q[i], k1 = q[i+1];
+    if (k0 >= 'A' && k0 <= 'Z') k0 += 32;
+    if (k1 >= 'A' && k1 <= 'Z') k1 += 32;
+    if (!((k0=='i'&&k1=='n') || (k0=='t'&&k1=='o'))) return 0;
+    i += 2;
+    while (i < qlen && q[i] == ' ') i++;
+    /* Extract to_unit (lowercase) */
+    char tu[12]; int tlen = 0;
+    while (i < qlen && q[i] != ' ' && tlen < 11) {
+        char c = q[i]; if (c >= 'A' && c <= 'Z') c += 32;
+        tu[tlen++] = c; i++;
+    }
+    tu[tlen] = 0;
+    if (!tlen) return 0;
+
+    /* Conversion table: from, to, pre_offset, num_factor, den_factor, post_offset, from_sym, to_sym */
+    static const struct {
+        const char *from, *to;
+        int32_t pre; int32_t nf; int32_t df; int32_t post;
+        const char *fsym, *tsym;
+    } cv[] = {
+        /* Length */
+        {"km",    "miles", 0,    621,  1000, 0,  "km",    "mi"  },
+        {"km",    "mi",    0,    621,  1000, 0,  "km",    "mi"  },
+        {"miles", "km",    0,    1609, 1000, 0,  "mi",    "km"  },
+        {"mi",    "km",    0,    1609, 1000, 0,  "mi",    "km"  },
+        {"m",     "ft",    0,    3281, 1000, 0,  "m",     "ft"  },
+        {"ft",    "m",     0,    305,  1000, 0,  "ft",    "m"   },
+        {"cm",    "in",    0,    394,  1000, 0,  "cm",    "in"  },
+        {"in",    "cm",    0,    254,  100,  0,  "in",    "cm"  },
+        /* Temperature */
+        {"f",     "c",     -32,  5,    9,    0,  "F",     "C"   },
+        {"c",     "f",     0,    9,    5,    32, "C",     "F"   },
+        /* Weight */
+        {"kg",    "lb",    0,    2205, 1000, 0,  "kg",    "lb"  },
+        {"lb",    "kg",    0,    454,  1000, 0,  "lb",    "kg"  },
+        {"g",     "oz",    0,    35,   1000, 0,  "g",     "oz"  },
+        {"oz",    "g",     0,    2835, 100,  0,  "oz",    "g"   },
+        /* Volume */
+        {"l",     "gal",   0,    264,  1000, 0,  "L",     "gal" },
+        {"gal",   "l",     0,    3785, 1000, 0,  "gal",   "L"   },
+        /* Speed */
+        {"mph",   "kph",   0,    1609, 1000, 0,  "mph",   "kph" },
+        {"kph",   "mph",   0,    621,  1000, 0,  "kph",   "mph" },
+        {0,0,0,0,0,0,0,0}
+    };
+    int ci;
+    for (ci = 0; cv[ci].from; ci++) {
+        /* simple string compare */
+        int match_f = 1, match_t = 1, mi;
+        for (mi = 0; cv[ci].from[mi] || fu[mi]; mi++)
+            if (cv[ci].from[mi] != fu[mi]) { match_f = 0; break; }
+        for (mi = 0; cv[ci].to[mi] || tu[mi]; mi++)
+            if (cv[ci].to[mi] != tu[mi]) { match_t = 0; break; }
+        if (!match_f || !match_t) continue;
+        int64_t val = (int64_t)num + (int64_t)cv[ci].pre;
+        int64_t res64 = val * (int64_t)cv[ci].nf / (int64_t)cv[ci].df + (int64_t)cv[ci].post;
+        if (res64 > 2147483647LL || res64 < -2147483647LL - 1LL) return 0;
+        int32_t res = (int32_t)res64;
+        /* Format: "NUM fsym = RES tsym" */
+        char nbuf[12], rbuf[12]; int ni=0, ri=0;
+        /* write num */
+        if (num == 0) { nbuf[ni++]='0'; } else {
+            char tmp[11]; int tl=0; int32_t mv=(num<0)?-num:num;
+            if(num<0) nbuf[ni++]='-';
+            while(mv){tmp[tl++]=(char)('0'+mv%10);mv/=10;}
+            int j; for(j=tl-1;j>=0;j--) nbuf[ni++]=tmp[j];
+        }
+        nbuf[ni]=0;
+        /* write res */
+        if (res == 0) { rbuf[ri++]='0'; } else {
+            char tmp[11]; int tl=0; int64_t mv=(int64_t)res;
+            if(mv<0) { rbuf[ri++]='-'; mv=-mv; }
+            while(mv){tmp[tl++]=(char)('0'+(int)(mv%10));mv/=10;}
+            int j; for(j=tl-1;j>=0;j--) rbuf[ri++]=tmp[j];
+        }
+        rbuf[ri]=0;
+        /* Build output string in out[] */
+        int p=0;
+        int si;
+#define SPOT_APPEND_CHAR(ch_) do { if (p >= out_max - 1) { out[p] = 0; return 0; } out[p++] = (char)(ch_); } while (0)
+        for(si=0;nbuf[si];si++) SPOT_APPEND_CHAR(nbuf[si]);
+        SPOT_APPEND_CHAR(' ');
+        for(si=0;cv[ci].fsym[si];si++) SPOT_APPEND_CHAR(cv[ci].fsym[si]);
+        SPOT_APPEND_CHAR(' '); SPOT_APPEND_CHAR('='); SPOT_APPEND_CHAR(' ');
+        for(si=0;rbuf[si];si++) SPOT_APPEND_CHAR(rbuf[si]);
+        SPOT_APPEND_CHAR(' ');
+        for(si=0;cv[ci].tsym[si];si++) SPOT_APPEND_CHAR(cv[ci].tsym[si]);
+#undef SPOT_APPEND_CHAR
+        out[p]=0;
+        return 1;
+    }
+    return 0;
 }
 
 static int32_t calc_clamp_i64(int64_t v) {

@@ -696,13 +696,11 @@ void menubar_update_for_active_app(void) {
     g_menu_items[1][2]="---";        g_menu_items[1][3]="Get Info";
     g_menu_items[1][4]="---";        g_menu_items[1][5]="Print...";
     g_menu_items[1][6]="Share...";   g_menu_items[1][7]=NULL;
-    g_menu_items[2][0]="Undo"; g_menu_items[2][1]="---";
-    g_menu_items[2][2]="Cut";  g_menu_items[2][3]="Copy";
-    g_menu_items[2][4]="Paste";g_menu_items[2][5]=NULL;
+    g_menu_items[2][0]=NULL;
     g_menu_items[3][0]="Finder"; g_menu_items[3][1]="Terminal";
     g_menu_items[3][2]="Calculator"; g_menu_items[3][3]="Clock";
     g_menu_items[3][4]="TextEdit"; g_menu_items[3][5]=NULL;
-    g_menu_items[4][0]="Bring All to Front"; g_menu_items[4][1]=NULL;
+    g_menu_items[4][0]=NULL;
     g_menu_items[5][0]="Quick Help"; g_menu_items[5][1]="---";
     g_menu_items[5][2]="About MyOS"; g_menu_items[5][3]=NULL;
 
@@ -712,95 +710,49 @@ void menubar_update_for_active_app(void) {
         g_menubar_titles[3]="Shell";
         g_menu_items[1][0]="New Window"; g_menu_items[1][1]="---";
         g_menu_items[1][2]="Close"; g_menu_items[1][3]=NULL;
-        g_menu_items[3][0]="New Tab";   g_menu_items[3][1]="---";
-        g_menu_items[3][2]="Clear";     g_menu_items[3][3]="---";
-        g_menu_items[3][4]="Close Tab"; g_menu_items[3][5]=NULL;
+        g_menu_items[3][0]="Clear"; g_menu_items[3][1]=NULL;
     } else if (str_eq(active,"TextEdit")) {
         g_menubar_titles[3]="Format";
         g_menu_items[1][0]="New"; g_menu_items[1][1]="---";
-        g_menu_items[1][2]="Save"; g_menu_items[1][3]="---";
-        g_menu_items[1][4]="Close"; g_menu_items[1][5]=NULL;
-        g_menu_items[2][0]="Undo"; g_menu_items[2][1]="Redo";
-        g_menu_items[2][2]="---";  g_menu_items[2][3]="Cut";
-        g_menu_items[2][4]="Copy"; g_menu_items[2][5]="Paste";
-        g_menu_items[2][6]="Select All"; g_menu_items[2][7]=NULL;
+        g_menu_items[1][2]="Close"; g_menu_items[1][3]=NULL;
+        g_menu_items[2][0]="Cut"; g_menu_items[2][1]="Copy";
+        g_menu_items[2][2]="Paste"; g_menu_items[2][3]="---";
+        g_menu_items[2][4]="Select All"; g_menu_items[2][5]=NULL;
         g_menu_items[3][0]="Bold";  g_menu_items[3][1]="Italic";
         g_menu_items[3][2]="---";   g_menu_items[3][3]="Font Size";
         g_menu_items[3][4]="---";   g_menu_items[3][5]="Plain Text";
         g_menu_items[3][6]=NULL;
     } else if (str_eq(active,"Notes")) {
-        g_menubar_titles[1]="Note";
-        g_menubar_titles[3]="Format";
-        g_menu_items[1][0]="New Note"; g_menu_items[1][1]="---";
-        g_menu_items[1][2]="Delete Note"; g_menu_items[1][3]="---";
-        g_menu_items[1][4]="Close"; g_menu_items[1][5]=NULL;
-        g_menu_items[3][0]="Bold"; g_menu_items[3][1]="Italic";
-        g_menu_items[3][2]="---";  g_menu_items[3][3]="Checklist";
-        g_menu_items[3][4]="---";  g_menu_items[3][5]="Title";
-        g_menu_items[3][6]=NULL;
+        g_menu_items[1][0]="Close"; g_menu_items[1][1]=NULL;
+        g_menu_items[3][0]=NULL;
     } else if (str_eq(active,"Music")) {
         g_menubar_titles[3]="Controls";
         g_menu_items[3][0]="Play";   g_menu_items[3][1]="Pause";
         g_menu_items[3][2]="---";    g_menu_items[3][3]="Next";
-        g_menu_items[3][4]="Previous"; g_menu_items[3][5]="---";
-        g_menu_items[3][6]="Shuffle"; g_menu_items[3][7]="Repeat";
+        g_menu_items[3][4]="Previous"; g_menu_items[3][5]=NULL;
     } else if (str_eq(active,"Safari")) {
         g_menubar_titles[4]="History";
-        g_menu_items[1][0]="New Tab";    g_menu_items[1][1]="New Window";
-        g_menu_items[1][2]="---";        g_menu_items[1][3]="Close Tab";
-        g_menu_items[1][4]=NULL;
-        g_menu_items[3][0]="Reload Page"; g_menu_items[3][1]="Stop";
-        g_menu_items[3][2]="---";         g_menu_items[3][3]="Zoom In";
-        g_menu_items[3][4]="Zoom Out";    g_menu_items[3][5]=NULL;
-        g_menu_items[4][0]="Back";  g_menu_items[4][1]="Forward";
-        g_menu_items[4][2]="---";   g_menu_items[4][3]="Home";
-        g_menu_items[4][4]="---";   g_menu_items[4][5]="Clear History";
-        g_menu_items[4][6]=NULL;
-    } else if (str_eq(active,"Photos")) {
-        g_menubar_titles[3]="Image";
-        g_menu_items[3][0]="Rotate Left";  g_menu_items[3][1]="Rotate Right";
-        g_menu_items[3][2]="---";          g_menu_items[3][3]="Crop";
-        g_menu_items[3][4]="---";          g_menu_items[3][5]="Enhance";
-        g_menu_items[3][6]=NULL;
+        g_menu_items[1][0]="New Tab";    g_menu_items[1][1]="---";
+        g_menu_items[1][2]="Close Tab";  g_menu_items[1][3]=NULL;
+        g_menu_items[3][0]="Reload Page"; g_menu_items[3][1]=NULL;
+        g_menu_items[4][0]="Home"; g_menu_items[4][1]=NULL;
     } else if (str_eq(active,"Maps")) {
         g_menubar_titles[3]="Go";
-        g_menu_items[3][0]="Current Location"; g_menu_items[3][1]="---";
-        g_menu_items[3][2]="Home"; g_menu_items[3][3]="Work";
-        g_menu_items[3][4]="---"; g_menu_items[3][5]="Recents";
-        g_menu_items[3][6]=NULL;
+        g_menu_items[3][0]="Current Location"; g_menu_items[3][1]=NULL;
     } else if (str_eq(active,"Clock")) {
         g_menubar_titles[3]="Alarm";
-        g_menu_items[3][0]="Add Alarm"; g_menu_items[3][1]="---";
-        g_menu_items[3][2]="World Clock"; g_menu_items[3][3]="Timer";
-        g_menu_items[3][4]="Stopwatch";  g_menu_items[3][5]=NULL;
-    } else if (str_eq(active,"Calculator")) {
-        g_menubar_titles[3]="Convert";
-        g_menu_items[3][0]="Basic";      g_menu_items[3][1]="Scientific";
-        g_menu_items[3][2]="---";        g_menu_items[3][3]="Currency";
-        g_menu_items[3][4]="Units";      g_menu_items[3][5]=NULL;
-    } else if (str_eq(active,"App Store")) {
-        g_menubar_titles[3]="Store";
-        g_menu_items[3][0]="Featured";  g_menu_items[3][1]="Top Charts";
-        g_menu_items[3][2]="---";       g_menu_items[3][3]="Updates";
-        g_menu_items[3][4]="Purchases"; g_menu_items[3][5]=NULL;
+        g_menu_items[3][0]="World Clock"; g_menu_items[3][1]="Timer";
+        g_menu_items[3][2]="Stopwatch";  g_menu_items[3][3]=NULL;
     } else if (str_eq(active,"Calendar")) {
         g_menubar_titles[3]="View";
         g_menu_items[1][0]="New Event";  g_menu_items[1][1]="---";
         g_menu_items[1][2]="Close";      g_menu_items[1][3]=NULL;
-        g_menu_items[3][0]="Day";        g_menu_items[3][1]="Week";
-        g_menu_items[3][2]="Month";      g_menu_items[3][3]="Year";
-        g_menu_items[3][4]="---";        g_menu_items[3][5]="Go to Today";
-        g_menu_items[3][6]=NULL;
+        g_menu_items[3][0]="Go to Today"; g_menu_items[3][1]=NULL;
     } else if (str_eq(active,"Mail")) {
         g_menubar_titles[3]="Mailbox";
         g_menu_items[1][0]="New Message"; g_menu_items[1][1]="---";
-        g_menu_items[1][2]="Reply";       g_menu_items[1][3]="Forward";
-        g_menu_items[1][4]="---";         g_menu_items[1][5]="Close";
-        g_menu_items[1][6]=NULL;
-        g_menu_items[3][0]="Get Mail";    g_menu_items[3][1]="---";
-        g_menu_items[3][2]="Inbox";       g_menu_items[3][3]="Sent";
-        g_menu_items[3][4]="---";         g_menu_items[3][5]="Archive";
-        g_menu_items[3][6]=NULL;
+        g_menu_items[1][2]="Close";       g_menu_items[1][3]=NULL;
+        g_menu_items[3][0]="Inbox";       g_menu_items[3][1]=NULL;
     }
 }
 

@@ -213,6 +213,8 @@ int  g_edit_bold = 0;
 int  g_edit_italic = 0;
 int  g_edit_font_size = 1; /* 0=small, 1=normal, 2=large */
 uint32_t g_edit_color = 0; /* 0=black */
+int  g_edit_sel_start = 0;
+int  g_edit_sel_end = 0;
 
 /* =========================================================================
  * Notes state
@@ -960,9 +962,11 @@ int g_win_close_anim[MAX_WINDOWS];
 
 /* =========================================================================
  * Screensaver (activates after SAVER_IDLE ms without input)
+ * g_saver_mode: 0=Clock+Stars  1=Matrix  2=Warp
  * ======================================================================= */
 uint32_t g_last_input_tick = 0;
-int      g_saver_on = 0;
+int      g_saver_on   = 0;
+int      g_saver_mode = 0;
 int      g_saver_x  = 300;
 int      g_saver_y  = 200;
 int      g_saver_dx = 1;
@@ -1077,57 +1081,137 @@ void draw_scene(int mx, int my) {
     /* 1. Desktop gradient */
     gui_draw_desktop();
 
-    /* Screensaver: darken the wallpaper we just drew, then show clock */
+    /* Screensaver: darken the wallpaper we just drew, then show effect */
     if (g_saver_on) {
         uint32_t t_sv = timer_ticks();
-        /* Progressive dark overlay — macOS-style darkened wallpaper */
-        vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 175);
-        /* Animated starfield */
-        { static const uint16_t sx2[48]={
-              12,34,67,89,120,145,200,230,45,78,110,160,190,22,55,180,
-              300,350,400,250,175,220,310,420,500,550,600,650,700,750,50,100,
-              740,20,380,460,132,280,590,710,90,440,330,580,640,170,260,790};
-          static const uint8_t sy2[48]={
-              8,25,42,60,15,38,22,50,70,35,55,12,45,68,30,58,
-              20,44,80,15,55,70,36,22,60,44,15,30,52,10,66,48,
-              18,90,32,75,48,6,88,64,38,24,58,14,72,46,100,26};
-          int si5;
-          for(si5=0;si5<48;si5++) {
-              int xs=(int)sx2[si5]%(VGA_WIDTH-4), ys=(int)sy2[si5]%(VGA_HEIGHT-4);
-              uint8_t bri=(uint8_t)(100+((t_sv/300+si5*11)%8)*18);
-              int sz2=((si5*7)%3)+1;
-              vga_fill_rect(xs, ys, sz2, sz2, RGB(bri,bri,(uint8_t)(bri+20)));
-          }
-        }
-        /* Bouncing clock */
-        { int cx5 = g_saver_x, cy5 = g_saver_y;
-          char clk2[12]; get_clock_str(clk2);
-          int cw=str_len(clk2);
-          /* 3x scale clock */
-          int ci, cx3=cx5-cw*12; int row2,col2;
-          for(ci=0;clk2[ci];ci++) {
-              unsigned char ch2=(unsigned char)clk2[ci];
-              int bx=cx3+ci*24;
-              for(row2=0;row2<8;row2++) for(col2=0;col2<8;col2++) {
-                  if(font8x8[ch2][row2]&(1u<<col2))
-                      vga_fill_rect(bx+col2*3, cy5+row2*3, 3, 3, RGB(255,255,255));
+        int saver_mode = g_saver_mode;
+        if (saver_mode < 0 || saver_mode > 2) saver_mode = 0;
+        vga_fill_rect(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0));
+
+        if (saver_mode == 1) {
+            /* Matrix rain */
+            static uint8_t col_pos[80]  = {0};
+            static uint8_t col_spd[80]  = {0};
+            static uint8_t col_len[80]  = {0};
+            static uint8_t col_init[80] = {0};
+            static uint32_t last_mt = 0;
+            int mi;
+            if (!col_init[0]) {
+                for (mi=0;mi<80;mi++) { col_pos[mi]=(uint8_t)(mi*7%75); col_spd[mi]=(uint8_t)(1+(mi*3%3)); col_len[mi]=(uint8_t)(8+mi%12); col_init[mi]=1; }
+            }
+            if (t_sv - last_mt > 80) {
+                last_mt = t_sv;
+                for (mi=0;mi<80;mi++) {
+                    col_pos[mi] = (uint8_t)((col_pos[mi] + col_spd[mi]) % 75);
+                }
+            }
+            for (mi=0;mi<80;mi++) {
+                int cx6 = mi*10, cy6_head = col_pos[mi]*(VGA_HEIGHT/75);
+                int li;
+                for (li=0;li<(int)col_len[mi];li++) {
+                    int py = cy6_head - li*8;
+                    if (py < 0) py += VGA_HEIGHT;
+                    if (py >= VGA_HEIGHT) continue;
+                    unsigned char mc = (unsigned char)('A' + (mi+li+t_sv/200)%26);
+                    uint32_t gc = (li==0) ? RGB(200,255,200) : RGB(0,(uint8_t)(180-li*10>60?180-li*10:60),0);
+                    vga_draw_string_trans(cx6, py, (const char[]){(char)mc,0}, gc);
+                }
+            }
+        } else if (saver_mode == 2) {
+            /* Warp starfield */
+            static struct { int16_t x,y; uint8_t z; } stars3[120];
+            static int stars3_init = 0;
+            if (!stars3_init) {
+                int si3;
+                for (si3=0;si3<120;si3++) {
+                    stars3[si3].x=(int16_t)((si3*73)%800-400);
+                    stars3[si3].y=(int16_t)((si3*137)%600-300);
+                    stars3[si3].z=(uint8_t)(1+(si3%32));
+                }
+                stars3_init=1;
+            }
+            static uint32_t last_wt3 = 0;
+            if (t_sv - last_wt3 > 40) {
+                int si3;
+                last_wt3 = t_sv;
+                for (si3=0;si3<120;si3++) {
+                    stars3[si3].z = (uint8_t)(stars3[si3].z + 1);
+                    if (stars3[si3].z > 32) {
+                        stars3[si3].x = (int16_t)((si3*73+t_sv)%800-400);
+                        stars3[si3].y = (int16_t)((si3*137+t_sv)%600-300);
+                        stars3[si3].z = 1;
+                    }
+                }
+            }
+            { int si3;
+              for (si3=0;si3<120;si3++) {
+                  int fz = stars3[si3].z;
+                  int sx3 = VGA_WIDTH/2  + stars3[si3].x * 32 / (fz+1);
+                  int sy3 = VGA_HEIGHT/2 + stars3[si3].y * 32 / (fz+1);
+                  if (sx3<0||sx3>=VGA_WIDTH||sy3<0||sy3>=VGA_HEIGHT) continue;
+                  uint8_t bri3=(uint8_t)(50+fz*6);
+                  int sz3=(fz>20)?2:1;
+                  vga_fill_rect(sx3,sy3,sz3,sz3,RGB(bri3,bri3,bri3));
               }
-          }
-          /* Date below clock */
-          { char dstr[32];
-            int dl;
-            get_date_long_str(dstr);
-            dl=str_len(dstr)*8;
-            vga_draw_string_trans(cx5-dl/2, cy5+30, dstr, RGB(180,190,220));
-          }
+            }
+        } else {
+            /* Mode 0: Starfield + bouncing clock (original) */
+            { static const uint16_t sx2[48]={
+                  12,34,67,89,120,145,200,230,45,78,110,160,190,22,55,180,
+                  300,350,400,250,175,220,310,420,500,550,600,650,700,750,50,100,
+                  740,20,380,460,132,280,590,710,90,440,330,580,640,170,260,790};
+              static const uint8_t sy2[48]={
+                  8,25,42,60,15,38,22,50,70,35,55,12,45,68,30,58,
+                  20,44,80,15,55,70,36,22,60,44,15,30,52,10,66,48,
+                  18,90,32,75,48,6,88,64,38,24,58,14,72,46,100,26};
+              int si5;
+              for(si5=0;si5<48;si5++) {
+                  int xs=(int)sx2[si5]%(VGA_WIDTH-4), ys=(int)sy2[si5]%(VGA_HEIGHT-4);
+                  uint8_t bri=(uint8_t)(100+((t_sv/300+si5*11)%8)*18);
+                  int sz2=((si5*7)%3)+1;
+                  vga_fill_rect(xs, ys, sz2, sz2, RGB(bri,bri,(uint8_t)(bri+20)));
+              }
+            }
+            /* Bouncing clock */
+            { int cx5 = g_saver_x, cy5 = g_saver_y;
+              char clk2[12]; get_clock_str(clk2);
+              int cw=str_len(clk2);
+              int ci, cx3=cx5-cw*12; int row2,col2;
+              for(ci=0;clk2[ci];ci++) {
+                  unsigned char ch2=(unsigned char)clk2[ci];
+                  int bx=cx3+ci*24;
+                  for(row2=0;row2<8;row2++) for(col2=0;col2<8;col2++) {
+                      if(font8x8[ch2][row2]&(1u<<col2))
+                          vga_fill_rect(bx+col2*3, cy5+row2*3, 3, 3, RGB(255,255,255));
+                  }
+              }
+              { char dstr[32]; int dl;
+                get_date_long_str(dstr);
+                dl=str_len(dstr)*8;
+                vga_draw_string_trans(cx5-dl/2, cy5+30, dstr, RGB(180,190,220));
+              }
+            }
+        }
+
+        /* Mode indicator (bottom-right) — tap Space while screensaver runs to cycle */
+        { static const char *mode_names[3]={"Clock","Matrix","Warp"};
+          vga_draw_string_trans(VGA_WIDTH-52, VGA_HEIGHT-12, mode_names[saver_mode], RGB(60,60,70));
         }
         /* Unlock hint — pulsing */
-        { const char *hint="Click or press any key to wake"; int hl=str_len(hint)*8;
+        { const char *hint="Click or key wakes | Space changes mode"; int hl=str_len(hint)*8;
           uint8_t ha=(uint8_t)(80+((int)(t_sv/400)%5)*20);
           vga_draw_string_trans((VGA_WIDTH-hl)/2, VGA_HEIGHT-30, hint, RGB(ha,ha,(uint8_t)(ha+30)));
         }
         /* MyOS brand */
         vga_draw_string_trans(VGA_WIDTH/2-20, 15, "MyOS", RGB(120,130,160));
+        { int display_brightness = g_cc_brightness;
+          if (display_brightness < 0) display_brightness = 0;
+          if (display_brightness > 100) display_brightness = 100;
+          if (display_brightness < 100) {
+            uint8_t alpha_dim = (uint8_t)((100 - display_brightness) * 200 / 100);
+            vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), alpha_dim);
+          }
+        }
         cursor_restore();
         cursor_save(mx, my);
         gui_draw_cursor(mx, my);
@@ -1135,11 +1219,44 @@ void draw_scene(int mx, int my) {
     }
 
     /* 2. Windows back to front (filtered by current space) */
-    for (i = 0; i < g_num_windows; i++) {
+    { int top_vis = win_top_visible();
+      for (i = 0; i < g_num_windows; i++) {
         if (!g_windows[i].visible) continue;
         if (g_windows[i].space != 0 && g_windows[i].space != g_current_space) continue;
         gui_draw_window(i);
         draw_window_content(i);
+        /* Subtle dim overlay for unfocused windows (content area only) */
+        if (i != top_vis && !g_mc_visible && !g_expose_visible) {
+            vga_fill_rect_alpha(g_windows[i].x, g_windows[i].y + TITLEBAR_H,
+                                g_windows[i].w, g_windows[i].h - TITLEBAR_H,
+                                RGB(0,0,0), 18);
+        }
+      }
+    }
+
+    /* 2.5 Window snap-zone preview (Sequoia tiling) */
+    {
+        int any_dragging = 0;
+        for (i = 0; i < g_num_windows; i++) {
+            if (g_windows[i].dragging) { any_dragging = 1; break; }
+        }
+        if (any_dragging) {
+            uint32_t snap_col = RGB(0,122,255);
+            int zone_h = DOCK_Y - MENUBAR_H;
+            if (mx < 28) {
+                /* Left half snap preview */
+                vga_fill_rect_alpha(0, MENUBAR_H, VGA_WIDTH/2, zone_h, snap_col, 60);
+                vga_draw_rect_outline(1, MENUBAR_H+1, VGA_WIDTH/2-2, zone_h-2, snap_col);
+            } else if (mx > VGA_WIDTH - 28) {
+                /* Right half snap preview */
+                vga_fill_rect_alpha(VGA_WIDTH/2, MENUBAR_H, VGA_WIDTH/2, zone_h, snap_col, 60);
+                vga_draw_rect_outline(VGA_WIDTH/2+1, MENUBAR_H+1, VGA_WIDTH/2-2, zone_h-2, snap_col);
+            } else if (my < MENUBAR_H + 8) {
+                /* Full-screen snap preview */
+                vga_fill_rect_alpha(0, MENUBAR_H, VGA_WIDTH, zone_h, snap_col, 45);
+                vga_draw_rect_outline(1, MENUBAR_H+1, VGA_WIDTH-2, zone_h-2, snap_col);
+            }
+        }
     }
 
     /* 3. Action buttons */
@@ -1387,6 +1504,16 @@ void draw_scene(int mx, int my) {
         vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(255,150,40), 55);
     }
 
+    /* Brightness dim overlay: 100%=no overlay, 0%=black screen */
+    { int display_brightness = g_cc_brightness;
+      if (display_brightness < 0) display_brightness = 0;
+      if (display_brightness > 100) display_brightness = 100;
+      if (display_brightness < 100) {
+        uint8_t alpha_dim = (uint8_t)((100 - display_brightness) * 200 / 100);
+        vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), alpha_dim);
+      }
+    }
+
     cursor_restore();
     cursor_save(mx, my);
     gui_draw_cursor(mx, my);
@@ -1542,7 +1669,9 @@ static void win_clear_focus_for_title(const char *title) {
 int win_top_visible(void) {
     int i;
     for (i = g_num_windows - 1; i >= 0; i--) {
-        if (g_windows[i].visible) return i;
+        if (g_windows[i].visible &&
+            (g_windows[i].space == 0 || g_windows[i].space == g_current_space))
+            return i;
     }
     return -1;
 }
@@ -1579,9 +1708,18 @@ void win_close(int idx) {
     g_num_windows--;
     if (g_num_windows >= 0 && g_num_windows < MAX_WINDOWS) {
         g_windows[g_num_windows].title = 0;
+        g_windows[g_num_windows].focused = 0;
         g_windows[g_num_windows].visible = 0;
         g_windows[g_num_windows].dragging = 0;
         g_windows[g_num_windows].resizing = 0;
+        g_windows[g_num_windows].maximized = 0;
+        g_windows[g_num_windows].orig_x = 0;
+        g_windows[g_num_windows].orig_y = 0;
+        g_windows[g_num_windows].orig_w = 0;
+        g_windows[g_num_windows].orig_h = 0;
+        g_windows[g_num_windows].min_w = 0;
+        g_windows[g_num_windows].min_h = 0;
+        g_windows[g_num_windows].space = 0;
         g_win_minimized[g_num_windows] = 0;
         g_win_anim[g_num_windows] = 0;
         g_win_close_anim[g_num_windows] = 0;

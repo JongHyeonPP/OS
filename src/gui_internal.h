@@ -243,6 +243,8 @@ extern int  g_edit_bold;
 extern int  g_edit_italic;
 extern int  g_edit_font_size;
 extern uint32_t g_edit_color;
+extern int  g_edit_sel_start;
+extern int  g_edit_sel_end;
 
 /* Notes */
 extern int  g_notes_sel;
@@ -453,6 +455,7 @@ extern int g_win_close_anim[MAX_WINDOWS];  /* minimize scale-down: OPEN_ANIM..0 
 /* Screensaver / lock */
 extern uint32_t g_last_input_tick;
 extern int      g_saver_on;
+extern int      g_saver_mode;
 extern int      g_saver_x;
 extern int      g_saver_y;
 extern int      g_saver_dx;
