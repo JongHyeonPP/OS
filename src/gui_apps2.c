@@ -7,12 +7,25 @@ static void apps2_append_text(char *buf, int *pos, int max, const char *text) {
     buf[*pos] = 0;
 }
 
+static void apps2_append_char(char *buf, int *pos, int max, char ch) {
+    if (!buf || max <= 0 || *pos + 1 >= max) return;
+    buf[(*pos)++] = ch;
+    buf[*pos] = 0;
+}
+
 static void apps2_append_uint(char *buf, int *pos, int max, uint32_t value) {
     char nbuf[12];
     int i = 0;
     runtime_format_uint(value, nbuf, sizeof(nbuf));
     while (nbuf[i] && *pos + 1 < max) buf[(*pos)++] = nbuf[i++];
     buf[*pos] = 0;
+}
+
+static void apps2_append_2digit(char *buf, int *pos, int max, int value) {
+    if (value < 0) value = 0;
+    value %= 100;
+    apps2_append_char(buf, pos, max, (char)('0' + value / 10));
+    apps2_append_char(buf, pos, max, (char)('0' + value % 10));
 }
 
 static void apps2_append_bytes(char *buf, int *pos, int max, uint32_t bytes) {
@@ -44,6 +57,54 @@ static void apps2_format_used_free(const runtime_storage_info_t *st, char *buf, 
     apps2_append_text(buf, &pos, max, " used  ");
     apps2_append_bytes(buf, &pos, max, st->free_bytes);
     apps2_append_text(buf, &pos, max, " free");
+}
+
+static void apps2_format_time_12h(int total_minutes, char *buf, int max) {
+    int pos = 0;
+    int hour;
+    int minute;
+    int h12;
+    const char *ampm;
+    if (!buf || max <= 0) return;
+    while (total_minutes < 0) total_minutes += 24 * 60;
+    total_minutes %= 24 * 60;
+    hour = total_minutes / 60;
+    minute = total_minutes % 60;
+    h12 = hour % 12;
+    if (h12 == 0) h12 = 12;
+    ampm = hour < 12 ? "AM" : "PM";
+    buf[0] = 0;
+    apps2_append_uint(buf, &pos, max, (uint32_t)h12);
+    apps2_append_char(buf, &pos, max, ':');
+    apps2_append_2digit(buf, &pos, max, minute);
+    apps2_append_char(buf, &pos, max, ' ');
+    apps2_append_text(buf, &pos, max, ampm);
+}
+
+static void apps2_format_mail_time(int index, int detailed, char *buf, int max) {
+    datetime_t now;
+    int pos = 0;
+    if (!buf || max <= 0) return;
+    get_current_datetime(&now);
+    buf[0] = 0;
+    if (index == 0 || index == 1) {
+        char timebuf[12];
+        int offset = index == 0 ? 0 : 87;
+        apps2_format_time_12h(now.hour * 60 + now.minute - offset, timebuf, sizeof(timebuf));
+        if (detailed) apps2_append_text(buf, &pos, max, "Today ");
+        apps2_append_text(buf, &pos, max, timebuf);
+        return;
+    }
+    if (index == 2) {
+        apps2_append_text(buf, &pos, max, "Yesterday");
+        return;
+    }
+    {
+        int offset = index == 3 ? 2 : 4;
+        int weekday = (now.weekday + 7 - offset) % 7;
+        apps2_append_text(buf, &pos, max,
+            detailed ? datetime_weekday_long(weekday) : datetime_weekday_short(weekday));
+    }
 }
 
 int draw_apps_group2(int idx) {
@@ -165,24 +226,26 @@ int draw_apps_group2(int idx) {
         int lx = wx+1+sb_w;
         vga_fill_rect(lx, cy0, list_w, ch0-26, ml_bg);
         vga_draw_vline(lx+list_w, cy0, ch0-26, ml_sep);
-        static const struct { const char *from; const char *subj; const char *time2; int unread; } msgs[] = {
-            {"Alice Chen",   "Meeting tomorrow",      "9:42 AM",  1},
-            {"Bob Smith",    "Re: Project update",    "8:15 AM",  1},
-            {"Newsletter",   "Weekly Digest",         "Yesterday",1},
-            {"GitHub",       "PR merged: feature",   "Mon",       0},
-            {"Dave Park",    "Lunch plans?",          "Sun",       0},
+        static const struct { const char *from; const char *subj; int unread; } msgs[] = {
+            {"Alice Chen",   "Meeting tomorrow",      1},
+            {"Bob Smith",    "Re: Project update",    1},
+            {"Newsletter",   "Weekly Digest",         1},
+            {"GitHub",       "PR merged: feature",    0},
+            {"Dave Park",    "Lunch plans?",          0},
         };
         int mi;
         for (mi=0; mi<5; mi++) {
             int my2 = cy0 + mi*38;
+            char timebuf[20];
             if (my2+38 > cy0+ch0-26) break;
             uint32_t row_bg2 = (mi==0) ? (g_pref_darkmode?RGB(34,56,90):RGB(225,240,255)) : ml_bg;
+            apps2_format_mail_time(mi, 0, timebuf, sizeof(timebuf));
             vga_fill_rect(lx, my2, list_w, 38, row_bg2);
             vga_draw_hline(lx, my2+37, list_w, ml_sep);
             if (msgs[mi].unread) vga_fill_rect(lx+4, my2+15, 6, 6, ml_unrd);
             vga_draw_string_trans(lx+14, my2+5,  msgs[mi].from,  ml_txt);
             vga_draw_string_trans(lx+14, my2+18, msgs[mi].subj,  ml_sub);
-            vga_draw_string_trans(lx+list_w-44, my2+5, msgs[mi].time2, ml_sub);
+            vga_draw_string_trans(lx+list_w-44, my2+5, timebuf, ml_sub);
         }
 
         /* Preview pane */
@@ -190,25 +253,27 @@ int draw_apps_group2(int idx) {
         vga_fill_rect(px, cy0, prev_w, ch0-26, ml_bg);
         int pcy = cy0+8;
         static const struct {
-            const char *subj; const char *from; const char *time2;
+            const char *subj; const char *from;
             const char *l1; const char *l2; const char *l3; const char *l4; const char *sign;
         } previews[] = {
-            { "Meeting tomorrow", "Alice Chen <alice@example.com>", "Today 9:42 AM",
+            { "Meeting tomorrow", "Alice Chen <alice@example.com>",
               "Hi, Just a reminder", "we have our weekly", "sync tomorrow at 10am.", "Please be prepared!", "Alice" },
-            { "Re: Project update", "Bob Smith <bob@work.com>", "Today 8:15 AM",
+            { "Re: Project update", "Bob Smith <bob@work.com>",
               "Thanks for the update.", "The new feature looks", "great! Let's ship it", "by end of week.", "Bob" },
-            { "Weekly Digest", "Newsletter <news@digest.com>", "Yesterday",
+            { "Weekly Digest", "Newsletter <news@digest.com>",
               "Top stories this week:", "- AI hits new milestone", "- Markets up 3.2%", "- MyOS now trending!", "The Digest Team" },
-            { "PR merged: feature", "GitHub <noreply@github.com>", "Monday",
+            { "PR merged: feature", "GitHub <noreply@github.com>",
               "Your pull request was", "merged into main.", "Branch: feature/gui", "Congratulations!", "GitHub" },
-            { "Lunch plans?", "Dave Park <dave@friend.io>", "Sunday",
+            { "Lunch plans?", "Dave Park <dave@friend.io>",
               "Hey! Are you free for", "lunch on Thursday?", "The usual place at 1pm", "Let me know!", "Dave" },
         };
+        char preview_time[24];
         int sel_m = g_mail_sel_msg; if(sel_m<0)sel_m=0; if(sel_m>4)sel_m=4;
+        apps2_format_mail_time(sel_m, 1, preview_time, sizeof(preview_time));
         vga_draw_string_trans(px+8, pcy, previews[sel_m].subj, ml_txt); pcy+=14;
         vga_draw_string_trans(px+8, pcy, previews[sel_m].from, ml_sub); pcy+=12;
         vga_draw_string_trans(px+8, pcy, "To: Me", ml_sub); pcy+=12;
-        vga_draw_string_trans(px+8, pcy, previews[sel_m].time2, ml_sub); pcy+=16;
+        vga_draw_string_trans(px+8, pcy, preview_time, ml_sub); pcy+=16;
         vga_draw_hline(px+4, pcy, prev_w-8, ml_sep); pcy+=10;
         vga_draw_string_trans(px+8, pcy, previews[sel_m].l1, ml_txt); pcy+=14;
         vga_draw_string_trans(px+8, pcy, previews[sel_m].l2, ml_txt); pcy+=12;
@@ -836,7 +901,15 @@ int draw_apps_group2(int idx) {
         vga_fill_rect(wx+130, cv_y+30, 80, 50, RGB(180,230,255));
         vga_draw_string_trans(wx+134, cv_y+34, "Tech Stack", RGB(0,50,100));
         vga_draw_string_trans(wx+134, cv_y+46, "Bare Metal", RGB(0,50,100));
-        vga_draw_string_trans(wx+134, cv_y+58, "MyOS v0.3", RGB(0,50,100));
+        { runtime_system_info_t sys;
+          char osbuf[32];
+          int opos = 0;
+          runtime_get_system_info(&sys);
+          osbuf[0] = 0;
+          apps2_append_text(osbuf, &opos, sizeof(osbuf), sys.sysname);
+          apps2_append_text(osbuf, &opos, sizeof(osbuf), " ");
+          apps2_append_text(osbuf, &opos, sizeof(osbuf), sys.release);
+          vga_draw_string_trans(wx+134, cv_y+58, osbuf, RGB(0,50,100)); }
         /* Shape: rectangle */
         vga_draw_rect_outline(wx+ww/2-40, cv_y+90, 80, 40, RGB(52,199,89));
         vga_draw_string_trans(wx+ww/2-28, cv_y+105, "Database", RGB(52,199,89));

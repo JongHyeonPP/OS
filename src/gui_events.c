@@ -1866,7 +1866,22 @@ void gui_run(void) {
                         toast_show("Finder","New Folder created",RGB(41,128,185));
                         str_cpy(g_status, "New Folder");
                     } else if (str_eq(lbl2,"Get Info")) {
-                        toast_show("Finder","Desktop: 4 items",RGB(41,128,185));
+                        int fcount3 = 0;
+                        char nbuf3[12];
+                        char msg3[32];
+                        int mp3 = 0;
+                        int ni3 = 0;
+                        (void)finder_current_folders(&fcount3);
+                        int_to_str(fcount3, nbuf3);
+                        while (nbuf3[ni3] && mp3 + 1 < (int)sizeof(msg3)) msg3[mp3++] = nbuf3[ni3++];
+                        msg3[mp3++] = ' ';
+                        msg3[mp3++] = 'i';
+                        msg3[mp3++] = 't';
+                        msg3[mp3++] = 'e';
+                        msg3[mp3++] = 'm';
+                        if (fcount3 != 1 && mp3 + 1 < (int)sizeof(msg3)) msg3[mp3++] = 's';
+                        msg3[mp3] = 0;
+                        toast_show("Finder", msg3, RGB(41,128,185));
                     } else if (str_eq(lbl2,"Change Wallpaper")) {
                         g_pref_wallpaper = (g_pref_wallpaper + 1) % 5;
                         const char *wnames[5]={"Blue","Sunset","Forest","Space","Sequoia"};

@@ -727,7 +727,9 @@ static void sync_proc_node(ram_node_t *node) {
     } else if (kstrcmp(node->path, "/proc/cpuinfo") == 0) {
         proc_reset(node, &pos);
         append_str(node->data, &pos, RAMFS_FILE_CAP, "processor: 0\n");
-        append_str(node->data, &pos, RAMFS_FILE_CAP, "arch: i386\n");
+        append_str(node->data, &pos, RAMFS_FILE_CAP, "arch: ");
+        append_str(node->data, &pos, RAMFS_FILE_CAP, uts_machine());
+        append_char(node->data, &pos, RAMFS_FILE_CAP, '\n');
         append_str(node->data, &pos, RAMFS_FILE_CAP, "mode: protected\n");
         append_str(node->data, &pos, RAMFS_FILE_CAP, "paging: on\n");
     } else if (kstrcmp(node->path, "/proc/version") == 0) {

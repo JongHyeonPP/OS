@@ -159,7 +159,15 @@ int draw_apps_group3(int idx) {
         gui_draw_circle(wx+18, wy+TITLEBAR_H+22, 14, RGB(52,199,89));
         vga_draw_string_trans(wx+13, wy+TITLEBAR_H+17, "ST", RGB(255,255,255));
         vga_draw_string_trans(wx+36, wy+TITLEBAR_H+9, "Screen Time", st_txt);
-        vga_draw_string_trans(wx+36, wy+TITLEBAR_H+23, "Today: 2h 34m", st_acc);
+        { char st_today[32];
+          char st_minutes[16];
+          int stp = 0;
+          uint32_t minutes_today = (timer_ticks() / 60000U) % (24U * 60U);
+          runtime_format_minutes((int)minutes_today, st_minutes, sizeof(st_minutes));
+          st_today[0] = 0;
+          apps3_append_text(st_today, &stp, sizeof(st_today), "Today: ");
+          apps3_append_text(st_today, &stp, sizeof(st_today), st_minutes);
+          vga_draw_string_trans(wx+36, wy+TITLEBAR_H+23, st_today, st_acc); }
         /* Tabs */
         int tab_y = wy+TITLEBAR_H+50;
         {
@@ -1640,10 +1648,27 @@ int draw_apps_group3(int idx) {
         /* Stats */
         vga_fill_rect(wx+6, pa_y, ww-12, 50, nu_card);
         vga_draw_rect_outline(wx+6, pa_y, ww-12, 50, nu_sep);
-        vga_draw_string_trans(wx+10, pa_y+4,  "Packets Sent: 15", nu_txt);
-        vga_draw_string_trans(wx+10, pa_y+16, "Packets Recv: 15", nu_grn);
-        vga_draw_string_trans(wx+10, pa_y+28, "Packet Loss: 0%", nu_grn);
-        vga_draw_string_trans(wx+10, pa_y+40, "Round Trip: min 7ms / avg 14ms / max 25ms", nu_sub);
+        { const netif_t *net = runtime_primary_netif();
+          uint32_t sent = net ? net->tx_packets : 0;
+          uint32_t recv = net ? net->rx_packets : 0;
+          int loss = (sent > recv && sent > 0) ? (int)(((sent - recv) * 100U) / sent) : 0;
+          char sentbuf[32];
+          char recvbuf[32];
+          char lossbuf[32];
+          char pct[8];
+          int sp = 0, rp = 0, lp = 0;
+          sentbuf[0] = recvbuf[0] = lossbuf[0] = 0;
+          runtime_format_percent(loss, pct, sizeof(pct));
+          apps3_append_text(sentbuf, &sp, sizeof(sentbuf), "Packets Sent: ");
+          apps3_append_uint(sentbuf, &sp, sizeof(sentbuf), sent);
+          apps3_append_text(recvbuf, &rp, sizeof(recvbuf), "Packets Recv: ");
+          apps3_append_uint(recvbuf, &rp, sizeof(recvbuf), recv);
+          apps3_append_text(lossbuf, &lp, sizeof(lossbuf), "Packet Loss: ");
+          apps3_append_text(lossbuf, &lp, sizeof(lossbuf), pct);
+          vga_draw_string_trans(wx+10, pa_y+4,  sentbuf, nu_txt);
+          vga_draw_string_trans(wx+10, pa_y+16, recvbuf, nu_grn);
+          vga_draw_string_trans(wx+10, pa_y+28, lossbuf, loss ? RGB(255,149,0) : nu_grn);
+          vga_draw_string_trans(wx+10, pa_y+40, net && net->name ? net->name : "No interface", nu_sub); }
         return 1;
     }
 

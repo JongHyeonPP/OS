@@ -5,9 +5,10 @@
 static int32_t calc_clamp_i64(int64_t v);
 static int32_t calc_apply_op(int32_t a, int32_t b, char op);
 
-static void status_append_text(char *buf, int *pos, const char *text) {
+static void overlay_append_text(char *buf, int *pos, int max, const char *text) {
     int i = 0;
-    while (text && text[i] && *pos < 79) {
+    if (!buf || max <= 0) return;
+    while (text && text[i] && *pos + 1 < max) {
         buf[*pos] = text[i];
         (*pos)++;
         i++;
@@ -20,11 +21,11 @@ static void status_set_runtime_about(void) {
     int pos = 0;
     runtime_get_system_info(&sys);
     g_status[0] = 0;
-    status_append_text(g_status, &pos, sys.sysname);
-    status_append_text(g_status, &pos, " ");
-    status_append_text(g_status, &pos, sys.release);
-    status_append_text(g_status, &pos, " ");
-    status_append_text(g_status, &pos, sys.machine);
+    overlay_append_text(g_status, &pos, sizeof(g_status), sys.sysname);
+    overlay_append_text(g_status, &pos, sizeof(g_status), " ");
+    overlay_append_text(g_status, &pos, sizeof(g_status), sys.release);
+    overlay_append_text(g_status, &pos, sizeof(g_status), " ");
+    overlay_append_text(g_status, &pos, sizeof(g_status), sys.machine);
 }
 
 void stage_manager_draw(void) {
@@ -2946,16 +2947,34 @@ void siri_draw(void) {
         }
     } else {
         /* Response state */
-        vga_draw_string_trans(sx3+16, sy3+82, "Siri:", RGB(140,140,240));
-        static const char *resps[] = {
-            "It is 09:42 AM.",
-            "The weather is sunny, 22 C.",
-            "Opening Settings...",
-            "I found 3 results.",
-            "Here's what I found:",
-        };
+        char dyn_resp[80];
+        int dyn_pos = 0;
         int ri2 = (int)((g_siri_resp_tick / 2000) % 5);
-        vga_draw_string_trans(sx3+48, sy3+82, resps[ri2], RGB(220,220,255));
+        dyn_resp[0] = 0;
+        if (ri2 == 0) {
+            char clk[12];
+            get_clock_str(clk);
+            overlay_append_text(dyn_resp, &dyn_pos, sizeof(dyn_resp), "It is ");
+            overlay_append_text(dyn_resp, &dyn_pos, sizeof(dyn_resp), clk);
+            overlay_append_text(dyn_resp, &dyn_pos, sizeof(dyn_resp), ".");
+        } else if (ri2 == 1) {
+            runtime_weather_info_t weather;
+            char temp[8];
+            runtime_get_weather_info(&weather);
+            runtime_format_temperature_c(weather.temperature_c, temp, sizeof(temp));
+            overlay_append_text(dyn_resp, &dyn_pos, sizeof(dyn_resp), "Weather: ");
+            overlay_append_text(dyn_resp, &dyn_pos, sizeof(dyn_resp), weather.condition);
+            overlay_append_text(dyn_resp, &dyn_pos, sizeof(dyn_resp), " ");
+            overlay_append_text(dyn_resp, &dyn_pos, sizeof(dyn_resp), temp);
+        } else if (ri2 == 2) {
+            overlay_append_text(dyn_resp, &dyn_pos, sizeof(dyn_resp), "Opening Settings...");
+        } else if (ri2 == 3) {
+            overlay_append_text(dyn_resp, &dyn_pos, sizeof(dyn_resp), "I found results.");
+        } else {
+            overlay_append_text(dyn_resp, &dyn_pos, sizeof(dyn_resp), "Here's what I found:");
+        }
+        vga_draw_string_trans(sx3+16, sy3+82, "Siri:", RGB(140,140,240));
+        vga_draw_string_trans(sx3+48, sy3+82, dyn_resp, RGB(220,220,255));
         vga_draw_string_trans(sx3+(sw3-80)/2, sy3+110, "Press Esc to close", RGB(100,100,140));
     }
 }

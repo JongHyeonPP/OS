@@ -1450,7 +1450,7 @@ void gui_init(void) {
 
     /* Initialize TextEdit buffer length */
     { int k = 0; while (g_edit_text[k]) k++; g_edit_len = k; }
-    term_println("MyOS Terminal v0.1");
+    term_println("MyOS Terminal");
     term_println("Type 'help' for commands");
     term_println("---");
     g_last_input_tick = timer_ticks();
@@ -1458,7 +1458,7 @@ void gui_init(void) {
     /* Pre-populate NC with realistic notifications */
     nc_add("MyOS",    "Welcome! Fully bare-metal.",      RGB(0,122,255));
     nc_add("Mail",    "3 new messages from team",        RGB(0,122,255));
-    nc_add("Calendar","Meeting at 10:00 - Stand-up",     RGB(255,59,48));
+    nc_add("Calendar","Stand-up meeting",                RGB(255,59,48));
     nc_add("Notes",   "Shopping list updated",           RGB(255,204,0));
     nc_add("Music",   "Now playing: Midnight Drive",     RGB(252,60,68));
     nc_add("App Store","Updates available (3 apps)",     RGB(0,122,255));

@@ -2717,8 +2717,15 @@ int draw_apps_group4(int idx) {
 
     /* Status bar text */
     {
-        static const char *item_counts[] = { "4 items", "4 items", "4 items", "4 items" };
-        const char *msg = (g_finder_depth < 4) ? item_counts[g_finder_depth] : "4 items";
+        int fcount_status = 0;
+        char countbuf[12];
+        char msg[24];
+        int mpos = 0;
+        (void)finder_current_folders(&fcount_status);
+        int_to_str(fcount_status, countbuf);
+        msg[0] = 0;
+        apps4_append_text(msg, &mpos, sizeof(msg), countbuf);
+        apps4_append_text(msg, &mpos, sizeof(msg), fcount_status == 1 ? " item" : " items");
         vga_draw_string_trans(wx + sb_w + 8, wy + win->h - 13, msg,
                               g_pref_darkmode?RGB(120,120,128):COLOR_TEXT_GRAY);
     }
