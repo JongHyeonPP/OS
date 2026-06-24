@@ -645,7 +645,7 @@ void nc_draw(void) {
             { char agebuf[16]; runtime_format_relative_time(3600, agebuf, sizeof(agebuf));
               vga_draw_string_trans(nx+NC_W-44, sy+5, agebuf, nc_sub); }
             vga_draw_hline(nx+8, sy+24, cw2-4, nc_cbd);
-            vga_draw_string_trans(nx+10, sy+28, "1 app updated: Xcode 16.2", nc_sub);
+            vga_draw_string_trans(nx+10, sy+28, "Updates available", nc_sub);
             sy += ch2 + 4;
         }
     }
@@ -2942,24 +2942,20 @@ void term_process_command(void) {
     } else if (CMD_IS("vi") || CMD_IS("vim") || CMD_IS("nano")) {
         term_println("Hint: open TextEdit from dock");
     } else if (CMD_IS("python") || CMD_IS("python3")) {
-        term_println("Python (simulated)");
-        term_println(">>> ");
+        term_println("python: interactive runtime unavailable");
     } else if (CMD_IS("node") || CMD_IS("npm")) {
-        term_println("Node.js (simulated)");
+        term_println("node: runtime unavailable");
     } else if (CMD_IS("brew")) {
-        term_println("Homebrew (simulated)");
-        term_println("Usage: brew install <pkg>");
+        term_println("brew: package manager unavailable");
     } else if (cmd[0]=='b'&&cmd[1]=='r'&&cmd[2]=='e'&&cmd[3]=='w'&&cmd[4]==' ') {
-        term_println("==> Downloading...");
-        term_println("==> Installing... done");
+        term_println("brew: package manager unavailable");
     } else if (cmd[0]=='s'&&cmd[1]=='u'&&cmd[2]=='d'&&cmd[3]=='o') {
         if (cmd[4]==' ') { term_println("sudo: already root"); }
         else term_println("sudo: what do you want?");
     } else if (CMD_IS("ssh")) {
         term_println("usage: ssh [-l user] hostname");
     } else if (cmd[0]=='s'&&cmd[1]=='s'&&cmd[2]=='h'&&cmd[3]==' ') {
-        term_println("ssh: connect to host...");
-        term_println("Connection refused (simulated)");
+        term_println("ssh: network client unavailable");
     } else if (CMD_IS("make")) {
         term_println("make: *** No targets. Stop.");
     } else if (CMD_IS("which")) {

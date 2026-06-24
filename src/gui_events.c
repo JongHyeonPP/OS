@@ -196,9 +196,9 @@ void gui_run(void) {
                             if (mx < left_end) {
                                 /* Reply / Snooze */
                                 if (g_toast_type == TOAST_TYPE_REPLY) {
-                                    toast_show("Messages", "Replied!", RGB(52,199,89));
+                                    toast_show("Notifications", "Reply unavailable", RGB(120,120,130));
                                 } else {
-                                    toast_show("Reminder", "Snoozed for 10 min", RGB(255,149,0));
+                                    toast_show("Notifications", "Snooze unavailable", RGB(120,120,130));
                                 }
                             } else {
                                 /* Dismiss */
@@ -333,8 +333,7 @@ void gui_run(void) {
                 }
                 /* Print button */
                 if (mx>=pd_x2+pd_w2-88 && mx<pd_x2+pd_w2-8 && my>=pd_y2+pd_h2-30 && my<pd_y2+pd_h2-10) {
-                    g_print_visible = 0;
-                    toast_show("Print", "Sent to printer", RGB(0,122,255));
+                    toast_show("Print", "No printer configured", RGB(120,120,130));
                     dirty = 1; goto end_left_press;
                 }
                 /* Click outside = close */
@@ -1625,8 +1624,8 @@ void gui_run(void) {
                 }
                 /* Send button in compose view */
                 if (g_mail_compose && mx>=w->x+w->w-58&&mx<w->x+w->w-8&&my>=cy_ml+5&&my<cy_ml+23) {
-                    toast_show("Mail","Message sent!",RGB(52,199,89));
-                    g_mail_compose=0; g_mail_focused_field=0; dirty=1; goto end_left_press;
+                    toast_show("Mail","No account configured",RGB(120,120,130));
+                    dirty=1; goto end_left_press;
                 }
                 /* Field focus in compose */
                 if (g_mail_compose) {
@@ -1933,8 +1932,7 @@ void gui_run(void) {
                 if (item >= 0) {
                     const char *lbl2 = g_ctx_labels[item];
                     if (str_eq(lbl2,"New Folder")) {
-                        toast_show("Finder","New Folder created",RGB(41,128,185));
-                        str_cpy(g_status, "New Folder");
+                        toast_show("Finder","Folder creation unavailable",RGB(120,120,130));
                     } else if (str_eq(lbl2,"Get Info")) {
                         int fcount3 = 0;
                         char nbuf3[12];
@@ -2620,7 +2618,6 @@ void gui_run(void) {
                       }
                       dirty=1;
                     }
-                } else if (ch == 0x19 && 0) { /* (disabled - handled by Calendar above) */
                 } else if (ch == 0x01) { /* Ctrl+A = open/raise Activity Monitor */
                     { int jj, ff=0;
                       for (jj=0;jj<g_num_windows;jj++) {
@@ -3625,7 +3622,6 @@ void gui_run(void) {
                 dirty = 1;
             }
         }
-
         prev_btn = mb;
         prev_mx = mx; prev_my = my;
 

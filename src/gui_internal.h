@@ -346,8 +346,6 @@ extern int g_pref_wallpaper;
 /* Control Center state */
 extern int g_cc_visible;
 extern int g_stage_manager;
-extern int g_quicknote_visible;
-extern int g_writing_tools_visible;
 
 /* Window tiling */
 extern int g_tile_zone;

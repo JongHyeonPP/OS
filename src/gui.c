@@ -836,12 +836,6 @@ int g_pref_wallpaper = 0; /* 0=blue gradient, 1=sunset, 2=forest, 3=space */
 int g_cc_visible = 0;
 int g_stage_manager = 0; /* Stage Manager window arrangement mode */
 
-/* Quick Note floating panel */
-int g_quicknote_visible = 0;
-
-/* Writing Tools popup (Apple Intelligence) */
-int g_writing_tools_visible = 0;
-
 /* Window tiling (macOS Sequoia style) */
 int g_tile_zone   = 0; /* 0=none 1=left 2=right 3=full 4=top-L 5=top-R 6=bot-L 7=bot-R */
 int g_tile_flash  = 0; /* countdown for tiling zone overlay animation (frames) */
