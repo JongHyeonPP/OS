@@ -1,5 +1,6 @@
 #include "runtime_info.h"
 #include "block.h"
+#include "datetime.h"
 #include "driver.h"
 #include "heap.h"
 #include "pci.h"
@@ -240,13 +241,15 @@ void runtime_get_power_info(runtime_power_info_t *out) {
 void runtime_get_weather_info(runtime_weather_info_t *out) {
     uint32_t phase;
     int i;
-    static const char *hours[RUNTIME_HOURLY_COUNT] = {
-        "Now", "10", "11", "12", "1PM", "2", "3", "4"
-    };
+    datetime_t dt;
+    static char hours[RUNTIME_HOURLY_COUNT][6];
     static const char *icons[RUNTIME_HOURLY_COUNT] = {
         "pc", "su", "su", "su", "pc", "su", "pc", "su"
     };
     if (!out) return;
+    if (datetime_now(&dt) != 0) {
+        dt.hour = (int)((timer_ticks() / 3600000U) % 24U);
+    }
     phase = (timer_ticks() / 30000U) % 4U;
     out->location = "Seoul";
     out->location_full = "Seoul, Korea";
@@ -254,7 +257,7 @@ void runtime_get_weather_info(runtime_weather_info_t *out) {
     out->high_c = out->temperature_c + 4;
     out->low_c = out->temperature_c - 7;
     out->condition = (phase == 0) ? "Partly Cloudy" : "Sunny";
-    out->tomorrow = (phase == 0) ? "Sunny tomorrow" : "Clear tomorrow";
+    out->next_summary = (phase == 0) ? "Sunny ahead" : "Clear ahead";
     for (i = 0; i < RUNTIME_WEATHER_DAYS; i++) {
         out->forecast[i].label = "";
         out->forecast[i].temp_c = out->temperature_c - i * 2;
@@ -263,6 +266,32 @@ void runtime_get_weather_info(runtime_weather_info_t *out) {
         out->forecast[i].condition = i == 0 ? out->condition : "Sunny";
     }
     for (i = 0; i < RUNTIME_HOURLY_COUNT; i++) {
+        int hour = (dt.hour + i) % 24;
+        if (i == 0) {
+            hours[i][0] = 'N';
+            hours[i][1] = 'o';
+            hours[i][2] = 'w';
+            hours[i][3] = 0;
+        } else if (hour == 0) {
+            hours[i][0] = '1';
+            hours[i][1] = '2';
+            hours[i][2] = 'A';
+            hours[i][3] = 'M';
+            hours[i][4] = 0;
+        } else if (hour < 12) {
+            uint32_t pos = 0;
+            r_append_uint(hours[i], &pos, sizeof(hours[i]), (uint32_t)hour);
+        } else if (hour == 12) {
+            hours[i][0] = '1';
+            hours[i][1] = '2';
+            hours[i][2] = 'P';
+            hours[i][3] = 'M';
+            hours[i][4] = 0;
+        } else {
+            uint32_t pos = 0;
+            r_append_uint(hours[i], &pos, sizeof(hours[i]), (uint32_t)(hour - 12));
+            r_append_str(hours[i], &pos, sizeof(hours[i]), "PM");
+        }
         out->hourly_label[i] = hours[i];
         out->hourly_icon[i] = icons[i];
         out->hourly_temp_c[i] = out->temperature_c + ((i < 4) ? i / 2 : 1 - (i - 4) / 2);
@@ -278,7 +307,7 @@ void runtime_get_system_info(runtime_system_info_t *out) {
     out->release = uts_release();
     out->version = uts_version();
     out->machine = uts_machine();
-    out->cpu_model = "QEMU i386";
+    out->cpu_model = uts_machine();
     out->display = "BGA framebuffer";
     out->boot_loader = "GRUB Multiboot1";
     out->cpu_count = 1;

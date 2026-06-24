@@ -549,7 +549,7 @@ void get_clock_str(char *buf) {
     append_2digit(buf, &pos, dt.second);
 }
 
-/* 12-hour AM/PM format for menubar: "9:41 AM" */
+/* 12-hour AM/PM format for the menubar. */
 static void get_clock_str_12h(char *buf) {
     datetime_t dt;
     const char *ampm;
@@ -906,7 +906,7 @@ void lock_screen_draw(void) {
     /* Lock screen notification cards */
     {
         static const char *ls_apps[]={"Messages","Calendar","Mail"};
-        static const char *ls_msgs[]={"Jane Kim: Are you free for lunch?","Team Standup - starts in 15 min","GitHub: PR #247 was approved"};
+        static const char *ls_msgs[]={"Jane Kim: Are you free for lunch?","Team Standup - starting soon","GitHub: PR was approved"};
         static const uint32_t ls_age_s[]={120,3600,900};
         static const uint32_t ls_cols[]={RGB(52,199,89),RGB(255,59,48),RGB(0,140,255)};
         int notif_y = VGA_HEIGHT/2 + 120;

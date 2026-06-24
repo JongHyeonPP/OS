@@ -623,7 +623,7 @@ void nc_draw(void) {
           vga_draw_string_trans(nx+NC_W-44, sy+5, agebuf, nc_sub); }
         vga_draw_hline(nx+8, sy+24, cw2-4, nc_cbd);
         vga_draw_string_trans(nx+10, sy+28, "Team Standup", nc_txt);
-        vga_draw_string_trans(nx+10, sy+38, "in 15 minutes  *  Conference Room", nc_sub);
+        vga_draw_string_trans(nx+10, sy+38, "Starting soon  *  Conference Room", nc_sub);
         sy += ch2 + 4;
     }
 
@@ -2171,8 +2171,10 @@ static void term_print_runtime_diskutil(void) {
 static void term_print_runtime_hosts(void) {
     runtime_system_info_t sys;
     const netif_t *n;
+    char loopbuf[18];
     runtime_get_system_info(&sys);
-    term_println("127.0.0.1  localhost");
+    runtime_format_ipv4(0x7F000001U, loopbuf, sizeof(loopbuf));
+    term_print3(loopbuf, "  ", "localhost");
     n = runtime_primary_netif();
     if (n && n->ipv4) {
         char ipbuf[18];
@@ -2770,7 +2772,7 @@ void widget_bar_draw(void) {
         gui_draw_circle(wdx+135, wdy+25, 18, RGB(255,200,50));
         gui_draw_circle(wdx+125, wdy+22, 16, RGB(80,180,240));
         vga_draw_string_trans(wdx+8, wdy+66, hlbuf, RGB(180,220,255));
-        vga_draw_string_trans(wdx+8, wdy+78, weather.tomorrow, RGB(160,200,240));
+        vga_draw_string_trans(wdx+8, wdy+78, weather.next_summary, RGB(160,200,240));
     }
 
     /* Widget 3: System Stats (dynamic) */

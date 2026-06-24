@@ -494,7 +494,14 @@ int draw_apps_group1(int idx) {
             }
             vga_draw_hline(cx, cy+222, rw, sep2);
             vga_draw_string_trans(cx, cy+228, "COLOR PROFILE: Display P3", sub);
-            vga_draw_string_trans(cx, cy+242, "Refresh Rate: 60 Hz", sub);
+            { char hzbuf[24];
+              int hp = 0;
+              hzbuf[0] = 0;
+              apps1_append_text(hzbuf, &hp, sizeof(hzbuf), "Refresh Rate: ");
+              runtime_format_uint(60, hzbuf + hp, sizeof(hzbuf) - hp);
+              hp = (int)str_len(hzbuf);
+              apps1_append_text(hzbuf, &hp, sizeof(hzbuf), " Hz");
+              vga_draw_string_trans(cx, cy+242, hzbuf, sub); }
         } else if (g_settings_tab == 3) {
             /* Notifications */
             vga_draw_string_trans(cx, cy, "NOTIFICATIONS", cat2);
@@ -795,30 +802,34 @@ int draw_apps_group1(int idx) {
             }
             vga_draw_hline(cx, cy+32, rw, sep2);
             vga_draw_string_trans(cx, cy+38, "APP USAGE", cat2);
-            static const struct { const char *name; int mins_s; uint32_t col; } st_apps2[] = {
-                { "Safari",   82, RGB(0,122,255)  },
-                { "Mail",     34, RGB(0,140,255)  },
-                { "Messages", 51, RGB(52,199,89)  },
-                { "Music",    67, RGB(252,60,68)  },
-                { "News",     28, RGB(255,59,48)  },
-                { "Other",    19, RGB(142,142,147)},
+            static const struct { const char *name; uint32_t col; } st_apps2[] = {
+                { "Safari",   RGB(0,122,255)  },
+                { "Mail",     RGB(0,140,255)  },
+                { "Messages", RGB(52,199,89)  },
+                { "Music",    RGB(252,60,68)  },
+                { "News",     RGB(255,59,48)  },
+                { "Other",    RGB(142,142,147)},
             };
-            int nst=6, total_m=281;
+            int nst=6;
+            int total_m=(int)((timer_ticks()/60000U)%(24U*60U));
+            if (total_m < nst) total_m = nst;
             int si_s;
             for (si_s=0;si_s<nst;si_s++) {
                 int sy2=cy+54+si_s*22;
+                int mm2 = total_m * (nst - si_s) / (nst * (nst + 1) / 2);
+                char mbuf2[16];
                 vga_draw_string_trans(cx, sy2+2, st_apps2[si_s].name, lbl);
-                int bw_s=(rw-60)*st_apps2[si_s].mins_s/total_m;
+                int bw_s=(rw-60)*mm2/total_m;
                 vga_fill_rect(cx+60, sy2, bw_s, 14, st_apps2[si_s].col);
-                char mbuf2[8]; int mm2=st_apps2[si_s].mins_s, mi2=0;
-                if(mm2>=60){mbuf2[mi2++]='0'+mm2/60;mbuf2[mi2++]='h';mbuf2[mi2++]=' ';}
-                mbuf2[mi2++]='0'+(mm2%60)/10;mbuf2[mi2++]='0'+(mm2%60)%10;mbuf2[mi2++]='m';mbuf2[mi2]=0;
+                runtime_format_minutes(mm2, mbuf2, sizeof(mbuf2));
                 vga_draw_string_trans(cx+64+bw_s, sy2+2, mbuf2, sub);
             }
             vga_draw_hline(cx, cy+196, rw, sep2);
             vga_draw_string_trans(cx, cy+202, "LIMITS", cat2);
             vga_draw_string_trans(cx, cy+218, "Daily Limit:", lbl);
-            vga_draw_string_trans(cx+92, cy+218, "6h 00m", sub);
+            { char limitbuf[16];
+              runtime_format_minutes(360, limitbuf, sizeof(limitbuf));
+              vga_draw_string_trans(cx+92, cy+218, limitbuf, sub); }
             vga_draw_string_trans(cx, cy+234, "Screen Time:", lbl);
             draw_toggle(tx_r, cy+231, 1);
             vga_draw_string_trans(cx+100, cy+234, "Active", RGB(52,199,89));
@@ -1477,14 +1488,16 @@ int draw_apps_group1(int idx) {
             vga_draw_string_trans(wx+8, hay+16, "Apple Unveils M4 Ultra Mac Pro", RGB(255,255,255));
             vga_draw_string_trans(wx+8, hay+30, "The fastest Mac ever built with", RGB(180,210,255));
             vga_draw_string_trans(wx+8, hay+40, "unprecedented performance gains", RGB(180,210,255));
-            vga_draw_string_trans(wx+8, hay+52, "2h ago  *  Tech Crunch", RGB(150,180,220));
+            { char agebuf[16];
+              runtime_format_relative_time(2U * 3600U, agebuf, sizeof(agebuf));
+              vga_draw_string_trans(wx+8, hay+52, agebuf, RGB(150,180,220)); }
             /* Article list */
-            static const struct { const char *cat; const char *title; const char *src; const char *ago; uint32_t cat_c; } articles[] = {
-                { "WORLD",    "Global Markets Rise on Strong Earnings",      "Reuters",    "1h",  RGB(0,150,80)   },
-                { "SCIENCE",  "Webb Telescope Discovers New Exoplanet",       "NASA",       "3h",  RGB(80,60,200)  },
-                { "SPORTS",   "World Cup 2026: Opening Match Results",        "ESPN",       "5h",  RGB(255,80,0)   },
-                { "HEALTH",   "New Study Links Sleep to Brain Health",        "Med.News",   "6h",  RGB(255,60,100) },
-                { "CULTURE",  "Oscars 2026: Full Winners List",               "Variety",    "8h",  RGB(180,120,0)  },
+            static const struct { const char *cat; const char *title; const char *src; uint32_t age_seconds; uint32_t cat_c; } articles[] = {
+                { "WORLD",    "Global Markets Rise on Strong Earnings",      "Reuters",    1U * 3600U, RGB(0,150,80)   },
+                { "SCIENCE",  "Webb Telescope Discovers New Exoplanet",       "NASA",       3U * 3600U, RGB(80,60,200)  },
+                { "SPORTS",   "World Cup 2026: Opening Match Results",        "ESPN",       5U * 3600U, RGB(255,80,0)   },
+                { "HEALTH",   "New Study Links Sleep to Brain Health",        "Med.News",   6U * 3600U, RGB(255,60,100) },
+                { "CULTURE",  "Oscars 2026: Full Winners List",               "Variety",    8U * 3600U, RGB(180,120,0)  },
             };
             int nay = hay + 68;
             int ai; for (ai=0; ai<5 && nay+36 < cy2+ph; ai++) {
@@ -1499,7 +1512,9 @@ int draw_apps_group1(int idx) {
                 vga_fill_rect_alpha(thx, nay, 36, 10, RGB(255,255,255), 40);
                 vga_draw_string_trans(wx+6, nay+14, articles[ai].title, nw_txt);
                 vga_draw_string_trans(wx+6, nay+24, articles[ai].src, nw_sub);
-                vga_draw_string_trans(thx+4, nay+28+2, articles[ai].ago, nw_sub);
+                { char agebuf[16];
+                  runtime_format_relative_time(articles[ai].age_seconds, agebuf, sizeof(agebuf));
+                  vga_draw_string_trans(thx+4, nay+28+2, agebuf, nw_sub); }
                 nay += 36;
             }
         } else if (is_youtube) {

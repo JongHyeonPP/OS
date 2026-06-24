@@ -720,17 +720,21 @@ static void cmd_cat(const char *arg, shell_write_fn out) {
     normalize_path(arg, path);
     if (streq(path, "/etc/hosts")) {
         runtime_system_info_t sys;
-        const netif_t *n;
+        const netif_t *netif;
+        char loop_line[32];
+        uint32_t loop_pos = 0;
         runtime_get_system_info(&sys);
-        out("127.0.0.1 localhost");
-        n = runtime_primary_netif();
-        if (n && n->ipv4) {
-            char line[96];
+        append_ipv4(loop_line, &loop_pos, sizeof(loop_line), 0x7F000001U);
+        append_str(loop_line, &loop_pos, sizeof(loop_line), " localhost");
+        out(loop_line);
+        netif = runtime_primary_netif();
+        if (netif && netif->ipv4) {
+            char host_line[96];
             uint32_t pos = 0;
-            append_ipv4(line, &pos, sizeof(line), n->ipv4);
-            append_char(line, &pos, sizeof(line), ' ');
-            append_str(line, &pos, sizeof(line), sys.nodename);
-            out(line);
+            append_ipv4(host_line, &pos, sizeof(host_line), netif->ipv4);
+            append_char(host_line, &pos, sizeof(host_line), ' ');
+            append_str(host_line, &pos, sizeof(host_line), sys.nodename);
+            out(host_line);
         }
         return;
     }

@@ -7,6 +7,81 @@ static void apps4_append_text(char *buf, int *pos, int max, const char *text) {
     buf[*pos] = 0;
 }
 
+static void apps4_append_uint(char *buf, int *pos, int max, uint32_t value) {
+    char tmp[10];
+    int n = 0;
+    if (!buf || max <= 0) return;
+    if (value == 0) {
+        if (*pos + 1 < max) buf[(*pos)++] = '0';
+        buf[*pos] = 0;
+        return;
+    }
+    while (value && n < (int)sizeof(tmp)) {
+        tmp[n++] = (char)('0' + (value % 10U));
+        value /= 10U;
+    }
+    while (n && *pos + 1 < max) buf[(*pos)++] = tmp[--n];
+    buf[*pos] = 0;
+}
+
+static void apps4_format_uint_suffix(uint32_t value, const char *suffix, char *buf, int max) {
+    int pos = 0;
+    if (!buf || max <= 0) return;
+    buf[0] = 0;
+    apps4_append_uint(buf, &pos, max, value);
+    apps4_append_text(buf, &pos, max, suffix);
+}
+
+static void apps4_format_decimal_tenths(uint32_t tenths, const char *suffix, char *buf, int max) {
+    int pos = 0;
+    if (!buf || max <= 0) return;
+    buf[0] = 0;
+    apps4_append_uint(buf, &pos, max, tenths / 10U);
+    apps4_append_text(buf, &pos, max, ".");
+    apps4_append_uint(buf, &pos, max, tenths % 10U);
+    apps4_append_text(buf, &pos, max, suffix);
+}
+
+static void apps4_format_time_24h_from_minutes(int minutes, char *buf, int max) {
+    int hour, minute;
+    if (!buf || max <= 0) return;
+    while (minutes < 0) minutes += 24 * 60;
+    minutes %= 24 * 60;
+    hour = minutes / 60;
+    minute = minutes % 60;
+    if (max < 6) {
+        buf[0] = 0;
+        return;
+    }
+    buf[0] = (char)('0' + (hour / 10));
+    buf[1] = (char)('0' + (hour % 10));
+    buf[2] = ':';
+    buf[3] = (char)('0' + (minute / 10));
+    buf[4] = (char)('0' + (minute % 10));
+    buf[5] = 0;
+}
+
+static void apps4_format_hms(uint32_t total_seconds, char *buf, int max) {
+    uint32_t hours, minutes, seconds;
+    if (!buf || max <= 0) return;
+    hours = (total_seconds / 3600U) % 24U;
+    minutes = (total_seconds / 60U) % 60U;
+    seconds = total_seconds % 60U;
+    if (max < 9) {
+        buf[0] = 0;
+        return;
+    }
+    buf[0] = (char)('0' + (hours / 10U));
+    buf[1] = (char)('0' + (hours % 10U));
+    buf[2] = ':';
+    buf[3] = (char)('0' + (minutes / 10U));
+    buf[4] = (char)('0' + (minutes % 10U));
+    buf[5] = ':';
+    buf[6] = (char)('0' + (seconds / 10U));
+    buf[7] = (char)('0' + (seconds % 10U));
+    buf[8] = 0;
+}
+
 static void apps4_format_journal_date(int days_ago, char *buf, int max) {
     datetime_t now;
     int y, m, d, wd;
@@ -114,12 +189,25 @@ int draw_apps_group4(int idx) {
         int ri7w=wx+ww-ri7-2;
         vga_fill_rect(ri7, content_y+25, ri7w, content_h-25, RGB(28,28,34));
         vga_draw_string_trans(ri7+4, content_y+28, "PROPERTIES", mo_sub);
-        { static const char *props2[]={"Position","X: 400","Y: 300","Scale","100%","Rotation","0 deg","Opacity","100%"};
+        { static const char *prop_labels[]={"Position","Scale","Rotation","Opacity"};
           int pi8, py8=content_y+40;
-          for (pi8=0;pi8<9;pi8++){
+          for (pi8=0;pi8<4;pi8++){
+              char prop_value[20];
+              int pp = 0;
               if (py8+12>content_y+content_h-4) break;
-              vga_draw_string_trans(ri7+4, py8, props2[pi8], pi8%2==0?mo_sub:mo_txt);
-              py8 += 14;
+              prop_value[0] = 0;
+              if (pi8 == 0) {
+                  apps4_append_text(prop_value, &pp, sizeof(prop_value), "X: ");
+                  apps4_append_uint(prop_value, &pp, sizeof(prop_value), (uint32_t)(cv_x + cv_w / 2));
+              } else if (pi8 == 1 || pi8 == 3) {
+                  runtime_format_percent(100, prop_value, sizeof(prop_value));
+              } else {
+                  apps4_append_uint(prop_value, &pp, sizeof(prop_value), (uint32_t)((timer_ticks() / 100U) % 360U));
+                  apps4_append_text(prop_value, &pp, sizeof(prop_value), " deg");
+              }
+              vga_draw_string_trans(ri7+4, py8, prop_labels[pi8], mo_sub);
+              vga_draw_string_trans(ri7+4, py8+10, prop_value, mo_txt);
+              py8 += 22;
           }
         }
         return 1;
@@ -373,7 +461,7 @@ int draw_apps_group4(int idx) {
         vga_draw_hline(wx+10, cy+22, ww-20, hf_sep);
         /* Recent activities from other devices */
         struct { const char *dev; const char *app; const char *doc; uint32_t col; } acts[]={
-            {"iPhone","Safari","myos.local - Home",RGB(255,159,0)},
+            {"iPhone","Safari","Home Page",RGB(255,159,0)},
             {"iPad","Notes","Shopping list",RGB(255,214,10)},
             {"iPhone","Mail","Re: Project Update",RGB(0,122,255)},
             {"Mac","Pages","Annual Report 2026.pages",RGB(255,149,0)},
@@ -532,9 +620,9 @@ int draw_apps_group4(int idx) {
         vga_draw_string_trans(wx+ww-60, cy+10, "+ Invite", RGB(0,122,255));
         /* App list */
         struct { const char *name; const char *ver; const char *exp; } apps[]={
-            {"MyOS Remote","v2.1 (Build 47)","Expires Dec 31"},
-            {"Safari Beta","v18.3 (Build 2)","Expires Mar 15"},
-            {"TestApp","v1.0 (Build 12)","Expires Jan 10"},
+            {"MyOS Remote","v2.1 (Build 47)","Valid"},
+            {"Safari Beta","v18.3 (Build 2)","Valid"},
+            {"TestApp","v1.0 (Build 12)","Review"},
         };
         int ai2, ay2=cy+36;
         for (ai2=0;ai2<3;ai2++){
@@ -810,33 +898,47 @@ int draw_apps_group4(int idx) {
         uint32_t hbg = g_pref_darkmode ? RGB(18,18,18) : RGB(242,242,247);
         uint32_t htxt = g_pref_darkmode ? RGB(255,255,255) : RGB(0,0,0);
         uint32_t hsub = g_pref_darkmode ? RGB(170,170,170) : RGB(110,110,118);
+        datetime_t hnow;
+        uint32_t health_phase = (timer_ticks() / 30000U) % 20U;
+        int move_pct = 58 + (int)(health_phase % 30U);
+        int exercise_pct = 42 + (int)((health_phase * 3U) % 40U);
+        int stand_pct = 65 + (int)((health_phase * 2U) % 28U);
+        char move_val[16];
+        char exercise_val[16];
+        char stand_val[16];
+        char hvals[5][20];
+        get_current_datetime(&hnow);
+        apps4_format_uint_suffix((uint32_t)(move_pct * 7), " Cal", move_val, sizeof(move_val));
+        apps4_format_uint_suffix((uint32_t)(exercise_pct * 3 / 5), " min", exercise_val, sizeof(exercise_val));
+        apps4_format_uint_suffix((uint32_t)(stand_pct / 8), " hrs", stand_val, sizeof(stand_val));
+        apps4_format_uint_suffix(7000U + health_phase * 137U, "", hvals[0], sizeof(hvals[0]));
+        apps4_format_uint_suffix(62U + (health_phase % 18U), " BPM", hvals[1], sizeof(hvals[1]));
+        runtime_format_minutes(360 + (int)(health_phase * 3U), hvals[2], sizeof(hvals[2]));
+        apps4_format_decimal_tenths(30U + health_phase, " km", hvals[3], sizeof(hvals[3]));
+        apps4_format_uint_suffix(1800U + health_phase * 31U, "", hvals[4], sizeof(hvals[4]));
         vga_fill_rect(wx+1, cy, ww-2, wh-TITLEBAR_H, hbg);
         /* Title */
         vga_draw_string_trans(wx+8, cy+6, "Summary", htxt);
-        vga_draw_string_trans(wx+8, cy+17, "Today", hsub);
+        vga_draw_string_trans(wx+8, cy+17, datetime_weekday_long(hnow.weekday), hsub);
         /* Activity rings */
         int ring_cx = wx + ww/2;
         int ring_cy = cy + 95;
-        /* Move ring (outer) = calories: pct=72% */
-        draw_ring_arc(ring_cx, ring_cy, 66, 57, 72, RGB(255,45,85), RGB(80,15,28));
-        /* Exercise ring (middle) = minutes: pct=58% */
-        draw_ring_arc(ring_cx, ring_cy, 50, 41, 58, RGB(92,214,92), RGB(12,60,12));
-        /* Stand ring (inner) = hours: pct=83% */
-        draw_ring_arc(ring_cx, ring_cy, 34, 25, 83, RGB(10,210,255), RGB(5,55,70));
+        draw_ring_arc(ring_cx, ring_cy, 66, 57, move_pct, RGB(255,45,85), RGB(80,15,28));
+        draw_ring_arc(ring_cx, ring_cy, 50, 41, exercise_pct, RGB(92,214,92), RGB(12,60,12));
+        draw_ring_arc(ring_cx, ring_cy, 34, 25, stand_pct, RGB(10,210,255), RGB(5,55,70));
         /* Ring labels */
         vga_draw_string_trans(wx+8, cy+74, "Move",   RGB(255,45,85));
-        vga_draw_string_trans(wx+8, cy+84, "486 Cal",RGB(255,45,85));
+        vga_draw_string_trans(wx+8, cy+84, move_val,RGB(255,45,85));
         vga_draw_string_trans(wx+8, cy+100,"Exercise",RGB(92,214,92));
-        vga_draw_string_trans(wx+8, cy+110,"35 min", RGB(92,214,92));
+        vga_draw_string_trans(wx+8, cy+110,exercise_val, RGB(92,214,92));
         vga_draw_string_trans(wx+8, cy+126,"Stand",  RGB(10,210,255));
-        vga_draw_string_trans(wx+8, cy+136,"10 hrs", RGB(10,210,255));
+        vga_draw_string_trans(wx+8, cy+136,stand_val, RGB(10,210,255));
         /* Stats divider */
         int sy = ring_cy + 78;
         vga_draw_hline(wx+4, sy, ww-8, g_pref_darkmode?RGB(50,50,55):RGB(210,210,215));
         sy += 6;
         /* Metric cards */
         static const char *hlabels[]={"Steps","Heart Rate","Sleep","Distance","Calories"};
-        static const char *hvals[]  ={"8,247","72 BPM","7h 32m","3.8 km","2,340"};
         static const char *hunits[] ={"steps today","resting","last night","walked","kcal today"};
         static const uint32_t hcols[]={RGB(255,149,0),RGB(255,45,85),RGB(88,86,214),RGB(52,199,89),RGB(255,59,48)};
         int cw2=(ww-10)/2, ch2=46;
@@ -1383,7 +1485,11 @@ int draw_apps_group4(int idx) {
         /* Request/response table */
         vga_draw_string_trans(wx+88,cy+8,"Request",pm_acc);
         vga_draw_string_trans(wx+88,cy+20,"GET /api/v3/users",pm_txt);
-        vga_draw_string_trans(wx+88,cy+32,"200 OK  148ms",RGB(52,199,89));
+        { char resp[24];
+          int rp = 0;
+          apps4_append_text(resp, &rp, sizeof(resp), "200 OK  ");
+          apps4_format_uint_suffix(80U + ((timer_ticks() / 100U) % 180U), "ms", resp + rp, (int)sizeof(resp) - rp);
+          vga_draw_string_trans(wx+88,cy+32,resp,RGB(52,199,89)); }
         vga_draw_hline(wx+84,cy+44,ww-88,RGB(30,40,55));
         vga_draw_string_trans(wx+88,cy+52,"Headers",pm_sub);
         const char *hdrs[]={"Content-Type: application/json","Authorization: Bearer ***","Accept: */*"};
@@ -1507,15 +1613,33 @@ int draw_apps_group4(int idx) {
             vga_draw_string_trans(wx+8, ty2, is_tabs[it], it==0?is_acc:is_sub);
         }
         /* Today view */
-        vga_draw_string_trans(wx+88, wy+TITLEBAR_H+8, "Today - Monday", is_txt);
+        { datetime_t is_now;
+          char is_header[32];
+          int ihp = 0;
+          get_current_datetime(&is_now);
+          is_header[0] = 0;
+          apps4_append_text(is_header, &ihp, sizeof(is_header), "Classes - ");
+          apps4_append_text(is_header, &ihp, sizeof(is_header), datetime_weekday_long(is_now.weekday));
+          vga_draw_string_trans(wx+88, wy+TITLEBAR_H+8, is_header, is_txt); }
         vga_draw_hline(wx+82, wy+TITLEBAR_H+22, ww-84, RGB(50,50,56));
-        static const char *is_cls[]={"Math 101  10:00","Physics  13:30","CS 301   15:00"};
+        static const char *is_cls[]={"Math 101","Physics","CS 301"};
+        static const int is_offsets[]={30,120,210};
         static const uint32_t is_cc[]={RGB(0,122,255),RGB(220,50,50),RGB(52,199,89)};
         for(it=0;it<3;it++){
             int cy2=wy+TITLEBAR_H+30+it*40;
+            datetime_t is_now2;
+            char is_row[32];
+            char is_time[8];
+            int irp = 0;
+            get_current_datetime(&is_now2);
+            apps4_format_time_24h_from_minutes(is_now2.hour * 60 + is_now2.minute + is_offsets[it], is_time, sizeof(is_time));
+            is_row[0] = 0;
+            apps4_append_text(is_row, &irp, sizeof(is_row), is_cls[it]);
+            apps4_append_text(is_row, &irp, sizeof(is_row), "  ");
+            apps4_append_text(is_row, &irp, sizeof(is_row), is_time);
             vga_fill_rect(wx+82, cy2, 4, 30, is_cc[it]);
             vga_fill_rect(wx+88, cy2, ww-92, 30, RGB(34,34,38));
-            vga_draw_string_trans(wx+96, cy2+10, is_cls[it], is_txt);
+            vga_draw_string_trans(wx+96, cy2+10, is_row, is_txt);
         }
         return 1;
     }
@@ -1593,36 +1717,52 @@ int draw_apps_group4(int idx) {
         /* Month header */
         vga_fill_rect(wx+1, wy+TITLEBAR_H, ww-2, 28, RGB(30,30,34));
         vga_draw_hline(wx+1, wy+TITLEBAR_H+28, ww-2, RGB(44,44,50));
-        vga_draw_string_trans(wx+(ww-40)/2, wy+TITLEBAR_H+8, "June", fa_acc);
-        vga_draw_string_trans(wx+(ww-40)/2+44, wy+TITLEBAR_H+8, "2026", fa_txt);
+        { datetime_t fa_now;
+          char fa_year[8];
+          int fa_month_len;
+          int fa_first_wd;
+          get_current_datetime(&fa_now);
+          runtime_format_uint((uint32_t)fa_now.year, fa_year, sizeof(fa_year));
+          vga_draw_string_trans(wx+(ww-96)/2, wy+TITLEBAR_H+8, datetime_month_long(fa_now.month), fa_acc);
+          vga_draw_string_trans(wx+(ww-96)/2+64, wy+TITLEBAR_H+8, fa_year, fa_txt);
         /* Day headers */
         static const char *fa_days[]={"S","M","T","W","T","F","S"};
         int cell_w=(ww-2)/7; int fi;
         for(fi=0;fi<7;fi++) vga_draw_string_trans(wx+2+fi*cell_w+cell_w/2-4, wy+TITLEBAR_H+34, fa_days[fi], fa_sub);
-        /* Calendar grid (5 weeks) */
-        static const int fa_dates[]={1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31};
+        fa_month_len = datetime_days_in_month(fa_now.year, fa_now.month);
+        fa_first_wd = datetime_day_of_week(fa_now.year, fa_now.month, 1);
         int row2,col2;
-        for(row2=0;row2<5;row2++){
+        for(row2=0;row2<6;row2++){
             for(col2=0;col2<7;col2++){
-                int didx=row2*7+col2-1;
-                if(didx<0 || didx>=30) continue;
+                int day = row2*7+col2-fa_first_wd+1;
                 int cx2=wx+2+col2*cell_w, cy2=wy+TITLEBAR_H+46+row2*18;
-                if(didx==21){ gui_draw_circle(cx2+cell_w/2, cy2+7, 7, fa_acc); }
-                char ds[3]; ds[0]='0'+(fa_dates[didx]/10); ds[1]='0'+(fa_dates[didx]%10); ds[2]=0;
-                if(fa_dates[didx]<10){ds[0]='0'+fa_dates[didx]; ds[1]=0;}
-                vga_draw_string_trans(cx2+cell_w/2-4, cy2+3, ds, didx==21?RGB(255,255,255):fa_txt);
+                char ds[4];
+                if(day<1 || day>fa_month_len) continue;
+                if(day==fa_now.day){ gui_draw_circle(cx2+cell_w/2, cy2+7, 7, fa_acc); }
+                runtime_format_uint((uint32_t)day, ds, sizeof(ds));
+                vga_draw_string_trans(cx2+cell_w/2-4, cy2+3, ds, day==fa_now.day?RGB(255,255,255):fa_txt);
             }
         }
         /* Events panel */
         int ev_y=wy+TITLEBAR_H+140;
         vga_draw_hline(wx+2, ev_y, ww-4, RGB(44,44,50));
-        vga_draw_string_trans(wx+8, ev_y+6, "Today's Events", fa_sub);
-        static const char *fa_evts[]={"  9:00 Team Standup","13:00 Design Review","16:30 1:1 with PM"};
+        vga_draw_string_trans(wx+8, ev_y+6, "Events", fa_sub);
+        static const char *fa_evts[]={"Team Standup","Design Review","1:1 with PM"};
+        static const int fa_offsets[]={15,120,240};
         static const uint32_t fa_ecol[]={RGB(0,122,255),RGB(52,199,89),RGB(255,149,0)};
         for(fi=0;fi<3;fi++){
             int ey2=ev_y+22+fi*22;
+            char fa_row[32];
+            char fa_time[8];
+            int frp = 0;
+            apps4_format_time_24h_from_minutes(fa_now.hour * 60 + fa_now.minute + fa_offsets[fi], fa_time, sizeof(fa_time));
+            fa_row[0] = 0;
+            apps4_append_text(fa_row, &frp, sizeof(fa_row), fa_time);
+            apps4_append_text(fa_row, &frp, sizeof(fa_row), " ");
+            apps4_append_text(fa_row, &frp, sizeof(fa_row), fa_evts[fi]);
             vga_fill_rect(wx+6, ey2, 3, 16, fa_ecol[fi]);
-            vga_draw_string_trans(wx+12, ey2+4, fa_evts[fi], fa_txt);
+            vga_draw_string_trans(wx+12, ey2+4, fa_row, fa_txt);
+        }
         }
         return 1;
     }
@@ -1755,19 +1895,23 @@ int draw_apps_group4(int idx) {
         gui_draw_rounded_rect(wx+4, wy+TITLEBAR_H+28, ww-8, 40, 6, RGB(28,38,28));
         gui_draw_circle(wx+20, wy+TITLEBAR_H+48, 8, kl_acc);
         vga_draw_string_trans(wx+32, wy+TITLEBAR_H+34, "MyOS Development", kl_txt);
-        vga_draw_string_trans(wx+32, wy+TITLEBAR_H+48, "02:34:17", kl_acc);
+        { char kl_active[12];
+          apps4_format_hms((timer_ticks() / 1000U) % (24U * 3600U), kl_active, sizeof(kl_active));
+          vga_draw_string_trans(wx+32, wy+TITLEBAR_H+48, kl_active, kl_acc); }
         vga_draw_string_trans(wx+ww-32, wy+TITLEBAR_H+44, "[]", RGB(200,50,50));
         /* Project list */
         vga_draw_hline(wx+2, wy+TITLEBAR_H+72, ww-4, RGB(36,48,36));
         static const char *kl_proj[]={"MyOS Dev","Design Work","Meeting","Admin"};
-        static const char *kl_time[]={"12:34","4:20","1:05","0:30"};
+        static const int kl_base_minutes[]={210,90,45,20};
         static const uint32_t kl_col[]={RGB(52,199,89),RGB(0,122,255),RGB(255,149,0),RGB(120,120,130)};
         int ki;
         for(ki=0;ki<4;ki++){
             int ky2=wy+TITLEBAR_H+78+ki*26;
+            char kl_time[16];
+            runtime_format_minutes(kl_base_minutes[ki] + (int)((timer_ticks() / 60000U) % 45U), kl_time, sizeof(kl_time));
             vga_fill_rect(wx+6, ky2+6, 10, 10, kl_col[ki]);
             vga_draw_string_trans(wx+20, ky2+7, kl_proj[ki], kl_txt);
-            vga_draw_string_trans(wx+ww-48, ky2+7, kl_time[ki], kl_sub);
+            vga_draw_string_trans(wx+ww-56, ky2+7, kl_time, kl_sub);
         }
         return 1;
     }
@@ -1832,7 +1976,11 @@ int draw_apps_group4(int idx) {
             vga_fill_rect(wx+82, ay2, ww-84, 26, RGB(26,26,32));
             vga_draw_hline(wx+82, ay2+26, ww-84, RGB(40,40,48));
             vga_draw_string_trans(wx+90, ay2+5, re_arts[ri3], re_txt);
-            vga_draw_string_trans(wx+90, ay2+17, "2 hours ago", re_sub);
+            {
+                char re_age[24];
+                runtime_format_relative_time((uint32_t)(7200U + (uint32_t)ri3 * 1800U), re_age, sizeof(re_age));
+                vga_draw_string_trans(wx+90, ay2+17, re_age, re_sub);
+            }
         }
         return 1;
     }
@@ -2623,7 +2771,7 @@ int draw_apps_group4(int idx) {
         vga_draw_string_trans(lx+content_w/2, content_y+4, "Date Modified", fn_lh_txt);
         vga_draw_string_trans(lx+content_w-44, content_y+4, "Size", fn_lh_txt);
         /* File rows */
-        static const char *list_sizes[] = {"--","--","4 KB","128 B"};
+        static const uint32_t list_sizes[] = {0U,0U,4096U,128U};
         char modified_date[18];
         int fi2;
         get_file_modified_str(modified_date);
@@ -2643,7 +2791,15 @@ int draw_apps_group4(int idx) {
             /* Date */
             vga_draw_string_trans(lx+content_w/2, ry+4, modified_date, fn_sb_cat);
             /* Size */
-            vga_draw_string_trans(lx+content_w-44, ry+4, list_sizes[fi2<4?fi2:3], fn_sb_cat);
+            { char sizebuf[16];
+              if (fi2 < 2) {
+                  sizebuf[0] = '-';
+                  sizebuf[1] = '-';
+                  sizebuf[2] = 0;
+              } else {
+                  runtime_format_bytes(list_sizes[fi2<4?fi2:3], sizebuf, sizeof(sizebuf));
+              }
+              vga_draw_string_trans(lx+content_w-44, ry+4, sizebuf, fn_sb_cat); }
         }
     } else {
         /* Column view: 3 panes */
@@ -2777,10 +2933,10 @@ int draw_apps_group4(int idx) {
 
         /* 3 interactive reminder items at positions matching event handler */
         /* Event handler: row rii at iy3=rm_cy+30+rii*34, checkbox cx4=wx+rm_sb_w+8+9=wx+107 */
-        static const struct { const char *text; int flag; const char *time; } rems[] = {
-            { "Buy groceries",       1, "10:00 AM" },
-            { "Team standup call",   0, "11:00 AM" },
-            { "Review pull request", 0, "2:00 PM"  },
+        static const struct { const char *text; int flag; int minutes_from_now; } rems[] = {
+            { "Buy groceries",       1, 30  },
+            { "Team standup call",   0, 90  },
+            { "Review pull request", 0, 210 },
         };
         int ri4;
         for (ri4=0; ri4<3; ri4++) {
@@ -2800,8 +2956,41 @@ int draw_apps_group4(int idx) {
             }
             /* Text beside checkbox */
             uint32_t rtxt2 = is_done ? rs : rt;
-            vga_draw_string_trans(chk_x+14, iy3+4,  rems[ri4].text, rtxt2);
-            vga_draw_string_trans(chk_x+14, iy3+16, rems[ri4].time, rs);
+            {
+                datetime_t rem_now;
+                char rem_time[12];
+                int rem_hour;
+                int rem_minute;
+                const char *rem_ampm;
+                int rem_h12;
+                get_current_datetime(&rem_now);
+                rem_hour = (rem_now.hour + (rem_now.minute + rems[ri4].minutes_from_now) / 60) % 24;
+                rem_minute = (rem_now.minute + rems[ri4].minutes_from_now) % 60;
+                rem_ampm = rem_hour >= 12 ? "PM" : "AM";
+                rem_h12 = rem_hour % 12;
+                if (rem_h12 == 0) rem_h12 = 12;
+                rem_time[0] = (char)('0' + (rem_h12 / 10));
+                rem_time[1] = (char)('0' + (rem_h12 % 10));
+                rem_time[2] = ':';
+                rem_time[3] = (char)('0' + (rem_minute / 10));
+                rem_time[4] = (char)('0' + (rem_minute % 10));
+                rem_time[5] = ' ';
+                rem_time[6] = rem_ampm[0];
+                rem_time[7] = rem_ampm[1];
+                rem_time[8] = 0;
+                if (rem_time[0] == '0') {
+                    rem_time[0] = rem_time[1];
+                    rem_time[1] = ':';
+                    rem_time[2] = rem_time[3];
+                    rem_time[3] = rem_time[4];
+                    rem_time[4] = ' ';
+                    rem_time[5] = rem_ampm[0];
+                    rem_time[6] = rem_ampm[1];
+                    rem_time[7] = 0;
+                }
+                vga_draw_string_trans(chk_x+14, iy3+4,  rems[ri4].text, rtxt2);
+                vga_draw_string_trans(chk_x+14, iy3+16, rem_time, rs);
+            }
             if (rems[ri4].flag) {
                 vga_draw_string_trans(wx+ww-14, iy3+4, "!", RGB(255,149,0));
             }
@@ -2873,13 +3062,13 @@ int draw_apps_group4(int idx) {
         }
 
         /* Device tiles 3×2 grid using g_home_dev_on[] */
-        static const struct { const char *name; const char *val_on; const char *val_off; uint32_t color; } hdevs2[]={
-            { "Living Light", "100%",    "Off",   RGB(255,214,10)  },
-            { "Smart TV",     "On",      "Off",   RGB(100,140,255) },
-            { "Thermostat",   "22.5 C",  "Off",   RGB(255,149,0)   },
-            { "Speaker",      "Playing", "Off",   RGB(147,44,246)  },
-            { "Curtains",     "Open",    "Closed",RGB(52,199,89)   },
-            { "Door Lock",    "Locked",  "Open",  RGB(52,199,89)   },
+        static const struct { const char *name; const char *val_off; uint32_t color; } hdevs2[]={
+            { "Living Light", "Off",   RGB(255,214,10)  },
+            { "Smart TV",     "Off",   RGB(100,140,255) },
+            { "Thermostat",   "Off",   RGB(255,149,0)   },
+            { "Speaker",      "Off",   RGB(147,44,246)  },
+            { "Curtains",     "Closed",RGB(52,199,89)   },
+            { "Door Lock",    "Open",  RGB(52,199,89)   },
         };
         int cw3=(ww-16)/3, ch3=58;
         int gy2=cy+72;
@@ -2902,7 +3091,28 @@ int draw_apps_group4(int idx) {
                 if (pulse3==0) vga_fill_rect_alpha(tx3+9, ty3+11, 14, 14, icon_c2, 35);
             }
             vga_draw_string_trans(tx3+4, ty3+34, hdevs2[di2].name, ht2);
-            vga_draw_string_trans(tx3+4, ty3+44, on3?hdevs2[di2].val_on:hdevs2[di2].val_off, hs2);
+            { char home_val[16];
+              if (!on3) {
+                  home_val[0] = 0;
+                  apps4_append_text(home_val, &(int){0}, sizeof(home_val), hdevs2[di2].val_off);
+              } else if (di2 == 0) {
+                  runtime_format_percent(70 + (int)((tnow2 / 500U) % 31U), home_val, sizeof(home_val));
+              } else if (di2 == 2) {
+                  apps4_format_decimal_tenths(200U + ((tnow2 / 2000U) % 50U), " C", home_val, sizeof(home_val));
+              } else if (di2 == 3) {
+                  home_val[0] = 0;
+                  apps4_append_text(home_val, &(int){0}, sizeof(home_val), "Playing");
+              } else if (di2 == 4) {
+                  home_val[0] = 0;
+                  apps4_append_text(home_val, &(int){0}, sizeof(home_val), "Open");
+              } else if (di2 == 5) {
+                  home_val[0] = 0;
+                  apps4_append_text(home_val, &(int){0}, sizeof(home_val), "Locked");
+              } else {
+                  home_val[0] = 0;
+                  apps4_append_text(home_val, &(int){0}, sizeof(home_val), "On");
+              }
+              vga_draw_string_trans(tx3+4, ty3+44, home_val, hs2); }
             uint32_t tog_c2=on3?RGB(52,199,89):hs2;
             gui_draw_circle(tx3+cw3-12, ty3+12, 6, tog_c2);
         }
@@ -2978,16 +3188,20 @@ int draw_apps_group4(int idx) {
         /* Market status bar */
         int ms_y=wy+wh-40;
         vga_draw_hline(wx+1, ms_y, ww-2, stsp);
-        vga_draw_string_trans(wx+8, ms_y+6, "Market: OPEN", RGB(52,199,89));
+        { datetime_t market_now;
+          int market_open;
+          get_current_datetime(&market_now);
+          market_open = market_now.hour >= 9 && market_now.hour < 16;
+          vga_draw_string_trans(wx+8, ms_y+6, market_open ? "Market: OPEN" : "Market: CLOSED",
+                                market_open ? RGB(52,199,89) : stsb); }
         vga_draw_string_trans(wx+8, ms_y+18,"NASDAQ  S&P500  KOSPI", stsb);
         { uint32_t tnow3=timer_ticks();
           static const int idx_vals[]={18420,5312,2674};
-          static const char *idx_names[]={"18420","5312","2674"};
           int ii; int ix=wx+ww-130;
           for (ii=0;ii<3;ii++){
-              (void)idx_vals[ii];
-              vga_draw_string_trans(ix+ii*44, ms_y+18, idx_names[ii], stsb);
-              (void)tnow3;
+              char idxbuf[12];
+              runtime_format_uint((uint32_t)(idx_vals[ii] + (int)((tnow3 / 1000U + (uint32_t)ii * 17U) % 40U)), idxbuf, sizeof(idxbuf));
+              vga_draw_string_trans(ix+ii*44, ms_y+18, idxbuf, stsb);
           }
         }
         return 1;

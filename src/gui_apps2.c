@@ -107,6 +107,15 @@ static void apps2_format_mail_time(int index, int detailed, char *buf, int max) 
     }
 }
 
+static void apps2_format_message_time(int index, char *buf, int max) {
+    datetime_t now;
+    int offset;
+    if (!buf || max <= 0) return;
+    get_current_datetime(&now);
+    offset = index * 19;
+    apps2_format_time_12h(now.hour * 60 + now.minute - offset, buf, max);
+}
+
 int draw_apps_group2(int idx) {
     if (idx < 0 || idx >= g_num_windows) return 0;
 
@@ -227,7 +236,7 @@ int draw_apps_group2(int idx) {
         vga_fill_rect(lx, cy0, list_w, ch0-26, ml_bg);
         vga_draw_vline(lx+list_w, cy0, ch0-26, ml_sep);
         static const struct { const char *from; const char *subj; int unread; } msgs[] = {
-            {"Alice Chen",   "Meeting tomorrow",      1},
+            {"Alice Chen",   "Meeting reminder",      1},
             {"Bob Smith",    "Re: Project update",    1},
             {"Newsletter",   "Weekly Digest",         1},
             {"GitHub",       "PR merged: feature",    0},
@@ -256,8 +265,8 @@ int draw_apps_group2(int idx) {
             const char *subj; const char *from;
             const char *l1; const char *l2; const char *l3; const char *l4; const char *sign;
         } previews[] = {
-            { "Meeting tomorrow", "Alice Chen <alice@example.com>",
-              "Hi, Just a reminder", "we have our weekly", "sync tomorrow at 10am.", "Please be prepared!", "Alice" },
+            { "Meeting reminder", "Alice Chen <alice@example.com>",
+              "Hi, Just a reminder", "we have our weekly", "sync coming up.", "Please be prepared!", "Alice" },
             { "Re: Project update", "Bob Smith <bob@work.com>",
               "Thanks for the update.", "The new feature looks", "great! Let's ship it", "by end of week.", "Bob" },
             { "Weekly Digest", "Newsletter <news@digest.com>",
@@ -376,8 +385,21 @@ int draw_apps_group2(int idx) {
         /* Market status bar */
         int sb_y = wy+wh-36;
         vga_fill_rect(wx+2, sb_y, ww-4, 16, sk_hd);
-        vga_draw_string_trans(wx+8, sb_y+4, "NASDAQ  +0.84%", sk_up);
-        vga_draw_string_trans(wx+ww/2-20, sb_y+4, "S&P 500 +0.61%", sk_up);
+        { char nasdaq[24];
+          char sp500[24];
+          int np = 0, sp = 0;
+          int n_delta = 40 + (int)((timer_ticks() / 1000U) % 80U);
+          int s_delta = 25 + (int)((timer_ticks() / 1500U) % 70U);
+          nasdaq[0] = 0;
+          sp500[0] = 0;
+          apps2_append_text(nasdaq, &np, sizeof(nasdaq), "NASDAQ  +");
+          apps2_append_text(sp500, &sp, sizeof(sp500), "S&P 500 +");
+          nasdaq[np++] = (char)('0' + n_delta / 100); nasdaq[np++] = '.';
+          nasdaq[np++] = (char)('0' + (n_delta / 10) % 10); nasdaq[np++] = (char)('0' + n_delta % 10); nasdaq[np++] = '%'; nasdaq[np] = 0;
+          sp500[sp++] = (char)('0' + s_delta / 100); sp500[sp++] = '.';
+          sp500[sp++] = (char)('0' + (s_delta / 10) % 10); sp500[sp++] = (char)('0' + s_delta % 10); sp500[sp++] = '%'; sp500[sp] = 0;
+          vga_draw_string_trans(wx+8, sb_y+4, nasdaq, sk_up);
+          vga_draw_string_trans(wx+ww/2-20, sb_y+4, sp500, sk_up); }
         (void)t_sk;
         return 1;
     }
@@ -406,14 +428,24 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(wx+12, feat_y+18, "AI Revolution Changes", RGB(255,255,255));
         vga_draw_string_trans(wx+12, feat_y+30, "How We Work Forever", RGB(255,255,255));
         vga_draw_string_trans(wx+12, feat_y+44, "Tech & Business | 2 min read", RGB(255,200,200));
-        vga_draw_string_trans(wx+12, feat_y+56, "Today, 9:15 AM", nw_sub);
+        { char clockbuf[12];
+          char timebuf[32];
+          datetime_t story_now;
+          int tp = 0;
+          get_current_datetime(&story_now);
+          get_clock_str(clockbuf);
+          timebuf[0] = 0;
+          apps2_append_text(timebuf, &tp, sizeof(timebuf), datetime_weekday_short(story_now.weekday));
+          apps2_append_text(timebuf, &tp, sizeof(timebuf), ", ");
+          apps2_append_text(timebuf, &tp, sizeof(timebuf), clockbuf);
+          vga_draw_string_trans(wx+12, feat_y+56, timebuf, nw_sub); }
         /* Article list */
-        static const struct { const char *cat; const char *hed; const char *src; const char *ago; } arts[] = {
-            { "SCIENCE",    "New Space Station Module", "NASA",    "1h" },
-            { "POLITICS",   "Global Climate Summit",   "Reuters", "2h" },
-            { "SPORTS",     "World Cup Qualifiers",    "ESPN",    "3h" },
-            { "HEALTH",     "Breakthrough Vaccine",    "WHO",     "4h" },
-            { "TECHNOLOGY", "Quantum Computing Leap",  "Wired",   "5h" },
+        static const struct { const char *cat; const char *hed; const char *src; uint32_t age_seconds; } arts[] = {
+            { "SCIENCE",    "New Space Station Module", "NASA",    1U * 3600U },
+            { "POLITICS",   "Global Climate Summit",   "Reuters", 2U * 3600U },
+            { "SPORTS",     "World Cup Qualifiers",    "ESPN",    3U * 3600U },
+            { "HEALTH",     "Breakthrough Vaccine",    "WHO",     4U * 3600U },
+            { "TECHNOLOGY", "Quantum Computing Leap",  "Wired",   5U * 3600U },
         };
         int na=5, ai2;
         for (ai2=0; ai2<na; ai2++) {
@@ -424,7 +456,9 @@ int draw_apps_group2(int idx) {
             vga_draw_string_trans(wx+10, ay+4, arts[ai2].cat, RGB(255,255,255));
             vga_draw_string_trans(wx+8, ay+16, arts[ai2].hed, nw_txt);
             vga_draw_string_trans(wx+8, ay+26, arts[ai2].src, nw_sub);
-            vga_draw_string_trans(wx+ww-24, ay+26, arts[ai2].ago, nw_sub);
+            { char agebuf[16];
+              runtime_format_relative_time(arts[ai2].age_seconds, agebuf, sizeof(agebuf));
+              vga_draw_string_trans(wx+ww-24, ay+26, agebuf, nw_sub); }
             vga_draw_hline(wx+4, ay+32, ww-8, nw_sep);
         }
         return 1;
@@ -521,20 +555,22 @@ int draw_apps_group2(int idx) {
         }
         /* Conversations */
         static const struct {
-            const char *name; const char *last; const char *time;
+            const char *name; const char *last;
             uint32_t av; int unread; int imsg;
         } ms_convs[] = {
-            { "Alice Kim",  "Sounds great!",    "9:41", RGB(255,100,100), 3, 1 },
-            { "Bob Chen",   "See you later",    "9:30", RGB(100,130,255), 0, 1 },
-            { "Carol Park", "Thanks!",          "8:55", RGB(255,200,50),  1, 1 },
-            { "MyOS Team",  "Meeting at 10",    "8:30", RGB(52,199,89),   2, 0 },
-            { "David Lee",  "On my way",        "7:45", RGB(147,44,246),  0, 1 },
-            { "Jenny Wu",   "haha yes!!",       "7:12", RGB(255,149,0),   0, 1 },
+            { "Alice Kim",  "Sounds great!",    RGB(255,100,100), 3, 1 },
+            { "Bob Chen",   "See you later",    RGB(100,130,255), 0, 1 },
+            { "Carol Park", "Thanks!",          RGB(255,200,50),  1, 1 },
+            { "MyOS Team",  "Meeting soon",     RGB(52,199,89),   2, 0 },
+            { "David Lee",  "On my way",        RGB(147,44,246),  0, 1 },
+            { "Jenny Wu",   "haha yes!!",       RGB(255,149,0),   0, 1 },
         };
         int ms_nc=6, ms_ci;
         for (ms_ci=0; ms_ci<ms_nc; ms_ci++) {
             int cy4=wy+TITLEBAR_H+27+ms_ci*33;
+            char conv_time[12];
             if (cy4+33>wy+wh-20) break;
+            apps2_format_message_time(ms_ci, conv_time, sizeof(conv_time));
             if (ms_ci==g_ms_sel) {
                 gui_draw_rounded_rect(wx+2, cy4-1, sb_w-2, 33, 6, ms_sel);
             }
@@ -550,7 +586,7 @@ int draw_apps_group2(int idx) {
             uint32_t ntc = ms_ci==g_ms_sel ? RGB(255,255,255) : ms_txt;
             uint32_t stc = ms_ci==g_ms_sel ? RGB(200,220,255) : ms_sub;
             vga_draw_string_trans(wx+35, cy4+5,  ms_convs[ms_ci].name, ntc);
-            vga_draw_string_trans(wx+sb_w-22, cy4+5, ms_convs[ms_ci].time, stc);
+            vga_draw_string_trans(wx+sb_w-54, cy4+5, conv_time, stc);
             /* Last message */
             vga_draw_string_trans(wx+35, cy4+18, ms_convs[ms_ci].last, stc);
             /* Unread badge */
@@ -580,13 +616,18 @@ int draw_apps_group2(int idx) {
           gui_draw_circle(hbx+34, wy+TITLEBAR_H+18, 11, g_pref_darkmode?RGB(48,48,56):RGB(218,218,228));
           vga_draw_string_trans(hbx+29, wy+TITLEBAR_H+14, "vd", ms_blu);
         }
-        /* "Today" date separator */
+        /* Current date separator */
         int bub_y = wy+TITLEBAR_H+44;
-        { int sl7=(int)str_len("Today")*8;
+        { datetime_t sep_now;
+          const char *sep_label;
+          int sl7;
           int sep_left = chat_x+4, sep_right = chat_x+chat_w-4;
           int sep_mid = chat_x + chat_w/2;
+          get_current_datetime(&sep_now);
+          sep_label = datetime_weekday_long(sep_now.weekday);
+          sl7=(int)str_len(sep_label)*8;
           vga_draw_hline(sep_left, bub_y+4, sep_mid-sep_left-sl7/2-4, ms_sep);
-          vga_draw_string_trans(sep_mid-sl7/2, bub_y, "Today", ms_sub);
+          vga_draw_string_trans(sep_mid-sl7/2, bub_y, sep_label, ms_sub);
           vga_draw_hline(sep_mid+sl7/2+4, bub_y+4, sep_right-(sep_mid+sl7/2+4), ms_sep);
         }
         bub_y += 14;
@@ -696,8 +737,16 @@ int draw_apps_group2(int idx) {
           }
         }
         /* Read receipt */
-        if (bub_y < max_chat_y)
-            vga_draw_string_trans(wx+ww-56, bub_y-2, "Read 9:41", ms_sub);
+        if (bub_y < max_chat_y) {
+            char read_time[12];
+            char readbuf[24];
+            int rp = 0;
+            apps2_format_message_time(0, read_time, sizeof(read_time));
+            readbuf[0] = 0;
+            apps2_append_text(readbuf, &rp, sizeof(readbuf), "Read ");
+            apps2_append_text(readbuf, &rp, sizeof(readbuf), read_time);
+            vga_draw_string_trans(wx+ww-88, bub_y-2, readbuf, ms_sub);
+        }
         /* ---- Input bar ---- */
         int inp_y = wy+wh-40;
         vga_fill_rect(chat_x-2, inp_y, chat_w+2, 21, g_pref_darkmode?RGB(30,30,36):RGB(242,242,248));
@@ -776,9 +825,15 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(wx+58, cont_y+24, "Programmer", bk_txt);
         vga_draw_string_trans(wx+58, cont_y+36, "David Thomas", bk_sub);
         /* Progress bar */
+        { int book_pct = 40 + (int)((timer_ticks() / 10000U) % 55U);
+          char pctbuf[24];
+          int ppos;
         vga_fill_rect(wx+58, cont_y+50, ww-68, 6, bk_sep);
-        vga_fill_rect(wx+58, cont_y+50, (ww-68)*68/100, 6, bk_acc);
-        vga_draw_string_trans(wx+58, cont_y+58, "68% complete", bk_sub);
+        vga_fill_rect(wx+58, cont_y+50, (ww-68)*book_pct/100, 6, bk_acc);
+        runtime_format_percent(book_pct, pctbuf, sizeof(pctbuf));
+        ppos = (int)str_len(pctbuf);
+        apps2_append_text(pctbuf, &ppos, sizeof(pctbuf), " complete");
+        vga_draw_string_trans(wx+58, cont_y+58, pctbuf, bk_sub); }
         vga_draw_hline(wx+4, cont_y+74, ww-8, bk_sep);
         /* Library books grid */
         vga_draw_string_trans(wx+8, cont_y+78, "MY LIBRARY", bk_sub);
@@ -2389,7 +2444,9 @@ int draw_apps_group2(int idx) {
         vga_fill_rect(wx+1, wy+wh-20, ww-2, 18, pv_tb);
         vga_draw_hline(wx+1, wy+wh-20, ww-2, pv_sep);
         vga_draw_string_trans(wx+6, wy+wh-14, "Page 1 of 4", pv_sub);
-        { int zl=str_len("100%")*8; vga_draw_string_trans(wx+ww-zl-6, wy+wh-14, "100%", pv_acc); }
+        { char zoom_buf[8];
+          runtime_format_percent(100, zoom_buf, sizeof(zoom_buf));
+          int zl=str_len(zoom_buf)*8; vga_draw_string_trans(wx+ww-zl-6, wy+wh-14, zoom_buf, pv_acc); }
         return 1;
     }
 

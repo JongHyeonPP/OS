@@ -15,6 +15,14 @@ static void apps3_append_uint(char *buf, int *pos, int max, uint32_t value) {
     buf[*pos] = 0;
 }
 
+static void apps3_format_uint_suffix(uint32_t value, const char *suffix, char *buf, int max) {
+    int pos = 0;
+    if (!buf || max <= 0) return;
+    buf[0] = 0;
+    apps3_append_uint(buf, &pos, max, value);
+    apps3_append_text(buf, &pos, max, suffix);
+}
+
 static void apps3_append_bytes(char *buf, int *pos, int max, uint32_t bytes) {
     char bbuf[16];
     int i = 0;
@@ -50,6 +58,52 @@ static void apps3_format_hms_age(uint32_t age_seconds, char *buf, int max) {
     buf[5] = ':';
     buf[6] = (char)('0' + (seconds % 60U) / 10U);
     buf[7] = (char)('0' + (seconds % 60U) % 10U);
+    buf[8] = 0;
+}
+
+static void apps3_format_timecode(uint32_t frame_offset, char *buf, int max) {
+    uint32_t total_frames;
+    uint32_t seconds;
+    uint32_t frames;
+    uint32_t minutes;
+    uint32_t hours;
+    if (!buf || max < 12) return;
+    total_frames = ((timer_ticks() / 33U) + frame_offset) % (24U * 60U * 60U * 30U);
+    frames = total_frames % 30U;
+    seconds = total_frames / 30U;
+    hours = (seconds / 3600U) % 24U;
+    minutes = (seconds / 60U) % 60U;
+    seconds %= 60U;
+    buf[0] = (char)('0' + hours / 10U);
+    buf[1] = (char)('0' + hours % 10U);
+    buf[2] = ':';
+    buf[3] = (char)('0' + minutes / 10U);
+    buf[4] = (char)('0' + minutes % 10U);
+    buf[5] = ':';
+    buf[6] = (char)('0' + seconds / 10U);
+    buf[7] = (char)('0' + seconds % 10U);
+    buf[8] = ':';
+    buf[9] = (char)('0' + frames / 10U);
+    buf[10] = (char)('0' + frames % 10U);
+    buf[11] = 0;
+}
+
+static void apps3_format_seconds_centis(uint32_t elapsed_ms, char *buf, int max) {
+    uint32_t minutes;
+    uint32_t seconds;
+    uint32_t centis;
+    if (!buf || max < 9) return;
+    minutes = (elapsed_ms / 60000U) % 100U;
+    seconds = (elapsed_ms / 1000U) % 60U;
+    centis = (elapsed_ms % 1000U) / 10U;
+    buf[0] = (char)('0' + (minutes / 10U));
+    buf[1] = (char)('0' + (minutes % 10U));
+    buf[2] = ':';
+    buf[3] = (char)('0' + (seconds / 10U));
+    buf[4] = (char)('0' + (seconds % 10U));
+    buf[5] = '.';
+    buf[6] = (char)('0' + (centis / 10U));
+    buf[7] = (char)('0' + (centis % 10U));
     buf[8] = 0;
 }
 
@@ -165,7 +219,7 @@ int draw_apps_group3(int idx) {
           uint32_t minutes_today = (timer_ticks() / 60000U) % (24U * 60U);
           runtime_format_minutes((int)minutes_today, st_minutes, sizeof(st_minutes));
           st_today[0] = 0;
-          apps3_append_text(st_today, &stp, sizeof(st_today), "Today: ");
+          apps3_append_text(st_today, &stp, sizeof(st_today), "Usage: ");
           apps3_append_text(st_today, &stp, sizeof(st_today), st_minutes);
           vga_draw_string_trans(wx+36, wy+TITLEBAR_H+23, st_today, st_acc); }
         /* Tabs */
@@ -217,17 +271,18 @@ int draw_apps_group3(int idx) {
         list_y += 14;
         {
             static const char *au_app[]  = {"Safari","Music","Messages","Notes","Mail"};
-            static const char *au_time[] = {"1h 02m","32m","18m","12m","8m"};
             static const int   au_mins[] = {62,32,18,12,8};
             static const uint32_t au_col[] = {RGB(40,160,220),RGB(252,60,68),RGB(52,199,89),RGB(255,204,0),RGB(0,140,255)};
             int au;
             for (au=0; au<5; au++) {
                 int ay = list_y+au*22;
+                char au_time[16];
                 if (ay+18 > wy+wh-28) break;
+                runtime_format_minutes(au_mins[au], au_time, sizeof(au_time));
                 gui_draw_circle(wx+14, ay+7, 7, au_col[au]);
                 vga_draw_string_trans(wx+24, ay+3, au_app[au], st_txt);
-                int tl2 = str_len(au_time[au])*8;
-                vga_draw_string_trans(wx+ww-tl2-8, ay+3, au_time[au], st_sub);
+                int tl2 = str_len(au_time)*8;
+                vga_draw_string_trans(wx+ww-tl2-8, ay+3, au_time, st_sub);
                 int ubar = (ww-100)*au_mins[au]/62;
                 vga_fill_rect(wx+24, ay+14, ww-100, 3, g_pref_darkmode?RGB(50,50,55):RGB(215,215,218));
                 vga_fill_rect(wx+24, ay+14, ubar,   3, au_col[au]);
@@ -237,7 +292,14 @@ int draw_apps_group3(int idx) {
         /* Bottom: limit row */
         int lim_y = wy+wh-26;
         vga_draw_hline(wx+1, lim_y, ww-2, st_sep);
-        vga_draw_string_trans(wx+8, lim_y+9, "Daily Limit: 3h 00m", st_sub);
+        { char limitbuf[24];
+          int lp = 0;
+          char durbuf[16];
+          runtime_format_minutes(180, durbuf, sizeof(durbuf));
+          limitbuf[0] = 0;
+          apps3_append_text(limitbuf, &lp, sizeof(limitbuf), "Daily Limit: ");
+          apps3_append_text(limitbuf, &lp, sizeof(limitbuf), durbuf);
+          vga_draw_string_trans(wx+8, lim_y+9, limitbuf, st_sub); }
         { int ll=str_len("Set")*8;
           vga_fill_rect(wx+ww-ll-20, lim_y+5, ll+12, 16, st_acc);
           gui_draw_rounded_rect_outline(wx+ww-ll-20, lim_y+5, ll+12, 16, 3, st_acc);
@@ -913,8 +975,12 @@ int draw_apps_group3(int idx) {
         vga_draw_string_trans(pv_cx-4, pv_cy-4, ">", RGB(255,255,255));
         vga_draw_string_trans(pv_cx-3, pv_cy-4, ">", RGB(255,255,255));
         /* Timecode overlay */
-        vga_draw_string_trans(pv_x+4, content_y+4, "00:00:12:00", RGB(200,200,200));
-        vga_draw_string_trans(pv_x+pv_w-72, content_y+4, "00:00:45:00", im_sub);
+        { char tc_now[12];
+          char tc_end[12];
+          apps3_format_timecode(0, tc_now, sizeof(tc_now));
+          apps3_format_timecode(990, tc_end, sizeof(tc_end));
+          vga_draw_string_trans(pv_x+4, content_y+4, tc_now, RGB(200,200,200));
+          vga_draw_string_trans(pv_x+pv_w-88, content_y+4, tc_end, im_sub); }
         /* Timeline area */
         int tl_y = content_y+pv_h;
         int tl_h = content_h-pv_h;
@@ -936,7 +1002,14 @@ int draw_apps_group3(int idx) {
         if (tl_h > 20) {
             vga_fill_rect_alpha(pv_x+4, tl_y+16, pv_w/2, tl_h-20, RGB(40,140,220), 180);
             gui_draw_rounded_rect_outline(pv_x+4, tl_y+16, pv_w/2, tl_h-20, 3, im_acc);
-            vga_draw_string_trans(pv_x+8, tl_y+20, "Clip 1 - 00:45", im_txt);
+            { char clip_label[24];
+              char clip_tc[12];
+              int cp = 0;
+              apps3_format_timecode(990, clip_tc, sizeof(clip_tc));
+              clip_label[0] = 0;
+              apps3_append_text(clip_label, &cp, sizeof(clip_label), "Clip 1 - ");
+              apps3_append_text(clip_label, &cp, sizeof(clip_label), clip_tc);
+              vga_draw_string_trans(pv_x+8, tl_y+20, clip_label, im_txt); }
             /* Playhead */
             int pl_x=pv_x+4+pv_w/6;
             vga_draw_vline(pl_x, tl_y, tl_h, RGB(255,200,0));
@@ -1499,7 +1572,9 @@ int draw_apps_group3(int idx) {
         /* Record button + time */
         gui_draw_circle(wx+14, content_y+12, 8, in_red);
         gui_draw_circle(wx+14, content_y+12, 5, RGB(200,20,20));
-        vga_draw_string_trans(wx+28, content_y+8, "00:04.23", in_txt);
+        { char elapsed_buf[12];
+          apps3_format_seconds_centis(timer_ticks() % 600000U, elapsed_buf, sizeof(elapsed_buf));
+          vga_draw_string_trans(wx+28, content_y+8, elapsed_buf, in_txt); }
         vga_draw_string_trans(wx+100, content_y+8, "MyOS (PID 1)", in_sub);
         /* Instrument track labels left panel */
         int lp2_w = 90;
@@ -1616,7 +1691,9 @@ int draw_apps_group3(int idx) {
         vga_draw_string_trans(wx+6, pa_y+4, "Target Host:", nu_sub);
         vga_fill_rect(wx+80, pa_y, ww-160, 16, nu_card);
         vga_draw_rect_outline(wx+80, pa_y, ww-160, 16, nu_sep);
-        vga_draw_string_trans(wx+84, pa_y+4, "myos.local", nu_txt);
+        { runtime_system_info_t sys;
+          runtime_get_system_info(&sys);
+          vga_draw_string_trans(wx+84, pa_y+4, sys.nodename, nu_txt); }
         gui_draw_rounded_rect(wx+ww-76, pa_y, 68, 16, 3, nu_acc);
         vga_draw_string_trans(wx+ww-72, pa_y+4, "Ping Now", RGB(255,255,255));
         /* Ping results graph */
@@ -1775,7 +1852,9 @@ int draw_apps_group3(int idx) {
           /* Timecode */
           vga_fill_rect(tx5+4, ty5, 80, 16, RGB(20,20,24));
           vga_draw_rect_outline(tx5+4, ty5, 80, 16, fc_sep);
-          vga_draw_string_trans(tx5+8, ty5+4, "00:00:04:12", fc_acc);
+          { char fc_tc[12];
+            apps3_format_timecode(120, fc_tc, sizeof(fc_tc));
+            vga_draw_string_trans(tx5+8, ty5+4, fc_tc, fc_acc); }
           tx5 += 92;
           /* Audio meters */
           { int mi5, my5=ty5, mx5=tx5+4;
@@ -1842,19 +1921,25 @@ int draw_apps_group3(int idx) {
           vga_draw_hline(vfx, vfy+vfh-2, vfw, fc_acc);
           /* Timecode overlay */
           vga_fill_rect_alpha(vfx+2, vfy+2, 80, 12, RGB(0,0,0), 150);
-          vga_draw_string_trans(vfx+4, vfy+4, "00:00:04:12", fc_acc);
+          { char fc_overlay_tc[12];
+            apps3_format_timecode(120, fc_overlay_tc, sizeof(fc_overlay_tc));
+            vga_draw_string_trans(vfx+4, vfy+4, fc_overlay_tc, fc_acc); }
         }
         /* Inspector (right) */
         int ix2=vx2+viewer_w+2;
         vga_fill_rect(ix2, panel_y, insp_w2, panel_h, RGB(32,32,38));
         vga_draw_string_trans(ix2+4, panel_y+4, "INSPECTOR", fc_sub);
-        { static const char *iprops[]={"Effect:","None","Speed:","100%","Opacity:","100%","Color:","Warm"};
+        { static const char *iprops[]={"Effect:","Speed:","Opacity:","Color:"};
           int pi5;
-          for (pi5=0;pi5<8;pi5+=2){
-              int py5=panel_y+18+pi5/2*20;
+          for (pi5=0;pi5<4;pi5++){
+              int py5=panel_y+18+pi5*20;
+              char prop_value[16];
               if (py5+16>panel_y+panel_h-4) break;
+              if (pi5 == 1 || pi5 == 2) runtime_format_percent(100, prop_value, sizeof(prop_value));
+              else if (pi5 == 0) { prop_value[0]='N'; prop_value[1]='o'; prop_value[2]='n'; prop_value[3]='e'; prop_value[4]=0; }
+              else { prop_value[0]='W'; prop_value[1]='a'; prop_value[2]='r'; prop_value[3]='m'; prop_value[4]=0; }
               vga_draw_string_trans(ix2+4, py5, iprops[pi5], fc_sub);
-              vga_draw_string_trans(ix2+4, py5+10, iprops[pi5+1], fc_txt);
+              vga_draw_string_trans(ix2+4, py5+10, prop_value, fc_txt);
           }
         }
         /* Timeline area */
@@ -1944,7 +2029,9 @@ int draw_apps_group3(int idx) {
           /* Tempo/key */
           vga_fill_rect(tx6+4, ty6, 56, 16, RGB(18,18,22));
           vga_draw_rect_outline(tx6+4, ty6, 56, 16, lp_sep);
-          vga_draw_string_trans(tx6+8, ty6+4, "120 BPM", lp_acc);
+          { char bpm_buf[12];
+            apps3_format_uint_suffix(100U + ((timer_ticks() / 1000U) % 40U), " BPM", bpm_buf, sizeof(bpm_buf));
+            vga_draw_string_trans(tx6+8, ty6+4, bpm_buf, lp_acc); }
           tx6 += 64;
           vga_fill_rect(tx6+4, ty6, 40, 16, RGB(18,18,22));
           vga_draw_rect_outline(tx6+4, ty6, 40, 16, lp_sep);

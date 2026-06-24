@@ -235,12 +235,12 @@ int g_notes_body_len[NOTES_COUNT] = {0, 0, 0, 0, 0};
  * Safari state
  * ======================================================================= */
 int  g_safari_url_focused = 0;
-char g_safari_url[64] = "https://myos.local";
+char g_safari_url[64] = "about:home";
 /* Multi-tab state */
 int  g_safari_tab_count  = 1;
 int  g_safari_active_tab = 0;
 char g_safari_tab_urls[SAFARI_MAX_TABS][64] = {
-    "https://myos.local", "", "", ""
+    "about:home", "", "", ""
 };
 char g_safari_tab_titles[SAFARI_MAX_TABS][24] = {
     "MyOS Home", "", "", ""

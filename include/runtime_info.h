@@ -33,7 +33,7 @@ typedef struct {
     int high_c;
     int low_c;
     const char *condition;
-    const char *tomorrow;
+    const char *next_summary;
     runtime_weather_day_t forecast[RUNTIME_WEATHER_DAYS];
     const char *hourly_label[RUNTIME_HOURLY_COUNT];
     const char *hourly_icon[RUNTIME_HOURLY_COUNT];

@@ -65,17 +65,17 @@ static int gui_drain_tty_output(void) {
 static const struct { const char *app; const char *msg; uint32_t color; int type; } s_sys_notifs[] = {
     { "Messages",   "Sarah: Are you free tonight?",      RGB(52, 199,  89), TOAST_TYPE_REPLY   },
     { "Mail",       "New: Q3 Review - Please review",    RGB( 0, 122, 255), TOAST_TYPE_REPLY   },
-    { "Calendar",   "Team Standup in 15 minutes",        RGB(255,  59,  48),TOAST_TYPE_SNOOZE  },
+    { "Calendar",   "Team Standup starting soon",         RGB(255,  59,  48),TOAST_TYPE_SNOOZE  },
     { "Messages",   "Alex: Just sent you the file",      RGB(52, 199,  89), TOAST_TYPE_REPLY   },
     { "News",       "Breaking: New AI model released",   RGB(255,  59,  48),TOAST_TYPE_DEFAULT },
     { "Mail",       "Your order has shipped",            RGB( 0, 122, 255), TOAST_TYPE_DEFAULT },
     { "Reminders",  "Buy groceries",                     RGB(255, 149,   0),TOAST_TYPE_SNOOZE  },
-    { "Calendar",   "Dentist appointment tomorrow",      RGB(255,  59,  48),TOAST_TYPE_SNOOZE  },
+    { "Calendar",   "Dentist appointment scheduled",     RGB(255,  59,  48),TOAST_TYPE_SNOOZE  },
     { "Messages",   "Mom: Call me when you can",         RGB(52, 199,  89), TOAST_TYPE_REPLY   },
-    { "App Store",  "Updates available: 3 apps",         RGB( 0, 122, 255), TOAST_TYPE_DEFAULT },
+    { "App Store",  "Updates available",                 RGB( 0, 122, 255), TOAST_TYPE_DEFAULT },
     { "Maps",       "Leave now for on-time arrival",     RGB(255, 149,   0),TOAST_TYPE_DEFAULT },
-    { "Photos",     "New memory: This day 3 yrs ago",    RGB(240,  80, 160),TOAST_TYPE_DEFAULT },
-    { "Wallet",     "Transaction: $24.99 - Netflix",     RGB( 52, 199,  89),TOAST_TYPE_DEFAULT },
+    { "Photos",     "New memory from Photos",            RGB(240,  80, 160),TOAST_TYPE_DEFAULT },
+    { "Wallet",     "Transaction from Netflix",          RGB( 52, 199,  89),TOAST_TYPE_DEFAULT },
     { "FaceTime",   "Missed call from Jordan",           RGB(52, 199,  89), TOAST_TYPE_REPLY   },
     { "Music",      "New release from Taylor Swift",     RGB(252,  60,  68),TOAST_TYPE_DEFAULT },
 };
@@ -1452,7 +1452,7 @@ void gui_run(void) {
                     int diy2 = di_base_y + desk_icons[di_k].y;
                     if (mx >= dix2 && mx < dix2+36 && my >= diy2 && my < diy2+50) {
                         if (di_k == 2) { /* Trash */
-                            toast_show("Trash", "0 items", RGB(140,140,140));
+                            toast_show("Trash", "Trash is empty", RGB(140,140,140));
                         } else {
                             const char *wt = desk_icons[di_k].title;
                             int fnd4 = 0, j4;
