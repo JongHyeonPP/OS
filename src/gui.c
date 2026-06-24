@@ -1412,7 +1412,7 @@ void gui_init(void) {
     }
 
     g_num_buttons = 0;
-    str_cpy(g_status, "4 items");
+    str_cpy(g_status, "Ready");
 
     /* Terminal window - right side, no overlap with Finder */
     {

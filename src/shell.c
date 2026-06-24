@@ -8,6 +8,7 @@
 #include "pci.h"
 #include "pmm.h"
 #include "process.h"
+#include "runtime_info.h"
 #include "selftest.h"
 #include "simplefs.h"
 #include "task.h"
@@ -23,6 +24,8 @@ static int g_redirect_failed = 0;
 static char g_pipe_capture[512];
 static uint32_t g_pipe_capture_pos;
 static int g_pipe_capture_failed;
+
+static void append_ipv4(char *line, uint32_t *pos, uint32_t max, uint32_t ip);
 
 static int streq(const char *a, const char *b) {
     while (*a && *b && *a == *b) { a++; b++; }
@@ -715,6 +718,26 @@ static void cmd_cat(const char *arg, shell_write_fn out) {
         return;
     }
     normalize_path(arg, path);
+    if (streq(path, "/etc/hosts")) {
+        runtime_system_info_t sys;
+        const netif_t *n;
+        runtime_get_system_info(&sys);
+        out("127.0.0.1 localhost");
+        n = runtime_primary_netif();
+        if (n && n->ipv4) {
+            char line[96];
+            uint32_t pos = 0;
+            append_ipv4(line, &pos, sizeof(line), n->ipv4);
+            append_char(line, &pos, sizeof(line), ' ');
+            append_str(line, &pos, sizeof(line), sys.nodename);
+            out(line);
+        }
+        return;
+    }
+    if (streq(path, "/etc/hostname")) {
+        out(uts_nodename());
+        return;
+    }
     fd = vfs_open(path, VFS_O_RDONLY);
     if (fd < 0) {
         out("cat: no such file");
@@ -2034,6 +2057,42 @@ static void cmd_route(const char *arg, shell_write_fn out) {
     else out(net_route_del(dest, mask, gateway, ifindex) == 0 ? "route: deleted" : "route: failed");
 }
 
+static void cmd_ip(const char *arg, shell_write_fn out) {
+    char sub[16];
+    const char *tail;
+    first_token(arg, sub, sizeof(sub), &tail);
+    if (!sub[0] || (streq(sub, "addr") && !*tail) || (streq(sub, "a") && !*tail)) {
+        uint32_t i;
+        for (i = 0; i < netif_count(); i++) {
+            const netif_t *n = netif_at(i);
+            char line[96];
+            uint32_t pos = 0;
+            if (!n) continue;
+            append_dec(line, &pos, sizeof(line), i);
+            append_str(line, &pos, sizeof(line), ": ");
+            append_str(line, &pos, sizeof(line), n->name);
+            append_str(line, &pos, sizeof(line), n->up ? ": up" : ": down");
+            out(line);
+            pos = 0;
+            line[0] = 0;
+            append_str(line, &pos, sizeof(line), "    inet ");
+            append_ipv4(line, &pos, sizeof(line), n->ipv4);
+            out(line);
+            pos = 0;
+            line[0] = 0;
+            append_str(line, &pos, sizeof(line), "    link/ether ");
+            append_mac(line, &pos, sizeof(line), n->mac);
+            out(line);
+        }
+        return;
+    }
+    if (streq(sub, "route")) {
+        cmd_route(tail, out);
+        return;
+    }
+    out("ip: usage [addr|a|route]");
+}
+
 static void cmd_arp(const char *arg, shell_write_fn out) {
     char op[16];
     const char *rest;
@@ -2217,6 +2276,115 @@ static void cmd_sysinfo(shell_write_fn out) {
     append_dec(line, &pos, sizeof(line), block_count());
     append_str(line, &pos, sizeof(line), " net=");
     append_dec(line, &pos, sizeof(line), netif_count());
+    out(line);
+}
+
+static void cmd_free(shell_write_fn out) {
+    runtime_system_info_t sys;
+    uint32_t used;
+    char value[24];
+    char line[96];
+    uint32_t pos;
+    runtime_get_system_info(&sys);
+    used = sys.pmm_total_bytes >= sys.pmm_free_bytes ? sys.pmm_total_bytes - sys.pmm_free_bytes : 0;
+    out("Memory:");
+    runtime_format_bytes(sys.pmm_total_bytes, value, sizeof(value));
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "  total: ");
+    append_str(line, &pos, sizeof(line), value);
+    out(line);
+    runtime_format_bytes(used, value, sizeof(value));
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "  used:  ");
+    append_str(line, &pos, sizeof(line), value);
+    out(line);
+    runtime_format_bytes(sys.pmm_free_bytes, value, sizeof(value));
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "  free:  ");
+    append_str(line, &pos, sizeof(line), value);
+    out(line);
+}
+
+static void cmd_sw_vers(shell_write_fn out) {
+    runtime_system_info_t sys;
+    char line[96];
+    uint32_t pos;
+    runtime_get_system_info(&sys);
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "ProductName: ");
+    append_str(line, &pos, sizeof(line), sys.sysname);
+    out(line);
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "ProductVersion: ");
+    append_str(line, &pos, sizeof(line), sys.release);
+    out(line);
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "BuildVersion: ");
+    append_str(line, &pos, sizeof(line), sys.version);
+    out(line);
+}
+
+static void cmd_system_profiler(const char *arg, shell_write_fn out) {
+    runtime_system_info_t sys;
+    runtime_storage_info_t storage;
+    const netif_t *n;
+    char line[96];
+    char value[24];
+    uint32_t pos;
+    (void)arg;
+    runtime_get_system_info(&sys);
+    n = runtime_primary_netif();
+    out("Hardware:");
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "  Model Name: ");
+    append_str(line, &pos, sizeof(line), sys.sysname);
+    out(line);
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "  Model Identifier: ");
+    append_str(line, &pos, sizeof(line), sys.machine);
+    out(line);
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "  Processor: ");
+    append_str(line, &pos, sizeof(line), sys.cpu_model);
+    out(line);
+    runtime_format_bytes(sys.pmm_total_bytes, value, sizeof(value));
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "  Memory: ");
+    append_str(line, &pos, sizeof(line), value);
+    out(line);
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "  Display: ");
+    append_dec(line, &pos, sizeof(line), sys.display_width);
+    append_char(line, &pos, sizeof(line), 'x');
+    append_dec(line, &pos, sizeof(line), sys.display_height);
+    append_char(line, &pos, sizeof(line), 'x');
+    append_dec(line, &pos, sizeof(line), sys.display_bpp);
+    out(line);
+    if (runtime_get_storage_info("/", &storage) == 0) {
+        runtime_format_bytes(storage.total_bytes, value, sizeof(value));
+        pos = 0;
+        line[0] = 0;
+        append_str(line, &pos, sizeof(line), "  Storage: ");
+        append_str(line, &pos, sizeof(line), storage.name);
+        append_char(line, &pos, sizeof(line), ' ');
+        append_str(line, &pos, sizeof(line), value);
+        out(line);
+    }
+    pos = 0;
+    line[0] = 0;
+    append_str(line, &pos, sizeof(line), "  Network: ");
+    append_str(line, &pos, sizeof(line), n ? n->name : "none");
     out(line);
 }
 
@@ -2425,7 +2593,7 @@ int shell_execute_line(const char *line, shell_write_fn out) {
         out("lspci lsblk blkread blkwrite");
         out("mount mkfs mountfs umount");
         out("redirection: > >>");
-        out("ifconfig ip netstat route arp ping udp hostname uname uptime clock time random limits interrupts exceptions vm sysinfo dmesg selftest");
+        out("ifconfig ip netstat route arp ping udp hostname uname uptime clock time random limits interrupts exceptions vm sysinfo free sw_vers system_profiler dmesg selftest");
         return 1;
     }
     if (streq(cmd, "pwd")) {
@@ -2702,8 +2870,12 @@ int shell_execute_line(const char *line, shell_write_fn out) {
         cmd_umount(arg, out);
         return 1;
     }
-    if (streq(cmd, "ifconfig") || streq(cmd, "ip")) {
+    if (streq(cmd, "ifconfig")) {
         cmd_ifconfig(arg, out);
+        return 1;
+    }
+    if (streq(cmd, "ip")) {
+        cmd_ip(arg, out);
         return 1;
     }
     if (streq(cmd, "netstat")) {
@@ -2800,6 +2972,18 @@ int shell_execute_line(const char *line, shell_write_fn out) {
     }
     if (streq(cmd, "sysinfo") || streq(cmd, "neofetch")) {
         cmd_sysinfo(out);
+        return 1;
+    }
+    if (streq(cmd, "free")) {
+        cmd_free(out);
+        return 1;
+    }
+    if (streq(cmd, "sw_vers")) {
+        cmd_sw_vers(out);
+        return 1;
+    }
+    if (streq(cmd, "system_profiler")) {
+        cmd_system_profiler(arg, out);
         return 1;
     }
     if (streq(cmd, "dmesg")) {

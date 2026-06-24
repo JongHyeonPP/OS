@@ -188,11 +188,18 @@ int draw_apps_group1(int idx) {
         /* === Status bar === */
         { int sty=wy+wh-status_h-1;
           runtime_storage_info_t storage;
+          char itembuf[24];
           char freebuf[32];
+          int item_count = 0;
+          int ipos = 0;
           int fpos=0;
           vga_fill_rect(wx+1, sty, ww-2, status_h, fn_tb);
           vga_draw_hline(wx+1, sty, ww-2, fn_sep);
-          vga_draw_string_trans(wx+8, sty+5, "4 items", fn_sub);
+          (void)finder_current_folders(&item_count);
+          itembuf[0] = 0;
+          apps1_append_uint(itembuf, &ipos, sizeof(itembuf), (uint32_t)item_count);
+          apps1_append_text(itembuf, &ipos, sizeof(itembuf), item_count == 1 ? " item" : " items");
+          vga_draw_string_trans(wx+8, sty+5, itembuf, fn_sub);
           if (runtime_get_storage_info("/", &storage) == 0) {
               freebuf[0] = 0;
               apps1_append_bytes(freebuf, &fpos, sizeof(freebuf), storage.free_bytes);

@@ -1,8 +1,31 @@
 #include "gui_internal.h"
+#include "process.h"
 #include "shell.h"
 
 static int32_t calc_clamp_i64(int64_t v);
 static int32_t calc_apply_op(int32_t a, int32_t b, char op);
+
+static void status_append_text(char *buf, int *pos, const char *text) {
+    int i = 0;
+    while (text && text[i] && *pos < 79) {
+        buf[*pos] = text[i];
+        (*pos)++;
+        i++;
+    }
+    buf[*pos] = 0;
+}
+
+static void status_set_runtime_about(void) {
+    runtime_system_info_t sys;
+    int pos = 0;
+    runtime_get_system_info(&sys);
+    g_status[0] = 0;
+    status_append_text(g_status, &pos, sys.sysname);
+    status_append_text(g_status, &pos, " ");
+    status_append_text(g_status, &pos, sys.release);
+    status_append_text(g_status, &pos, " ");
+    status_append_text(g_status, &pos, sys.machine);
+}
 
 void stage_manager_draw(void) {
     if (!g_stage_manager) return;
@@ -1728,7 +1751,7 @@ void dropdown_action(int menu_idx, int item_idx) {
             /* Close topmost window */
             win_close(win_top_visible());
         } else if (str_eq(label, "Get Info")) {
-            str_cpy(g_status, "MyOS Bare-Metal OS v0.3");
+            status_set_runtime_about();
         } else if (str_eq(label, "Print...")) {
             g_print_visible = !g_print_visible;
         } else if (str_eq(label, "Share...")) {
@@ -1778,7 +1801,7 @@ void dropdown_action(int menu_idx, int item_idx) {
     }
     /* Help menu */
     if (menu_idx == 5) {
-        if (str_eq(label,"About MyOS")) str_cpy(g_status,"MyOS v0.3 i386 bare-metal");
+        if (str_eq(label,"About MyOS")) status_set_runtime_about();
         else if (str_eq(label,"Quick Help")) {
             /* Open Keyboard Shortcuts window */
             int jj;
@@ -2016,6 +2039,46 @@ static void term_print_runtime_sysinfo(void) {
     term_print2("CPU: ", sys.cpu_model);
     term_print_bytes_line("Mem: ", sys.pmm_total_bytes);
     term_print_display_line(&sys);
+}
+
+static void term_print_runtime_ps(void) {
+    uint32_t i;
+    term_println("PID STATE CMD");
+    for (i = 0; i < PROCESS_MAX; i++) {
+        const process_t *p = process_at(i);
+        char line[TERM_MAX_COL + 1];
+        int pos = 0;
+        if (!p) continue;
+        line[0] = 0;
+        term_append_uint(line, &pos, p->pid);
+        term_append_char(line, &pos, ' ');
+        term_append_text(line, &pos, process_state_name(p->state));
+        term_append_char(line, &pos, ' ');
+        term_append_text(line, &pos, p->name);
+        term_println(line);
+    }
+}
+
+static void term_print_runtime_top(void) {
+    runtime_system_info_t sys;
+    char pct[8];
+    runtime_get_system_info(&sys);
+    runtime_format_percent(sys.cpu_load_percent, pct, sizeof(pct));
+    term_print_uint_line("Tasks: ", sys.task_count);
+    term_print2("CPU: ", pct);
+    term_print_bytes_line("Mem total: ", sys.pmm_total_bytes);
+    term_print_bytes_line("Mem free:  ", sys.pmm_free_bytes);
+    term_print_runtime_ps();
+}
+
+static void term_print_runtime_term_size(void) {
+    char line[TERM_MAX_COL + 1];
+    int pos = 0;
+    line[0] = 0;
+    term_append_uint(line, &pos, TERM_LINES);
+    term_append_char(line, &pos, ' ');
+    term_append_uint(line, &pos, TERM_MAX_COL);
+    term_println(line);
 }
 
 static void term_print_runtime_ifconfig(void) {
@@ -2259,22 +2322,9 @@ void term_process_command(void) {
         term_println(".  ..  .profile  Documents/");
         term_println("Downloads/  Desktop/  Applications/");
     } else if (CMD_IS("ps") || CMD_IS("ps aux")) {
-        term_println("PID  CPU  MEM  CMD");
-        term_println("  1  0.0  1.2  kernel");
-        term_println("  2  0.1  2.4  gui");
-        term_println("  3  0.0  0.8  terminal");
-        term_println("  4  0.0  0.4  clock");
-        term_println("  5  0.0  0.3  mouse");
+        term_print_runtime_ps();
     } else if (CMD_IS("top")) {
-        runtime_system_info_t sys;
-        runtime_get_system_info(&sys);
-        term_print_uint_line("Tasks: ", sys.task_count);
-        term_print_uint_line("%Cpu: ", (uint32_t)sys.cpu_load_percent);
-        term_print_bytes_line("Mem total: ", sys.pmm_total_bytes);
-        term_print_bytes_line("Mem free:  ", sys.pmm_free_bytes);
-        term_println("  PID CMD      %CPU %MEM");
-        term_println("    2 gui       0.8  2.4");
-        term_println("    1 kernel    0.0  1.2");
+        term_print_runtime_top();
     } else if (CMD_IS("uptime")) {
         uint32_t up = timer_ticks() / 1000;
         uint32_t uh = up/3600, um = (up/60)%60, us = up%60;
@@ -2283,9 +2333,7 @@ void term_process_command(void) {
         buf[bi++]=' '; buf[bi++]='0'+uh/10; buf[bi++]='0'+uh%10;
         buf[bi++]=':'; buf[bi++]='0'+um/10; buf[bi++]='0'+um%10;
         buf[bi++]=':'; buf[bi++]='0'+us/10; buf[bi++]='0'+us%10;
-        buf[bi++]=' '; buf[bi++]='u'; buf[bi++]='p'; buf[bi++]=',';
-        buf[bi++]=' '; buf[bi++]='1'; buf[bi++]=' ';
-        buf[bi++]='u'; buf[bi++]='s'; buf[bi++]='e'; buf[bi++]='r'; buf[bi]=0;
+        buf[bi++]=' '; buf[bi++]='u'; buf[bi++]='p'; buf[bi]=0;
         term_println(buf);
     } else if (CMD_IS("date")) {
         datetime_t dt;
@@ -2310,9 +2358,7 @@ void term_process_command(void) {
     } else if (CMD_IS("ifconfig")) {
         term_print_runtime_ifconfig();
     } else if (cmd[0]=='p'&&cmd[1]=='i'&&cmd[2]=='n'&&cmd[3]=='g') {
-        term_println("PING 8.8.8.8: 56 bytes");
-        term_println("64 bytes: icmp_seq=1 ttl=64 time=1.2ms");
-        term_println("^C -- 1 packets, 0% loss");
+        term_println("ping: usage ping <ipv4>");
     } else if (cmd[0]=='c'&&cmd[1]=='d') {
         if (cmd[2]==' ' && cmd[3]) term_println("cd: permission denied");
         else term_println("/root");
@@ -2402,12 +2448,12 @@ void term_process_command(void) {
     } else if (CMD_IS("vi") || CMD_IS("vim") || CMD_IS("nano")) {
         term_println("Hint: open TextEdit from dock");
     } else if (CMD_IS("python") || CMD_IS("python3")) {
-        term_println("Python 3.11 (simulated)");
+        term_println("Python (simulated)");
         term_println(">>> ");
     } else if (CMD_IS("node") || CMD_IS("npm")) {
-        term_println("Node.js v20.0 (simulated)");
+        term_println("Node.js (simulated)");
     } else if (CMD_IS("brew")) {
-        term_println("Homebrew 4.2.0 (simulated)");
+        term_println("Homebrew (simulated)");
         term_println("Usage: brew install <pkg>");
     } else if (cmd[0]=='b'&&cmd[1]=='r'&&cmd[2]=='e'&&cmd[3]=='w'&&cmd[4]==' ') {
         term_println("==> Downloading...");
@@ -2492,13 +2538,15 @@ void term_process_command(void) {
     } else if (CMD_IS("crontab -l")) {
         term_println("# no crontab for root");
     } else if (CMD_IS("jobs")) {
-        term_println("[1]+  Running    gui &");
+        term_println("jobs: no background jobs");
     } else if (CMD_IS("bg") || CMD_IS("fg")) {
-        term_println("bg: job [1]");
+        term_println("job control: no current job");
     } else if (CMD_IS("stty size")) {
-        term_println("24 80");
-    } else if (CMD_IS("tput cols") || CMD_IS("tput lines")) {
-        term_println("80");
+        term_print_runtime_term_size();
+    } else if (CMD_IS("tput cols")) {
+        term_print_uint_line("", TERM_MAX_COL);
+    } else if (CMD_IS("tput lines")) {
+        term_print_uint_line("", TERM_LINES);
     } else if (CMD_IS("locale")) {
         term_println("LANG=en_US.UTF-8");
         term_println("LC_ALL=en_US.UTF-8");
