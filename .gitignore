@@ -1,0 +1,11 @@
+*.o
+*.d
+*.bin
+*.iso
+iso/
+*.bak
+*.orig
+
+CLAUDE.md
+AGENT.md
+AGENTS.md
