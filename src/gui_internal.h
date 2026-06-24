@@ -158,6 +158,9 @@ extern int g_music_vol;
 extern int g_widget_visible;
 extern int g_ql_visible;
 extern const char *g_ql_filename;
+/* Screenshot tool */
+extern int g_scr_visible;  /* 0=off 1=toolbar 2=captured */
+extern int g_scr_mode;     /* 0=screen 1=window 2=area */
 
 /* Siri */
 extern int      g_siri_visible;
@@ -701,6 +704,7 @@ void siri_draw(void);
 void writing_tools_draw(void);
 void quick_note_draw(void);
 void quick_look_draw(void);
+void screenshot_tool_draw(void);
 void share_sheet_draw(void);
 void print_dialog_draw(void);
 void airdrop_draw(void);

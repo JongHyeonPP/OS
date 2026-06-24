@@ -91,8 +91,10 @@ int g_widget_visible = 0;
 /* Quick Look (Space) */
 int g_ql_visible = 0;
 const char *g_ql_filename = "document.txt";
+int g_scr_visible = 0;
+int g_scr_mode    = 0;
 
-/* Siri overlay (Ctrl+Y) */
+/* Siri overlay */
 int      g_siri_visible  = 0;
 uint32_t g_siri_birth    = 0;
 char     g_siri_query[48] = {0};
@@ -834,10 +836,10 @@ int g_pref_wallpaper = 0; /* 0=blue gradient, 1=sunset, 2=forest, 3=space */
 int g_cc_visible = 0;
 int g_stage_manager = 0; /* Stage Manager window arrangement mode */
 
-/* Quick Note floating panel (Ctrl+Z) */
+/* Quick Note floating panel */
 int g_quicknote_visible = 0;
 
-/* Writing Tools popup (Apple Intelligence, Ctrl+P) */
+/* Writing Tools popup (Apple Intelligence) */
 int g_writing_tools_visible = 0;
 
 /* Window tiling (macOS Sequoia style) */
@@ -1310,6 +1312,7 @@ void draw_scene(int mx, int my) {
 
     /* Quick Look overlay */
     if (g_ql_visible) quick_look_draw();
+    if (g_scr_visible) screenshot_tool_draw();
 
     /* Writing Tools overlay */
     if (g_wt_visible) writing_tools_draw();

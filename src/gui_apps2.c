@@ -2096,8 +2096,14 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(wx+10, wy+TITLEBAR_H+10, "Keyboard Shortcuts", ks_acc);
         /* Column headers */
         int ky = wy+TITLEBAR_H+38;
-        vga_draw_string_trans(wx+10,  ky, "Key", ks_lbl);
-        vga_draw_string_trans(wx+80,  ky, "Action", ks_lbl);
+        int col_count = (ww >= 500) ? 2 : 1;
+        int col_w = (ww - 20) / col_count;
+        int col_i;
+        for (col_i = 0; col_i < col_count; col_i++) {
+            int cx2 = wx + 10 + col_i * col_w;
+            vga_draw_string_trans(cx2,     ky, "Key", ks_lbl);
+            vga_draw_string_trans(cx2+86,  ky, "Action", ks_lbl);
+        }
         vga_draw_hline(wx+4, ky+12, ww-8, ks_sep);
         ky += 16;
         /* Shortcut entries */
@@ -2109,8 +2115,11 @@ int draw_apps_group2(int idx) {
             { "Ctrl+C",   "Messages"           },
             { "Ctrl+E",   "Reminders"          },
             { "Ctrl+F",   "FaceTime"           },
+            { "Ctrl+H",   "AirDrop Panel"      },
             { "Ctrl+\\",  "Snake Game"         },
             { "Ctrl+]",   "Breakout Game"      },
+            { "Ctrl+^",   "Translate"          },
+            { "Ctrl+_",   "Split View"         },
             { "Ctrl+J",   "Home"               },
             { "Ctrl+Q",   "Music"              },
             { "Ctrl+K",   "Lock Screen"        },
@@ -2129,7 +2138,13 @@ int draw_apps_group2(int idx) {
             { "Ctrl+Y",   "Calendar"           },
             { "Ctrl+Z",   "Mail"               },
             { "Tab",      "Spotlight Search"   },
+            { "P",        "Screenshot Tool"    },
+            { "F1",       "Night Shift"        },
+            { "F2",       "Focus Mode"         },
+            { "F3",       "App Expose"         },
+            { "F4",       "Launchpad"          },
             { "F5",       "App Switcher"       },
+            { "F6",       "Switch App"         },
             { "F7",       "Widget Bar"         },
             { "F8",       "Keyboard Shortcuts" },
             { "F9",       "Find My"            },
@@ -2137,24 +2152,32 @@ int draw_apps_group2(int idx) {
             { "F11",      "Voice Memos"        },
             { "F12",      "Freeform"           },
             { "ESC",      "Close Window"       },
+            { "Insert",   "Writing Tools"      },
+            { "Delete",   "Quick Note"         },
+            { "Ctrl+1-4", "Switch Spaces"      },
             { "Ctrl+Left","Tile: Left Half"    },
             { "Ctrl+Rght","Tile: Right Half"   },
             { "Ctrl+Up",  "Tile: Maximize"     },
             { "Ctrl+Down","Tile: Restore"      },
         };
-        int ns2 = 39, i_ks;
+        int ns2 = (int)(sizeof(shortcuts) / sizeof(shortcuts[0]));
+        int rows_per_col = (ns2 + col_count - 1) / col_count;
+        int i_ks;
         for (i_ks=0; i_ks<ns2; i_ks++) {
-            int ry2 = ky + i_ks*17;
-            if (ry2+16 > wy+wh-22) break;
+            int col = i_ks / rows_per_col;
+            int row = i_ks % rows_per_col;
+            int base_x = wx + 8 + col * col_w;
+            int ry2 = ky + row*14;
+            if (col >= col_count || ry2+13 > wy+wh-22) break;
             /* Key badge */
-            int kw = 5*8+6;
-            vga_fill_rect(wx+8, ry2-1, kw, 13, ks_key);
-            gui_draw_rounded_rect_outline(wx+8, ry2-1, kw, 13, 2, ks_sep);
-            vga_draw_string_trans(wx+11, ry2+1, shortcuts[i_ks].key, ks_kbd);
+            int kw = str_len(shortcuts[i_ks].key)*8 + 6;
+            vga_fill_rect(base_x, ry2-1, kw, 12, ks_key);
+            gui_draw_rounded_rect_outline(base_x, ry2-1, kw, 12, 2, ks_sep);
+            vga_draw_string_trans(base_x+3, ry2+1, shortcuts[i_ks].key, ks_kbd);
             /* Action label */
-            vga_draw_string_trans(wx+80, ry2+1, shortcuts[i_ks].action, ks_val);
+            vga_draw_string_trans(base_x+86, ry2+1, shortcuts[i_ks].action, ks_val);
             /* Row separator */
-            vga_draw_hline(wx+4, ry2+14, ww-8, ks_sep);
+            vga_draw_hline(base_x, ry2+12, col_w-6, ks_sep);
         }
         return 1;
     }

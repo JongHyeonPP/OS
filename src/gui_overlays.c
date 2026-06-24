@@ -4,6 +4,8 @@
 
 static int32_t calc_clamp_i64(int64_t v);
 static int32_t calc_apply_op(int32_t a, int32_t b, char op);
+static int spot_weather(const char *q, int qlen, char *out, int out_max);
+static int spot_define(const char *q, int qlen, char *out, int out_max);
 static int spot_unit_convert(const char *q, int qlen, char *out, int out_max);
 
 static char s_textedit_clipboard[TEXTEDIT_MAXCHARS];
@@ -1209,24 +1211,39 @@ void spotlight_draw(void) {
         unit_valid = spot_unit_convert(g_spot_query, g_spot_qlen, unit_result, 47);
     }
 
+    /* Dictionary define (e.g. "define serenity") */
+    int dict_valid = 0;
+    char dict_result[64]; dict_result[0] = 0;
+    if (!calc_valid && !unit_valid && g_spot_qlen >= 4) {
+        dict_valid = spot_define(g_spot_query, g_spot_qlen, dict_result, 63);
+    }
+
+    /* Weather query for the current runtime location. */
+    int wth_valid = 0;
+    char wth_result[64]; wth_result[0] = 0;
+    if (!calc_valid && !unit_valid && !dict_valid && g_spot_qlen >= 7) {
+        wth_valid = spot_weather(g_spot_query, g_spot_qlen, wth_result, 63);
+    }
+
     /* Clamp selection */
-    int total_items = n_results + (calc_valid?1:0) + (unit_valid?1:0) + (g_spot_qlen>0?1:0); /* +1 web search */
+    int total_items = n_results;
     if (g_spot_sel < 0) g_spot_sel = 0;
     if (g_spot_sel >= total_items && total_items > 0) g_spot_sel = total_items - 1;
+    if (total_items <= 0) g_spot_sel = 0;
 
     /* Calculate panel height */
-    /* Search box + top hit (52px if results) + result rows (28px each) + category headers + web row */
+    /* Search box + top hit (52px if results) + result rows (28px each) + category headers */
     int panel_extra = 0;
     if (g_spot_qlen == 0) {
         panel_extra = 160; /* Siri suggestions */
     } else if (n_results > 0 || calc_valid) {
-        /* Top Hit row: 52, then remaining rows 28 each, then web search 28 */
+        /* Top Hit row: 52, then remaining rows and inline answers. */
         int remaining = (n_results > 1) ? (n_results - 1) : 0;
-        panel_extra = 8 + 52 + (remaining > 0 ? 6 + remaining*28 : 0) + (calc_valid ? 28 : 0) + (unit_valid ? 28 : 0) + 32; /* web */
-    } else if (unit_valid) {
-        panel_extra = 8 + 28 + 32; /* unit + web */
-    } else if (g_spot_qlen > 0) {
-        panel_extra = 36; /* just web search */
+        panel_extra = 8 + 52 + (remaining > 0 ? 6 + remaining*28 : 0) + (calc_valid ? 28 : 0) + (unit_valid ? 28 : 0) + (dict_valid ? 28 : 0) + (wth_valid ? 36 : 0);
+    } else if (wth_valid) {
+        panel_extra = 8 + 36; /* weather */
+    } else if (unit_valid || dict_valid) {
+        panel_extra = 8 + 28; /* conversion/dict */
     }
     int total_h = SPOTLIGHT_H + panel_extra;
 
@@ -1354,7 +1371,7 @@ void spotlight_draw(void) {
 
         /* Calculator row */
         if (calc_valid) {
-            int is_sel = (g_spot_sel == global_idx);
+            int is_sel = (global_idx < total_items && g_spot_sel == global_idx);
             if (is_sel)
                 gui_draw_rounded_rect(sx+4, ry-2, SPOTLIGHT_W-8, 30, 4, RGB(0,122,255));
             uint32_t ctxt = is_sel ? RGB(255,255,255) : RGB(20,20,30);
@@ -1383,7 +1400,7 @@ void spotlight_draw(void) {
 
         /* Unit Conversion row */
         if (unit_valid) {
-            int is_sel = (g_spot_sel == global_idx);
+            int is_sel = (global_idx < total_items && g_spot_sel == global_idx);
             if (is_sel)
                 gui_draw_rounded_rect(sx+4, ry-2, SPOTLIGHT_W-8, 30, 4, RGB(0,122,255));
             uint32_t utxt = is_sel ? RGB(255,255,255) : RGB(20,20,30);
@@ -1402,30 +1419,50 @@ void spotlight_draw(void) {
             global_idx++;
         }
 
-        /* Web Search row - always shown when there's a query */
-        {
-            int is_sel = (g_spot_sel == global_idx);
+        /* Dictionary row */
+        if (dict_valid) {
+            int is_sel = (global_idx < total_items && g_spot_sel == global_idx);
             if (is_sel)
                 gui_draw_rounded_rect(sx+4, ry-2, SPOTLIGHT_W-8, 30, 4, RGB(0,122,255));
-            uint32_t wtxt = is_sel ? RGB(255,255,255) : RGB(20,20,30);
-            uint32_t wsub = is_sel ? RGB(200,225,255) : RGB(130,130,140);
-            if (n_results == 0 && !calc_valid) {
-                vga_draw_string_trans(sx+12, ry-4, "WEB SEARCH", RGB(130,130,140));
+            uint32_t dtxt = is_sel ? RGB(255,255,255) : RGB(20,20,30);
+            uint32_t dsub = is_sel ? RGB(200,225,255) : RGB(140,140,140);
+            if (n_results == 0 && !calc_valid && !unit_valid) {
+                vga_draw_string_trans(sx+12, ry-4, "DICTIONARY", RGB(130,130,140));
                 ry += 10;
             } else {
                 vga_draw_hline(sx+8, ry-2, SPOTLIGHT_W-16, RGB(215,215,220));
             }
-            /* Globe icon */
-            gui_draw_circle(sx+22, ry+11, 9, RGB(0,122,255));
-            gui_draw_circle(sx+22, ry+11, 7, is_sel?RGB(0,122,255):RGB(246,246,248));
-            vga_draw_hline(sx+13, ry+11, 18, RGB(0,122,255));
-            vga_draw_vline(sx+22, ry+2, 18, RGB(0,122,255));
-            vga_draw_string_trans(sx+38, ry+4, "Search Web for", wsub);
-            /* Show query with quotes */
-            char wbuf[38]; int wi=0; wbuf[wi++]='"';
-            int qi; for(qi=0;qi<g_spot_qlen&&wi<34;qi++) wbuf[wi++]=g_spot_query[qi];
-            wbuf[wi++]='"'; wbuf[wi]=0;
-            vga_draw_string_trans(sx+38, ry+16, wbuf, wtxt);
+            vga_fill_rect(sx+12, ry+1, 20, 20, RGB(90,50,180));
+            vga_draw_string_trans(sx+15, ry+5, "D", RGB(255,255,255));
+            vga_draw_string_trans(sx+38, ry+4, dict_result, dtxt);
+            vga_draw_string_trans(sx+38, ry+16, "Dictionary", dsub);
+            ry += 28;
+            global_idx++;
+        }
+
+        /* Weather row */
+        if (wth_valid) {
+            int is_sel = (global_idx < total_items && g_spot_sel == global_idx);
+            if (is_sel)
+                gui_draw_rounded_rect(sx+4, ry-2, SPOTLIGHT_W-8, 38, 4, RGB(0,122,255));
+            uint32_t wtxt = is_sel ? RGB(255,255,255) : RGB(20,20,30);
+            uint32_t wsub = is_sel ? RGB(200,225,255) : RGB(140,140,140);
+            if (n_results == 0 && !calc_valid && !unit_valid && !dict_valid) {
+                vga_draw_string_trans(sx+12, ry-4, "WEATHER", RGB(130,130,140));
+                ry += 10;
+            } else {
+                vga_draw_hline(sx+8, ry-2, SPOTLIGHT_W-16, RGB(215,215,220));
+            }
+            /* Weather icon: sun/cloud gradient */
+            vga_fill_rect(sx+12, ry+1, 28, 28, RGB(50,140,240));
+            gui_draw_circle(sx+26, ry+10, 9, RGB(255,220,50));
+            gui_draw_circle(sx+30, ry+14, 7, RGB(220,230,250));
+            gui_draw_circle(sx+24, ry+16, 6, RGB(220,230,250));
+            gui_draw_circle(sx+34, ry+17, 5, RGB(220,230,250));
+            vga_draw_string_trans(sx+46, ry+4, wth_result, wtxt);
+            vga_draw_string_trans(sx+46, ry+16, "Weather", wsub);
+            ry += 36;
+            global_idx++;
         }
     }
 }
@@ -1652,26 +1689,6 @@ int menubar_hit(int mx, int my) {
     return -1;
 }
 
-static const char *menu_shortcut(const char *label) {
-    if (str_eq(label, "Quit"))         return "^Q";
-    if (str_eq(label, "New Window"))   return "^N";
-    if (str_eq(label, "Close Window")) return "^W";
-    if (str_eq(label, "Cut"))          return "^X";
-    if (str_eq(label, "Copy"))         return "^C";
-    if (str_eq(label, "Paste"))        return "^V";
-    if (str_eq(label, "Select All"))   return "^A";
-    if (str_eq(label, "Get Info"))     return "^I";
-    if (str_eq(label, "Settings..."))  return "^,";
-    if (str_eq(label, "Print..."))     return "^P";
-    if (str_eq(label, "Share..."))     return "^S";
-    if (str_eq(label, "New Tab"))      return "^T";
-    if (str_eq(label, "Reload Page"))  return "^R";
-    if (str_eq(label, "Play"))         return "^P";
-    if (str_eq(label, "Next"))         return "^]";
-    if (str_eq(label, "Previous"))     return "^[";
-    return NULL;
-}
-
 void draw_dropdown(int menu_idx) {
     if (menu_idx < 0 || menu_idx >= N_MENUS) return;
     int dx = menubar_item_x(menu_idx) - 4;
@@ -1689,7 +1706,6 @@ void draw_dropdown(int menu_idx) {
     uint32_t mn_bd  = g_pref_darkmode ? RGB(70,70,74)    : RGB(180,180,180);
     uint32_t mn_sep = g_pref_darkmode ? RGB(70,70,74)    : RGB(190,190,190);
     uint32_t mn_txt = g_pref_darkmode ? RGB(220,220,224) : COLOR_TEXT;
-    uint32_t mn_sc  = g_pref_darkmode ? RGB(140,140,148) : RGB(130,130,130);
     vga_fill_rect(dx, dy, MENU_W, total_h, mn_bg);
     vga_draw_rect_outline(dx, dy, MENU_W, total_h, mn_bd);
     /* Hover highlight */
@@ -1704,13 +1720,6 @@ void draw_dropdown(int menu_idx) {
             if (i == hover_item)
                 vga_fill_rect_alpha(dx+1, iy, MENU_W-2, MENU_ITEM_H, RGB(0,122,255), 100);
             vga_draw_string_trans(dx+12, iy+(MENU_ITEM_H-8)/2, label, mn_txt);
-            /* Keyboard shortcut hint right-aligned */
-            const char *sc = menu_shortcut(label);
-            if (sc) {
-                int sw = str_len(sc) * 8;
-                vga_draw_string_trans(dx + MENU_W - sw - 8, iy+(MENU_ITEM_H-8)/2,
-                                      sc, mn_sc);
-            }
         }
     }
 }
@@ -1968,7 +1977,7 @@ void dropdown_action(int menu_idx, int item_idx) {
             }
             if (g_num_windows < MAX_WINDOWS) {
                 gui_window_t *nwks = &g_windows[g_num_windows];
-                nwks->x=120; nwks->y=60; nwks->w=340; nwks->h=300;
+                nwks->x=90; nwks->y=40; nwks->w=620; nwks->h=500;
                 nwks->title="Keyboard Shortcuts"; nwks->visible=1; nwks->focused=0;
                 nwks->space=g_current_space;
                 g_num_windows++;
@@ -2085,6 +2094,132 @@ void dropdown_action(int menu_idx, int item_idx) {
         g_mail_focused_field = 0;
         g_mail_sel_msg = 0;
     }
+}
+
+static int spot_weather(const char *q, int qlen, char *out, int out_max) {
+    /* Match "weather", "weather here", or the configured runtime location. */
+    if (!q || !out || out_max <= 0 || qlen < 7) return 0;
+    out[0] = 0;
+    char lq[8];
+    int i;
+    for (i=0; i<7 && i<qlen; i++) {
+        char c = q[i];
+        if (c>='A'&&c<='Z') c+=32;
+        lq[i]=c;
+    }
+    lq[7]=0;
+    if (lq[0]!='w'||lq[1]!='e'||lq[2]!='a'||lq[3]!='t'||lq[4]!='h'||lq[5]!='e'||lq[6]!='r') return 0;
+    if (qlen > 7 && q[7] != ' ') return 0;
+
+    runtime_weather_info_t wth;
+    runtime_get_weather_info(&wth);
+
+    i = 7;
+    while (i < qlen && q[i] == ' ') i++;
+    if (i < qlen) {
+        char city[24];
+        int ci = 0;
+        while (i < qlen && q[i] != ' ' && ci < 23) {
+            char c = q[i++];
+            if (c >= 'A' && c <= 'Z') c += 32;
+            city[ci++] = c;
+        }
+        city[ci] = 0;
+        if (ci > 0) {
+            int match_here = (ci == 4 && city[0]=='h' && city[1]=='e' && city[2]=='r' && city[3]=='e');
+            int match_loc = 1;
+            int li;
+            for (li = 0; li < ci || wth.location[li]; li++) {
+                char lc = wth.location[li];
+                if (lc >= 'A' && lc <= 'Z') lc += 32;
+                if (li >= ci || lc != city[li]) { match_loc = 0; break; }
+            }
+            if (!match_here && !match_loc) return 0;
+        }
+    }
+
+    char tempbuf[8];
+    runtime_format_temperature_c(wth.temperature_c, tempbuf, sizeof(tempbuf));
+    int p = 0, si;
+#define SPOT_APPEND_CHAR(ch_) do { if (p >= out_max - 1) { out[p] = 0; return 0; } out[p++] = (char)(ch_); } while (0)
+    for (si=0; wth.location_full[si]; si++) SPOT_APPEND_CHAR(wth.location_full[si]);
+    SPOT_APPEND_CHAR(':'); SPOT_APPEND_CHAR(' ');
+    for (si=0; tempbuf[si]; si++) SPOT_APPEND_CHAR(tempbuf[si]);
+    SPOT_APPEND_CHAR(' ');
+    for (si=0; wth.condition && wth.condition[si]; si++) SPOT_APPEND_CHAR(wth.condition[si]);
+#undef SPOT_APPEND_CHAR
+    out[p]=0;
+    return 1;
+}
+
+static int spot_define(const char *q, int qlen, char *out, int out_max) {
+    /* Match "define WORD" or a known dictionary word. */
+    if (!q || !out || out_max <= 0 || qlen <= 0) return 0;
+    out[0] = 0;
+    static const struct { const char *word; const char *def; } dict[] = {
+        {"serenity",    "calmness; peace of mind"     },
+        {"algorithm",   "step-by-step procedure"      },
+        {"entropy",     "measure of disorder"          },
+        {"ephemeral",   "lasting a very short time"   },
+        {"kernel",      "core of an OS or nut"        },
+        {"recursion",   "function calling itself"      },
+        {"abstraction", "hiding complexity"            },
+        {"paradigm",    "a typical example or model"  },
+        {"heuristic",   "practical problem-solving"   },
+        {"latency",     "time delay in a system"      },
+        {"bandwidth",   "data transfer capacity"      },
+        {"compile",     "translate code to binary"    },
+        {"cache",       "fast temporary storage"      },
+        {"mutex",       "mutual exclusion lock"        },
+        {"daemon",      "background system process"   },
+        {"syntax",      "rules for valid code"        },
+        {"boolean",     "true or false value"         },
+        {"iteration",   "repeating a process"         },
+        {"polymorphism","many forms, one interface"   },
+        {"debug",       "find and fix errors"         },
+        {"malloc",      "allocate heap memory"        },
+        {"interrupt",   "signal to pause the CPU"     },
+        {"pixel",       "smallest display element"    },
+        {"buffer",      "temporary data storage"      },
+        {"socket",      "network endpoint"            },
+        {0, 0}
+    };
+    /* Check "define WORD" prefix */
+    int i; char word[24]; int wlen = 0;
+    int start = 0;
+    /* Case-insensitive match "define " prefix */
+    if (qlen >= 8) {
+        char p0=q[0],p1=q[1],p2=q[2],p3=q[3],p4=q[4],p5=q[5];
+        if ((p0=='d'||p0=='D')&&(p1=='e'||p1=='E')&&(p2=='f'||p2=='F')&&
+            (p3=='i'||p3=='I')&&(p4=='n'||p4=='N')&&(p5=='e'||p5=='E')&&q[6]==' ') {
+            start = 7;
+        }
+    }
+    /* Extract word */
+    for (i = start; i < qlen && wlen < 23 && q[i] != ' '; i++) {
+        char c = q[i];
+        if (c >= 'A' && c <= 'Z') c += 32;
+        word[wlen++] = c;
+    }
+    word[wlen] = 0;
+    if (!wlen) return 0;
+    /* Lookup */
+    for (i = 0; dict[i].word; i++) {
+        int mi = 0, match = 1;
+        for (mi = 0; dict[i].word[mi] || word[mi]; mi++)
+            if (dict[i].word[mi] != word[mi]) { match = 0; break; }
+        if (!match) continue;
+        /* Build output: "word: definition" */
+        int p = 0, si;
+#define SPOT_APPEND_CHAR(ch_) do { if (p >= out_max - 1) { out[p] = 0; return 0; } out[p++] = (char)(ch_); } while (0)
+        for (si = 0; dict[i].word[si]; si++) SPOT_APPEND_CHAR(dict[i].word[si]);
+        SPOT_APPEND_CHAR(':'); SPOT_APPEND_CHAR(' ');
+        for (si = 0; dict[i].def[si]; si++) SPOT_APPEND_CHAR(dict[i].def[si]);
+#undef SPOT_APPEND_CHAR
+        out[p] = 0;
+        return 1;
+    }
+    return 0;
 }
 
 static int spot_unit_convert(const char *q, int qlen, char *out, int out_max) {
@@ -3215,7 +3350,7 @@ void widget_bar_draw(void) {
 /* =========================================================================
  * App Switcher overlay (F5)
  * ======================================================================= */
-/* Siri overlay (Ctrl+Y) */
+/* Siri overlay */
 void siri_draw(void) {
     uint32_t now = timer_ticks();
     uint32_t age = now - g_siri_birth;
@@ -3838,5 +3973,67 @@ void app_switcher_draw(void) {
             vga_draw_string_trans(ix + (56-tlen*8)/2, iy+60, buf,
                 (i==g_switcher_sel) ? RGB(255,255,255) : RGB(180,180,180));
         }
+    }
+}
+
+/* =========================================================================
+ * Screenshot Tool (macOS style overlay)
+ * ======================================================================= */
+void screenshot_tool_draw(void) {
+    if (!g_scr_visible) return;
+    int W = VGA_WIDTH, H = VGA_HEIGHT;
+    vga_fill_rect_alpha(0, 0, W, H, RGB(0,0,0), 60);
+    if (g_scr_visible == 2) {
+        /* Show thumbnail in bottom-right corner */
+        int tx = W - 136, ty2 = H - 90;
+        vga_fill_rect_alpha(tx, ty2, 120, 76, RGB(20,20,20), 220);
+        vga_draw_rect_outline(tx, ty2, 120, 76, RGB(100,100,100));
+        int mi;
+        for (mi = 0; mi < 76; mi++) {
+            uint8_t r2=(uint8_t)(200-mi*2>0?200-mi*2:0);
+            uint8_t g2=(uint8_t)(120-mi>0?120-mi:0);
+            uint8_t b2=(uint8_t)(40+mi/3);
+            vga_draw_hline(tx+2, ty2+mi, 116, RGB(r2,g2,b2));
+        }
+        vga_draw_string_trans(tx+18, ty2+28, "Screenshot", RGB(255,255,255));
+        vga_draw_string_trans(tx+18, ty2+42, "preview ready", RGB(160,200,255));
+        return;
+    }
+    /* Toolbar at bottom center */
+    int tb_w = 340, tb_h = 44;
+    int tb_x = (W - tb_w) / 2, tb_y = H - 90;
+    vga_fill_rect_alpha(tb_x+4, tb_y+4, tb_w, tb_h, RGB(0,0,0), 80);
+    vga_fill_rect_alpha(tb_x, tb_y, tb_w, tb_h, RGB(40,40,42), 230);
+    gui_draw_rounded_rect_outline(tb_x, tb_y, tb_w, tb_h, 8, RGB(80,80,82));
+    /* Mode buttons */
+    { static const char *ml[]  = {"Screen","Window","Area"};
+      static const char *mi2[] = {"[]","[W]","[+]"};
+      int bi;
+      for (bi = 0; bi < 3; bi++) {
+          int bx = tb_x + 12 + bi*72, by2 = tb_y + 6, bw = 64, bh = 32;
+          uint32_t btn_bg = (bi == g_scr_mode) ? RGB(70,70,190) : RGB(56,56,60);
+          gui_draw_rounded_rect(bx, by2, bw, bh, 6, btn_bg);
+          if (bi == g_scr_mode)
+              gui_draw_rounded_rect_outline(bx, by2, bw, bh, 6, RGB(110,110,220));
+          int il = str_len(mi2[bi]);
+          vga_draw_string_trans(bx + (bw - il*8)/2, by2 + 4, mi2[bi], RGB(220,220,220));
+          int ll = str_len(ml[bi]);
+          vga_draw_string_trans(bx + (bw - ll*8)/2, by2 + 18, ml[bi],
+              (bi==g_scr_mode)?RGB(255,255,255):RGB(155,155,160));
+      }
+    }
+    /* Capture button */
+    int cbx = tb_x + tb_w - 76, cby = tb_y + 8, cbw = 68, cbh = 28;
+    gui_draw_rounded_rect(cbx, cby, cbw, cbh, 6, RGB(0,110,220));
+    vga_draw_string_trans(cbx + 10, cby + 10, "Capture", RGB(255,255,255));
+    /* Help text */
+    vga_draw_string_trans((W - 18*8)/2, tb_y - 18,
+        "S=Capture  Esc=Cancel  Tab=Mode", RGB(190,190,195));
+    /* Crosshair in area mode */
+    if (g_scr_mode == 2) {
+        int mx = mouse_get_x();
+        int my = mouse_get_y();
+        vga_draw_hline(0, my, W, RGB(255,255,255));
+        vga_draw_vline(mx, 0, H, RGB(255,255,255));
     }
 }

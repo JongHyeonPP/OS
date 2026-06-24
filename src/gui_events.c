@@ -256,6 +256,32 @@ void gui_run(void) {
                 if (mx < photo_w3) { g_photos_fullscreen=0; g_photos_edit_mode=0; dirty=1; goto end_left_press; }
                 dirty=1; goto end_left_press;
             }
+            /* Screenshot Tool click */
+            if (g_scr_visible) {
+                if (g_scr_visible == 2) {
+                    g_scr_visible = 0; dirty = 1; goto end_left_press;
+                }
+                {
+                    int tb_w2 = 340, tb_x2 = (VGA_WIDTH - tb_w2) / 2, tb_y2 = VGA_HEIGHT - 90;
+                    int bi2;
+                    for (bi2 = 0; bi2 < 3; bi2++) {
+                        int bx2 = tb_x2 + 12 + bi2*72, by2 = tb_y2 + 6;
+                        if (mx >= bx2 && mx < bx2 + 64 && my >= by2 && my < by2 + 32) {
+                            g_scr_mode = bi2; dirty = 1; goto end_left_press;
+                        }
+                    }
+                    if (mx >= tb_x2 + tb_w2 - 76 && mx < tb_x2 + tb_w2 - 8 &&
+                        my >= tb_y2 + 8 && my < tb_y2 + 36) {
+                        g_scr_visible = 2;
+                        toast_show("Screenshot", "Preview ready", RGB(52,199,89));
+                        dirty = 1; goto end_left_press;
+                    }
+                    if (mx < tb_x2 || mx >= tb_x2 + tb_w2 || my < tb_y2 - 24 || my >= tb_y2 + 44) {
+                        g_scr_visible = 0; dirty = 1; goto end_left_press;
+                    }
+                }
+                dirty = 1; goto end_left_press;
+            }
             /* Control Center click */
             if (g_cc_visible) {
                 cc_click(mx, my);
@@ -429,6 +455,7 @@ void gui_run(void) {
                         else if (str_eq(aname,"FaceTime"))  { nw2->x=200;nw2->y=80;nw2->w=220;nw2->h=260; g_facetime_active=1; g_facetime_contact=0; }
                         else if (str_eq(aname,"Contacts"))  { nw2->x=80; nw2->y=50;nw2->w=420;nw2->h=360; }
                         else if (str_eq(aname,"AirDrop"))             { nw2->x=240;nw2->y=100;nw2->w=240;nw2->h=220; }
+                        else if (str_eq(aname,"Keyboard Shortcuts"))  { nw2->x=90;nw2->y=40;nw2->w=620;nw2->h=500; }
                         else if (str_eq(aname,"Color Picker"))        { nw2->x=220;nw2->y=80; nw2->w=220;nw2->h=310; }
                         else if (str_eq(aname,"Preview"))             { nw2->x=120;nw2->y=60; nw2->w=360;nw2->h=320; }
                         else if (str_eq(aname,"Script Editor"))       { nw2->x=130;nw2->y=70; nw2->w=340;nw2->h=290; }
@@ -2358,6 +2385,7 @@ void gui_run(void) {
                                         else if (str_eq(an2,"Alfred"))             { nws2->x=130;nws2->y=65; nws2->w=360;nws2->h=280; }
                                         else if (str_eq(an2,"Scrobbles"))          { nws2->x=180;nws2->y=70; nws2->w=280;nws2->h=290; }
                                         else if (str_eq(an2,"Keynote Remote"))     { nws2->x=220;nws2->y=70; nws2->w=200;nws2->h=310; }
+                                        else if (str_eq(an2,"Keyboard Shortcuts")) { nws2->x=90;nws2->y=40; nws2->w=620;nws2->h=500; }
                                         else if (str_eq(an2,"Numbers Remote"))     { nws2->x=160;nws2->y=65; nws2->w=320;nws2->h=270; }
                                         else if (str_eq(an2,"Pages Remote"))       { nws2->x=190;nws2->y=70; nws2->w=270;nws2->h=260; }
                                         else if (str_eq(an2,"iStudiez Pro"))       { nws2->x=110;nws2->y=55; nws2->w=400;nws2->h=280; }
@@ -2631,7 +2659,7 @@ void gui_run(void) {
                       }
                       if (!ff && g_num_windows < MAX_WINDOWS) {
                           gui_window_t *nwks2 = &g_windows[g_num_windows];
-                          nwks2->x=120;nwks2->y=60;nwks2->w=340;nwks2->h=300;
+                          nwks2->x=90;nwks2->y=40;nwks2->w=620;nwks2->h=500;
                           nwks2->title="Keyboard Shortcuts";nwks2->visible=1;nwks2->focused=0;
                           g_win_anim[g_num_windows]=OPEN_ANIM;
                           g_num_windows++;
@@ -2875,9 +2903,6 @@ void gui_run(void) {
                           dirty=1;
                       }
                     }
-                } else if (ch >= 0xF1 && ch <= 0xF4) { /* F1-F4 = switch spaces */
-                    int sp = (int)(ch - 0xF0);
-                    if (sp <= g_num_spaces) { g_current_space = sp; dirty = 1; }
                 } else if (ch == 0xF7) { /* F7 = Widget Bar */
                     g_widget_visible = !g_widget_visible; dirty = 1;
                 } else if (gui_top_window_named("Photo Booth") &&
@@ -3169,6 +3194,16 @@ void gui_run(void) {
                         g_tile_zone=0; g_tile_flash=0;
                     }
                     if (wi >= 0) dirty = 1;
+                } else if (g_scr_visible) {
+                    /* Screenshot tool input */
+                    if (ch == 0x1B || ch == KEY_ESC) {
+                        g_scr_visible = 0; dirty = 1;
+                    } else if (ch == '	') {
+                        g_scr_mode = (g_scr_mode + 1) % 3; dirty = 1;
+                    } else if (ch == 's' || ch == 'S') {
+                        g_scr_visible = 2; dirty = 1;
+                        toast_show("Screenshot", "Preview ready", RGB(52,199,89));
+                    }
                 } else if (ch == ' ' && !g_lp_visible && !g_mc_visible && !g_spot_visible && !g_edit_focused && !g_safari_url_focused && !g_photos_fullscreen) {
                     /* Space = Quick Look (only when no text input is focused) */
                     g_ql_visible = !g_ql_visible; dirty = 1;
@@ -3235,6 +3270,11 @@ void gui_run(void) {
                            !g_lp_visible) { /* Ctrl+1-4 = switch spaces */
                     int sp = (int)(ch - KEY_CTRL_DIGIT_BASE);
                     if (sp <= g_num_spaces) { g_current_space = sp; dirty = 1; }
+                } else if (ch == 'p' && !g_edit_focused && !g_safari_url_focused && !g_spot_visible && !g_lp_visible) {
+                    /* p = Screenshot Tool (like Cmd+Shift+5) */
+                    if (g_scr_visible) { g_scr_visible = 0; }
+                    else { g_scr_visible = 1; g_scr_mode = 0; }
+                    dirty = 1;
                 } else if (ch == 0xFD) { /* Insert = Writing Tools */
                     g_wt_visible = !g_wt_visible;
                     if (g_wt_visible) { g_wt_sel=-1; g_wt_done=0; }
@@ -3383,6 +3423,7 @@ void gui_run(void) {
                                     else if (str_eq(aname,"Instruments"))        { nw3->x=70; nw3->y=45; nw3->w=450;nw3->h=320; }
                                     else if (str_eq(aname,"Network Utility"))    { nw3->x=100;nw3->y=55; nw3->w=400;nw3->h=300; }
                                     else if (str_eq(aname,"Math Notes"))         { nw3->x=160;nw3->y=50; nw3->w=300;nw3->h=340; }
+                                    else if (str_eq(aname,"Keyboard Shortcuts")) { nw3->x=90;nw3->y=40; nw3->w=620;nw3->h=500; }
                                     else if (str_eq(aname,"Final Cut Pro"))      { nw3->x=50; nw3->y=35; nw3->w=500;nw3->h=340; }
                                     else if (str_eq(aname,"Logic Pro"))          { nw3->x=50; nw3->y=35; nw3->w=500;nw3->h=340; }
                                     else if (str_eq(aname,"Motion"))             { nw3->x=55; nw3->y=40; nw3->w=480;nw3->h=330; }
