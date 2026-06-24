@@ -434,19 +434,19 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+32, cy+22, 86, 60, RGB(40,120,200));
         vga_draw_string_trans(wx+50, cy+48, "My Mac", RGB(255,255,255));
         gui_draw_rounded_rect(wx+20, cy+90, 110, 8, 3, RGB(80,80,90));
-        /* Arrow */
-        vga_draw_string_trans(wx+ww/2-6, cy+50, "->", RGB(100,200,100));
+        /* No external display is paired. */
+        vga_draw_string_trans(wx+ww/2-6, cy+50, "--", uc_sub);
         /* iPad */
         gui_draw_rounded_rect(wx+ww-120, cy+20, 80, 100, 6, uc_txt);
         vga_fill_rect(wx+ww-118, cy+22, 76, 80, RGB(30,30,180));
         vga_draw_string_trans(wx+ww-108, cy+58, "iPad", RGB(255,255,255));
         /* Status */
         vga_draw_hline(wx+10, cy+110, ww-20, uc_sep);
-        vga_draw_string_trans(wx+10, cy+118, "Push mouse to edge to switch devices", uc_sub);
+        vga_draw_string_trans(wx+10, cy+118, "No nearby devices configured", uc_sub);
         vga_draw_string_trans(wx+10, cy+134, "Nearby Devices:", uc_txt);
         gui_draw_rounded_rect(wx+10, cy+150, ww-20, 20, 4, g_pref_darkmode?RGB(44,44,52):RGB(220,220,228));
-        vga_draw_string_trans(wx+16, cy+156, "iPad Pro - Connected", uc_sub);
-        gui_draw_circle(wx+ww-24, cy+160, 4, RGB(52,199,89));
+        vga_draw_string_trans(wx+16, cy+156, "No devices found", uc_sub);
+        gui_draw_circle(wx+ww-24, cy+160, 4, uc_sep);
         return 1;
     }
 
@@ -1539,19 +1539,17 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+1, wy+TITLEBAR_H, ww-2, wh-TITLEBAR_H, kr_bg);
         vga_draw_string_trans(wx+(ww-104)/2, wy+TITLEBAR_H+8, "Keynote Remote", kr_txt);
         vga_draw_hline(wx+2, wy+TITLEBAR_H+22, ww-4, RGB(50,50,56));
-        /* Slide preview area */
         int sp_x=wx+8, sp_y=wy+TITLEBAR_H+30, sp_w=ww-16, sp_h=(wh-TITLEBAR_H-110);
-        gui_draw_rounded_rect(sp_x, sp_y, sp_w, sp_h, 6, RGB(255,149,0));
-        vga_draw_string_trans(sp_x+(sp_w-48)/2, sp_y+(sp_h-8)/2, "Slide 1", RGB(255,255,255));
-        /* Controls */
+        gui_draw_rounded_rect(sp_x, sp_y, sp_w, sp_h, 6, RGB(34,34,40));
+        vga_draw_string_trans(sp_x+(sp_w-176)/2, sp_y+(sp_h-8)/2, "No presentation paired", kr_sub);
         int ctrl_y = wy+wh-70;
         gui_draw_rounded_rect(wx+8, ctrl_y, 40, 30, 6, RGB(60,60,70));
         vga_draw_string_trans(wx+18, ctrl_y+10, "<", kr_txt);
-        gui_draw_rounded_rect(wx+(ww-44)/2, ctrl_y, 44, 30, 6, RGB(255,149,0));
-        vga_draw_string_trans(wx+(ww-24)/2, ctrl_y+10, "[]", RGB(255,255,255));
+        gui_draw_rounded_rect(wx+(ww-44)/2, ctrl_y, 44, 30, 6, RGB(60,60,70));
+        vga_draw_string_trans(wx+(ww-24)/2, ctrl_y+10, "[]", kr_txt);
         gui_draw_rounded_rect(wx+ww-48, ctrl_y, 40, 30, 6, RGB(60,60,70));
         vga_draw_string_trans(wx+ww-38, ctrl_y+10, ">", kr_txt);
-        vga_draw_string_trans(wx+(ww-72)/2, wy+wh-28, "1 of 12 slides", kr_sub);
+        vga_draw_string_trans(wx+(ww-152)/2, wy+wh-28, "Remote unavailable", kr_sub);
         return 1;
     }
 
@@ -1564,20 +1562,15 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+1, wy+TITLEBAR_H, ww-2, wh-TITLEBAR_H, nr_bg);
         vga_draw_string_trans(wx+(ww-104)/2, wy+TITLEBAR_H+8, "Numbers Remote", nr_txt);
         vga_draw_hline(wx+2, wy+TITLEBAR_H+22, ww-4, RGB(40,56,40));
-        /* Spreadsheet grid preview */
         int gx=wx+8, gy=wy+TITLEBAR_H+30; int cols=4, rows=5, cw=(ww-16)/cols, rh=22;
         int ci2,ri2;
         for(ri2=0;ri2<=rows;ri2++) vga_draw_hline(gx, gy+ri2*rh, cols*cw, RGB(40,60,40));
         for(ci2=0;ci2<=cols;ci2++) vga_draw_vline(gx+ci2*cw, gy, rows*rh, RGB(40,60,40));
-        /* Header row */
         vga_fill_rect(gx, gy, cols*cw, rh, RGB(30,50,30));
         static const char *nh[]={"A","B","C","D"};
         for(ci2=0;ci2<cols;ci2++) vga_draw_string_trans(gx+ci2*cw+cw/2-4, gy+7, nh[ci2], nr_acc);
-        /* Data cells */
-        static const char *nd[]={"Jan","100","200","Q1","Feb","120","240","Q2","Mar","90","180","Q3","Apr","150","300","Q4"};
-        for(ri2=1;ri2<rows;ri2++) for(ci2=0;ci2<cols;ci2++)
-            vga_draw_string_trans(gx+ci2*cw+4, gy+ri2*rh+7, nd[(ri2-1)*4+ci2], nr_txt);
-        vga_draw_string_trans(wx+8, wy+wh-18, "Connected: MacBook Pro", RGB(80,140,80));
+        vga_draw_string_trans(gx+(cols*cw-144)/2, gy+rh*3, "No sheet paired", nr_txt);
+        vga_draw_string_trans(wx+8, wy+wh-18, "Remote unavailable", RGB(120,150,120));
         return 1;
     }
 
@@ -1593,11 +1586,8 @@ int draw_apps_group4(int idx) {
         /* Document preview */
         int dp_x=wx+12, dp_y=wy+TITLEBAR_H+30, dp_w=ww-24, dp_h=wh-TITLEBAR_H-60;
         gui_draw_rounded_rect(dp_x, dp_y, dp_w, dp_h, 4, RGB(240,236,230));
-        vga_fill_rect(dp_x+6, dp_y+6, dp_w-12, 10, RGB(200,180,150));
-        vga_fill_rect(dp_x+6, dp_y+22, dp_w-12, 2, RGB(180,160,130));
-        vga_fill_rect(dp_x+6, dp_y+30, dp_w-20, 2, RGB(180,160,130));
-        vga_fill_rect(dp_x+6, dp_y+38, (dp_w-12)*3/4, 2, RGB(180,160,130));
-        vga_draw_string_trans(wx+(ww-80)/2, wy+wh-28, "Pg 1 of 3", pr_acc);
+        vga_draw_string_trans(dp_x+(dp_w-144)/2, dp_y+dp_h/2-4, "No document paired", RGB(120,100,80));
+        vga_draw_string_trans(wx+(ww-152)/2, wy+wh-28, "Remote unavailable", pr_acc);
         return 1;
     }
 
@@ -1852,13 +1842,11 @@ int draw_apps_group4(int idx) {
         vga_draw_vline(cx2-8, cy2-6, 12, RGB(180,140,100));
         vga_draw_vline(cx2, cy2-10, 12, RGB(180,140,100));
         vga_draw_vline(cx2+8, cy2-6, 12, RGB(180,140,100));
-        /* Status text */
-        vga_draw_string_trans(wx+(ww-96)/2, wy+TITLEBAR_H+16, "Lungo - Active", lu_acc);
-        vga_draw_string_trans(wx+(ww-112)/2, cy2+50, "Sleep prevented", lu_txt);
-        /* Duration */
+        vga_draw_string_trans(wx+(ww-112)/2, wy+TITLEBAR_H+16, "Lungo - Inactive", lu_acc);
+        vga_draw_string_trans(wx+(ww-136)/2, cy2+50, "Sleep control off", lu_txt);
         gui_draw_rounded_rect(wx+(ww-80)/2, cy2+66, 80, 22, 6, RGB(40,28,18));
-        vga_draw_string_trans(wx+(ww-56)/2, cy2+73, "2h 34m", lu_txt);
-        vga_draw_string_trans(wx+(ww-128)/2, wy+wh-20, "Click to disable", RGB(120,90,60));
+        vga_draw_string_trans(wx+(ww-16)/2, cy2+73, "--", lu_txt);
+        vga_draw_string_trans(wx+(ww-152)/2, wy+wh-20, "Service unavailable", RGB(120,90,60));
         return 1;
     }
 
@@ -1951,7 +1939,7 @@ int draw_apps_group4(int idx) {
         vga_draw_string_trans(wx+90, wy+TITLEBAR_H+74, "- Lock screen", br_txt);
         vga_draw_string_trans(wx+90, wy+TITLEBAR_H+88, "- Dynamic Island", br_txt);
         vga_draw_string_trans(wx+90, wy+TITLEBAR_H+102, "## Progress", br_txt);
-        vga_draw_string_trans(wx+90, wy+TITLEBAR_H+116, "99% done - looking great!", br_acc);
+        vga_draw_string_trans(wx+90, wy+TITLEBAR_H+116, "Track progress in tasks", br_acc);
         return 1;
     }
 

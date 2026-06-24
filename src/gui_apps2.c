@@ -1786,10 +1786,6 @@ int draw_apps_group2(int idx) {
         int vy = wy+TITLEBAR_H+1;
         int vh = wh-TITLEBAR_H-19;
         if (vh < 1) vh = 1;
-        uint32_t tnow = timer_ticks();
-        static const char *ft_contacts[] = {"Jiyeon Kim","Seonjae Park","Minho Lee","Eunji Choi"};
-        int cid = (g_facetime_contact >= 0 && g_facetime_contact < 4) ? g_facetime_contact : 0;
-
         /* Dark gradient background */
         { int vr;
           for (vr=0; vr<vh; vr++) {
@@ -1798,124 +1794,11 @@ int draw_apps_group2(int idx) {
           }
         }
 
-        if (g_facetime_active == 1) {
-            /* ---- RINGING state ---- */
-            /* Auto-connect after 6 seconds */
-            static uint32_t ft_ring_start = 0;
-            if (ft_ring_start == 0 || tnow < ft_ring_start) ft_ring_start = tnow;
-            if (tnow - ft_ring_start > 6000) { g_facetime_active = 2; ft_ring_start = 0; }
-
-            int cx2 = wx + ww/2;
-            int cy2 = vy + vh/2 - 30;
-
-            /* Pulsing concentric rings */
-            { int phase = (int)((tnow / 300) % 4);
-              int ri;
-              for (ri=3; ri>=0; ri--) {
-                  int age = (ri + phase) % 4;
-                  int r2 = 28 + age*14;
-                  uint8_t alpha2 = (uint8_t)(80 - age*18);
-                  if (alpha2 > 10)
-                      vga_fill_rect_alpha(cx2-r2, cy2-r2, r2*2, r2*2, RGB(0,122,255), alpha2);
-              }
-            }
-
-            /* Avatar circle */
-            gui_draw_circle(cx2, cy2, 30, RGB(50,80,130));
-            gui_draw_circle(cx2, cy2-8, 12, RGB(200,160,120));
-            vga_fill_rect(cx2-14, cy2+4, 28, 18, RGB(60,90,160));
-            gui_draw_circle(cx2-10, cy2+4, 7, RGB(60,90,160));
-            gui_draw_circle(cx2+10, cy2+4, 7, RGB(60,90,160));
-
-            /* Contact name */
-            { const char *cn = ft_contacts[cid];
-              int cnl = str_len(cn)*8;
-              vga_draw_string_trans(wx+(ww-cnl)/2, cy2+36, cn, RGB(255,255,255));
-            }
-            /* "FaceTime..." subtitle (animated dots) */
-            { static const char *subs[3]={"FaceTime.","FaceTime..","FaceTime..."};
-              int sdot = (int)((tnow/500)%3);
-              int sl = str_len(subs[sdot])*8;
-              vga_draw_string_trans(wx+(ww-sl)/2, cy2+50, subs[sdot], RGB(160,160,180));
-            }
-
-            /* Decline (red) */
-            int btn_y = vy+vh-38;
-            gui_draw_circle(wx+ww/2-60, btn_y, 20, RGB(255,59,48));
-            vga_draw_string_trans(wx+ww/2-60-3, btn_y-4, "X", RGB(255,255,255));
-            vga_draw_string_trans(wx+ww/2-60-14, btn_y+8, "Decline", RGB(200,200,200));
-            /* Accept (green) */
-            gui_draw_circle(wx+ww/2+60, btn_y, 20, RGB(52,199,89));
-            /* Phone icon: handset shape */
-            vga_fill_rect(wx+ww/2+60-4, btn_y-5, 8, 10, RGB(255,255,255));
-            vga_draw_string_trans(wx+ww/2+60-14, btn_y+8, "Accept", RGB(200,200,200));
-
-        } else if (g_facetime_active == 2) {
-            /* ---- CONNECTED state ---- */
-            int fc_x = wx + ww/2, fc_y = vy + vh/2 - 20;
-
-            /* Remote person face */
-            gui_draw_circle(fc_x, fc_y, 26, RGB(60,80,110));
-            gui_draw_circle(fc_x, fc_y-10, 14, RGB(190,150,115));
-            vga_fill_rect(fc_x-18, fc_y+6, 36, 20, RGB(50,70,120));
-            gui_draw_circle(fc_x-14, fc_y+6, 9, RGB(50,70,120));
-            gui_draw_circle(fc_x+14, fc_y+6, 9, RGB(50,70,120));
-            vga_fill_rect(fc_x-5, fc_y-14, 4, 3, RGB(60,40,30));
-            vga_fill_rect(fc_x+3, fc_y-14, 4, 3, RGB(60,40,30));
-
-            /* Connected label + call timer */
-            { const char *cl="Connected";
-              int cll=str_len(cl)*8;
-              vga_draw_string_trans(wx+(ww-cll)/2, vy+8, cl, RGB(52,199,89)); }
-            { static uint32_t ft_conn_start=0;
-              if (ft_conn_start==0 || tnow<ft_conn_start) ft_conn_start=tnow;
-              uint32_t elapsed=(tnow-ft_conn_start)/1000;
-              uint32_t ft_m=elapsed/60, ft_s=elapsed%60;
-              char tb[8]; tb[0]='0'+ft_m/10;tb[1]='0'+ft_m%10;tb[2]=':';
-              tb[3]='0'+ft_s/10;tb[4]='0'+ft_s%10;tb[5]=0;
-              int tl=str_len(tb)*8;
-              vga_draw_string_trans(wx+(ww-tl)/2, vy+20, tb, RGB(220,220,220));
-            }
-
-            /* Contact name at top */
-            { const char *cn=ft_contacts[cid]; int cnl=str_len(cn)*8;
-              vga_draw_string_trans(wx+(ww-cnl)/2, vy+32, cn, RGB(200,200,200)); }
-
-            /* Picture-in-picture (self cam) */
-            int pip_x=wx+ww-52, pip_y=vy+8, pip_w=44, pip_h=36;
-            vga_fill_rect(pip_x, pip_y, pip_w, pip_h, RGB(25,40,70));
-            gui_draw_rounded_rect_outline(pip_x, pip_y, pip_w, pip_h, 4, RGB(255,255,255));
-            gui_draw_circle(pip_x+pip_w/2, pip_y+12, 8, RGB(200,160,120));
-            vga_fill_rect(pip_x+8, pip_y+20, pip_w-16, 14, RGB(40,80,160));
-
-            /* Control bar */
-            int cb_y=vy+vh-32;
-            vga_fill_rect_alpha(wx+1, cb_y, ww-2, 30, RGB(0,0,0), 160);
-            /* Mute */
-            gui_draw_circle(wx+ww/2-40, cb_y+15, 13, RGB(80,80,80));
-            vga_draw_string_trans(wx+ww/2-40-10, cb_y+11, "Mute", RGB(255,255,255));
-            /* End call (red) */
-            gui_draw_circle(wx+ww/2, cb_y+15, 15, RGB(255,59,48));
-            vga_draw_string_trans(wx+ww/2-8, cb_y+11, "End", RGB(255,255,255));
-            /* Video off */
-            gui_draw_circle(wx+ww/2+40, cb_y+15, 13, RGB(80,80,80));
-            vga_draw_string_trans(wx+ww/2+40-6, cb_y+11, "Vid", RGB(255,255,255));
-
-        } else {
-            /* ---- IDLE state: recent calls list ---- */
-            vga_draw_string_trans(wx+8, vy+8, "FaceTime", RGB(255,255,255));
-            { int ci;
-              static const char *recent[4]={"Jiyeon Kim","Seonjae Park","Minho Lee","Eunji Choi"};
-              for (ci=0;ci<4;ci++) {
-                  int ry = vy+30+ci*36;
-                  gui_draw_circle(wx+24, ry+14, 14, RGB(50+ci*20,70+ci*10,120+ci*15));
-                  vga_draw_string_trans(wx+44, ry+6, recent[ci], RGB(230,230,230));
-                  vga_draw_string_trans(wx+44, ry+18, "FaceTime Video", RGB(120,120,140));
-                  /* video call button */
-                  gui_draw_circle(wx+ww-20, ry+14, 12, RGB(0,122,255));
-              }
-            }
-        }
+        g_facetime_active = 0;
+        vga_draw_string_trans(wx+8, vy+8, "FaceTime", RGB(255,255,255));
+        gui_draw_circle(wx+ww/2, vy+vh/2-18, 34, RGB(50,80,130));
+        vga_draw_string_trans(wx+(ww-160)/2, vy+vh/2+28, "Call service unavailable", RGB(220,220,228));
+        vga_draw_string_trans(wx+(ww-144)/2, vy+vh/2+44, "No account configured", RGB(140,140,160));
         return 1;
     }
 
@@ -2417,63 +2300,28 @@ int draw_apps_group2(int idx) {
         int sb_w = 56;
         vga_fill_rect(wx+1, wy+TITLEBAR_H+28, sb_w, wh-TITLEBAR_H-48, pv_pg);
         vga_draw_vline(wx+1+sb_w, wy+TITLEBAR_H+28, wh-TITLEBAR_H-48, pv_sep);
-        /* Thumbnails */
-        int tp;
-        for (tp=0; tp<4; tp++) {
-            int ty = wy+TITLEBAR_H+34+tp*58;
-            if (ty+50 > wy+wh-22) break;
-            uint32_t tc = (tp==0) ? pv_acc : pv_sub;
-            vga_fill_rect(wx+6, ty, 44, 50, g_pref_darkmode?RGB(60,60,65):RGB(255,255,255));
-            gui_draw_rounded_rect_outline(wx+6, ty, 44, 50, 2, tc);
-            if (tp==0) {
-                /* Selected thumbnail - highlight */
-                vga_fill_rect(wx+4, ty-2, 48, 54, 0);
-                gui_draw_rounded_rect_outline(wx+4, ty-2, 48, 54, 3, pv_acc);
-                vga_fill_rect(wx+6, ty, 44, 50, g_pref_darkmode?RGB(60,60,65):RGB(255,255,255));
-            }
-            /* Page content thumbnail */
-            vga_draw_hline(wx+9, ty+8,  38, pv_sub);
-            vga_draw_hline(wx+9, ty+14, 38, pv_sub);
-            vga_draw_hline(wx+9, ty+20, 32, pv_sub);
-            vga_draw_hline(wx+9, ty+30, 38, pv_sub);
-            vga_draw_hline(wx+9, ty+36, 24, pv_sub);
-            /* Page number */
-            char pnum[4]; pnum[0]='0'+(tp+1); pnum[1]=0;
-            vga_draw_string_trans(wx+24, ty+52, pnum, pv_sub);
-        }
+        vga_draw_string_trans(wx+8, wy+TITLEBAR_H+40, "No", pv_sub);
+        vga_draw_string_trans(wx+8, wy+TITLEBAR_H+54, "pages", pv_sub);
         /* Main content area - document page */
         int doc_x = wx+1+sb_w+1;
         int doc_w = ww-sb_w-2;
         vga_fill_rect(doc_x, wy+TITLEBAR_H+28, doc_w, wh-TITLEBAR_H-48, pv_pg);
-        /* Page shadow + paper */
+        /* Empty document area */
         int page_m = 10;
         int page_x = doc_x+page_m, page_y=wy+TITLEBAR_H+38;
         int page_w = doc_w-page_m*2, page_h = wh-TITLEBAR_H-68;
         vga_fill_rect(page_x+3, page_y+3, page_w, page_h, g_pref_darkmode?RGB(20,20,22):RGB(140,140,145));
         vga_fill_rect(page_x, page_y, page_w, page_h, g_pref_darkmode?RGB(55,55,60):RGB(255,255,255));
         gui_draw_rounded_rect_outline(page_x, page_y, page_w, page_h, 1, pv_sep);
-        /* Page content */
         int cx2 = page_x+10;
-        vga_draw_string_trans(cx2, page_y+10, "Preview - Document.pdf", pv_txt);
+        vga_draw_string_trans(cx2, page_y+10, "Preview", pv_txt);
         vga_draw_hline(cx2, page_y+22, page_w-20, pv_sep);
-        vga_draw_string_trans(cx2, page_y+30, "Page 1 of 4", pv_sub);
-        /* Simulated text lines */
-        int li;
-        for (li=0; li<8; li++) {
-            int lw2 = (li%3==0) ? page_w-40 : (li%3==1) ? page_w-80 : page_w-60;
-            vga_draw_hline(cx2, page_y+46+li*14, lw2, pv_sub);
-        }
-        /* Image placeholder */
-        int img_y = page_y+160;
-        if (img_y+50 < page_y+page_h-10) {
-            vga_fill_rect(cx2, img_y, page_w-30, 50, g_pref_darkmode?RGB(45,45,50):RGB(220,225,240));
-            gui_draw_rounded_rect_outline(cx2, img_y, page_w-30, 50, 2, pv_sep);
-            vga_draw_string_trans(cx2+(page_w-30)/2-20, img_y+21, "[Image]", pv_sub);
-        }
+        vga_draw_string_trans(cx2, page_y+46, "No document open", pv_sub);
+        vga_draw_string_trans(cx2, page_y+62, "Open unavailable", pv_sub);
         /* Status bar */
         vga_fill_rect(wx+1, wy+wh-20, ww-2, 18, pv_tb);
         vga_draw_hline(wx+1, wy+wh-20, ww-2, pv_sep);
-        vga_draw_string_trans(wx+6, wy+wh-14, "Page 1 of 4", pv_sub);
+        vga_draw_string_trans(wx+6, wy+wh-14, "No document", pv_sub);
         { char zoom_buf[8];
           runtime_format_percent(100, zoom_buf, sizeof(zoom_buf));
           int zl=str_len(zoom_buf)*8; vga_draw_string_trans(wx+ww-zl-6, wy+wh-14, zoom_buf, pv_acc); }

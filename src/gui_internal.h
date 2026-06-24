@@ -159,8 +159,40 @@ extern int g_widget_visible;
 extern int g_ql_visible;
 extern const char *g_ql_filename;
 /* Screenshot tool */
-extern int g_scr_visible;  /* 0=off 1=toolbar 2=captured */
-extern int g_scr_mode;     /* 0=screen 1=window 2=area */
+extern int g_scr_visible;
+extern int g_scr_mode;
+
+extern int g_crash_visible;
+extern int g_update_visible;
+extern int g_focus_filter_visible;
+extern int g_focus_filter_mode;
+extern int g_icloud_visible;
+extern int g_bt_visible;
+extern int g_kbshort_visible;
+extern int g_kbshort_page;
+extern int g_timemachine_visible;
+extern int g_colormeter_visible;
+extern int g_notifhist_visible;
+
+extern int g_wifi_visible;
+extern int g_wifi_connecting;
+extern int g_display_visible;
+extern int g_display_brightness;
+extern int g_sound_visible;
+extern int g_sound_volume;
+extern int g_actmon_visible;
+extern int g_facetime_visible;
+extern int g_facetime_calling;
+
+extern int g_privacy_visible;
+extern int g_privacy_tab;
+extern int g_reminders_visible;
+extern int g_reminders_list;
+extern int g_calendar_visible;
+extern int g_calendar_month;
+extern int g_calendar_year;
+extern int g_airplay_visible;
+extern int g_maps_visible;
 
 /* Siri */
 extern int      g_siri_visible;
@@ -190,9 +222,6 @@ extern int g_airdrop_progress;
 /* Handoff */
 extern int g_handoff_visible;
 extern int g_handoff_tick;
-
-/* Universal Control */
-extern int g_uc_active;
 
 /* Writing Tools */
 extern int      g_wt_visible;
@@ -490,6 +519,7 @@ extern int  g_mail_sel_msg;
 
 /* Maps interactive */
 extern int g_maps_zoom;
+extern int g_maps_zoom;
 extern int g_maps_pan_x;
 extern int g_maps_pan_y;
 
@@ -567,7 +597,6 @@ extern char g_journal_bodies[JOURNAL_MAX][JOURNAL_BLEN];
 
 extern int g_contacts_sel;
 extern int g_preview_page;
-extern int g_preview_zoom;
 extern int g_atv_sel;
 
 /* Context menu (defined in gui_overlays.c) */
@@ -708,6 +737,48 @@ void print_dialog_draw(void);
 void airdrop_draw(void);
 void handoff_draw(void);
 void app_switcher_draw(void);
+void crash_reporter_draw(void);
+void system_update_draw(void);
+void focus_filter_draw(void);
+void icloud_panel_draw(void);
+void bluetooth_dialog_draw(void);
+void keyboard_shortcuts_draw(void);
+void time_machine_draw(void);
+void color_meter_draw(void);
+void notif_history_draw(void);
+void wifi_panel_draw(void);
+void display_settings_draw(void);
+void sound_settings_draw(void);
+void activity_monitor_draw(void);
+void facetime_draw(void);
+void privacy_panel_draw(void);
+void reminders_draw(void);
+void calendar_draw(void);
+void airplay_draw(void);
+void maps_draw(void);
+void crash_reporter_draw(void);
+void system_update_draw(void);
+void focus_filter_draw(void);
+void icloud_panel_draw(void);
+void bluetooth_dialog_draw(void);
+void keyboard_shortcuts_draw(void);
+void time_machine_draw(void);
+void color_meter_draw(void);
+void notif_history_draw(void);
+void wifi_panel_draw(void);
+void display_settings_draw(void);
+void sound_settings_draw(void);
+void activity_monitor_draw(void);
+void facetime_draw(void);
+void crash_reporter_draw(void);
+void system_update_draw(void);
+void focus_filter_draw(void);
+void icloud_panel_draw(void);
+void bluetooth_dialog_draw(void);
+void keyboard_shortcuts_draw(void);
+void time_machine_draw(void);
+void color_meter_draw(void);
+void notif_history_draw(void);
 
 /* Scene and draw functions (in gui.c) */
 void draw_scene(int mx, int my);

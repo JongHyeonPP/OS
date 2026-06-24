@@ -235,7 +235,7 @@ int draw_apps_group3(int idx) {
             vga_draw_string_trans(wx+6+(hw-72)/2, tab_y+7, "App Usage", t0t);
             vga_draw_string_trans(wx+10+hw+(hw-88)/2, tab_y+7, "Downtime", t1t);
         }
-        /* Weekly bar chart */
+        /* Usage history */
         int chart_y = tab_y + 30;
         int chart_h = 70;
         int chart_x = wx+20;
@@ -243,25 +243,13 @@ int draw_apps_group3(int idx) {
         vga_fill_rect(chart_x, chart_y, chart_w, chart_h, g_pref_darkmode?RGB(36,36,40):RGB(245,248,250));
         vga_draw_rect_outline(chart_x, chart_y, chart_w, chart_h, st_sep);
         {
-            static const char *days[] = {"M","T","W","T","F","S","S"};
-            static const int usages[] = {120,154,90,180,210,80,45};
             int bar_w2 = (chart_w-8)/7;
             int di2;
             for (di2=0; di2<7; di2++) {
                 int bx2 = chart_x+4+di2*bar_w2;
-                int bar_h2 = (chart_h-20)*usages[di2]/210;
-                int by2 = chart_y+chart_h-12-bar_h2;
-                uint32_t bc;
-                if (usages[di2]<120) bc=RGB(52,199,89);
-                else if (usages[di2]<180) bc=RGB(255,149,0);
-                else bc=RGB(255,59,48);
-                if (di2==4) gui_draw_rounded_rect(bx2+1, by2, bar_w2-4, bar_h2, 2, bc);
-                else vga_fill_rect(bx2+1, by2, bar_w2-4, bar_h2, bc);
-                vga_fill_rect_alpha(bx2+1, by2, bar_w2-4, bar_h2/3+1, RGB(255,255,255), 30);
-                vga_draw_string_trans(bx2+(bar_w2-8)/2, chart_y+chart_h-10, days[di2], di2==4?st_acc:st_sub);
+                vga_draw_vline(bx2+bar_w2/2, chart_y+12, chart_h-24, g_pref_darkmode?RGB(50,50,55):RGB(220,224,228));
             }
-            vga_draw_string_trans(chart_x+1, chart_y+2, "3h", st_sub);
-            vga_draw_string_trans(chart_x+1, chart_y+chart_h/2-4, "1h", st_sub);
+            vga_draw_string_trans(chart_x+(chart_w-200)/2, chart_y+chart_h/2-4, "Usage history unavailable", st_sub);
         }
         /* App breakdown */
         int list_y = chart_y+chart_h+8;
@@ -269,41 +257,11 @@ int draw_apps_group3(int idx) {
         list_y += 6;
         vga_draw_string_trans(wx+8, list_y, "MOST USED", st_sub);
         list_y += 14;
-        {
-            static const char *au_app[]  = {"Safari","Music","Messages","Notes","Mail"};
-            static const int   au_mins[] = {62,32,18,12,8};
-            static const uint32_t au_col[] = {RGB(40,160,220),RGB(252,60,68),RGB(52,199,89),RGB(255,204,0),RGB(0,140,255)};
-            int au;
-            for (au=0; au<5; au++) {
-                int ay = list_y+au*22;
-                char au_time[16];
-                if (ay+18 > wy+wh-28) break;
-                runtime_format_minutes(au_mins[au], au_time, sizeof(au_time));
-                gui_draw_circle(wx+14, ay+7, 7, au_col[au]);
-                vga_draw_string_trans(wx+24, ay+3, au_app[au], st_txt);
-                int tl2 = str_len(au_time)*8;
-                vga_draw_string_trans(wx+ww-tl2-8, ay+3, au_time, st_sub);
-                int ubar = (ww-100)*au_mins[au]/62;
-                vga_fill_rect(wx+24, ay+14, ww-100, 3, g_pref_darkmode?RGB(50,50,55):RGB(215,215,218));
-                vga_fill_rect(wx+24, ay+14, ubar,   3, au_col[au]);
-                if (au<4) vga_draw_hline(wx+8, ay+20, ww-16, st_sep);
-            }
-        }
+        vga_draw_string_trans(wx+24, list_y+10, "No app usage samples", st_sub);
         /* Bottom: limit row */
         int lim_y = wy+wh-26;
         vga_draw_hline(wx+1, lim_y, ww-2, st_sep);
-        { char limitbuf[24];
-          int lp = 0;
-          char durbuf[16];
-          runtime_format_minutes(180, durbuf, sizeof(durbuf));
-          limitbuf[0] = 0;
-          apps3_append_text(limitbuf, &lp, sizeof(limitbuf), "Daily Limit: ");
-          apps3_append_text(limitbuf, &lp, sizeof(limitbuf), durbuf);
-          vga_draw_string_trans(wx+8, lim_y+9, limitbuf, st_sub); }
-        { int ll=str_len("Set")*8;
-          vga_fill_rect(wx+ww-ll-20, lim_y+5, ll+12, 16, st_acc);
-          gui_draw_rounded_rect_outline(wx+ww-ll-20, lim_y+5, ll+12, 16, 3, st_acc);
-          vga_draw_string_trans(wx+ww-ll-14, lim_y+9, "Set", RGB(255,255,255)); }
+        vga_draw_string_trans(wx+8, lim_y+9, "App limits unavailable", st_sub);
         return 1;
     }
 
@@ -584,7 +542,6 @@ int draw_apps_group3(int idx) {
         uint32_t kn_sep = g_pref_darkmode ? RGB(60,60,65)    : RGB(195,195,200);
         uint32_t kn_txt = g_pref_darkmode ? RGB(210,210,218) : RGB(30,30,40);
         uint32_t kn_sub = g_pref_darkmode ? RGB(130,130,138) : RGB(100,100,110);
-        uint32_t kn_acc = RGB(255,149,0);  /* Keynote orange */
         vga_fill_rect(wx+1, wy+TITLEBAR_H+1, ww-2, wh-TITLEBAR_H-2, kn_bg);
         /* Toolbar */
         vga_fill_rect(wx+1, wy+TITLEBAR_H+1, ww-2, 26, kn_tb);
@@ -608,75 +565,24 @@ int draw_apps_group3(int idx) {
         int kn_content_h = wh-TITLEBAR_H-2-28;
         vga_fill_rect(wx+1, kn_content_y, kn_sl_w, kn_content_h, g_pref_darkmode?RGB(36,36,40):RGB(230,230,234));
         vga_draw_vline(wx+kn_sl_w, kn_content_y, kn_content_h, kn_sep);
-        /* Slide thumbnails */
-        {
-            static const uint32_t slide_bg_cols[] = {RGB(30,60,140), RGB(20,20,20), RGB(50,120,60), RGB(100,20,120)};
-            int si;
-            for (si=0; si<4; si++) {
-                int sy=kn_content_y+6+si*56;
-                if (sy+48 > kn_content_y+kn_content_h-4) break;
-                /* Selected slide border */
-                uint32_t brd = (si==0) ? kn_acc : kn_sep;
-                vga_fill_rect(wx+4, sy, kn_sl_w-8, 48, slide_bg_cols[si]);
-                vga_draw_rect_outline(wx+4, sy, kn_sl_w-8, 48, brd);
-                if (si==0) {
-                    /* Title text on slide thumbnail */
-                    vga_draw_string_trans(wx+6, sy+8, "Title", RGB(255,255,255));
-                    vga_draw_hline(wx+6, sy+18, kn_sl_w-16, RGB(200,180,100));
-                }
-                /* Slide number */
-                char snum2[3]; snum2[0]='1'+si; snum2[1]=0;
-                vga_draw_string_trans(wx+kn_sl_w-12, sy+4, snum2, kn_sub);
-            }
-        }
+        vga_draw_string_trans(wx+8, kn_content_y+12, "No slides", kn_sub);
         /* Main slide canvas */
         int cv_x = wx+kn_sl_w+1;
         int cv_w = ww-kn_sl_w-2;
         int cv_h = kn_content_h;
         /* Dark background */
         vga_fill_rect(cv_x, kn_content_y, cv_w, cv_h, g_pref_darkmode?RGB(22,22,24):RGB(160,160,168));
-        /* Slide with shadow */
+        /* Empty slide area */
         int sl_pad = 12;
         int sl_x = cv_x + sl_pad;
         int sl_y = kn_content_y + sl_pad;
         int sl_w = cv_w - sl_pad*2;
         int sl_h = cv_h - sl_pad*2;
         vga_fill_rect_alpha(sl_x+3, sl_y+3, sl_w, sl_h, RGB(0,0,0), 80);
-        /* Slide background gradient */
-        vga_fill_rect(sl_x, sl_y, sl_w, sl_h, RGB(20,50,120));
-        /* Top gradient effect */
-        vga_fill_rect_alpha(sl_x, sl_y, sl_w, sl_h/3, RGB(50,100,200), 60);
-        /* Slide title */
-        {
-            const char *title_str = "MyOS Presentation";
-            int tl3 = str_len(title_str)*8;
-            int tx3 = sl_x + (sl_w-tl3)/2;
-            int ty3 = sl_y + sl_h/3;
-            /* Shadow */
-            vga_draw_string_trans(tx3+1, ty3+1, title_str, RGB(0,0,50));
-            vga_draw_string_trans(tx3, ty3, title_str, RGB(255,255,255));
-            vga_draw_string_trans(tx3+1, ty3, title_str, RGB(255,255,255)); /* bold */
-            /* Subtitle */
-            const char *sub_str = "Built for the future";
-            int sl2 = str_len(sub_str)*8;
-            vga_draw_string_trans(sl_x+(sl_w-sl2)/2, ty3+18, sub_str, RGB(180,200,255));
-        }
-        /* Decorative elements on slide */
-        gui_draw_circle(sl_x+sl_w-20, sl_y+20, 14, RGB(255,149,0));
-        vga_fill_rect_alpha(sl_x+sl_w-32, sl_y+10, 24, 20, RGB(255,200,50), 40);
-        /* Bullet points area */
-        int bp_y = sl_y + sl_h*2/3;
-        vga_fill_rect_alpha(sl_x+8, bp_y, sl_w-16, sl_h/3-4, RGB(255,255,255), 10);
-        {
-            static const char *bullets[] = {"Bare-metal kernel","VGA framebuffer","macOS-style GUI"};
-            int bi2;
-            for (bi2=0; bi2<3; bi2++) {
-                gui_draw_circle(sl_x+14, bp_y+7+bi2*14, 3, kn_acc);
-                vga_draw_string_trans(sl_x+20, bp_y+3+bi2*14, bullets[bi2], RGB(200,220,255));
-            }
-        }
-        /* Right panel hint */
-        vga_draw_string_trans(cv_x+2, kn_content_y+cv_h-12, "Slide 1 of 4", kn_sub);
+        vga_fill_rect(sl_x, sl_y, sl_w, sl_h, g_pref_darkmode?RGB(40,40,46):RGB(230,230,235));
+        vga_draw_string_trans(sl_x+(sl_w-160)/2, sl_y+sl_h/2-8, "No presentation open", kn_sub);
+        vga_draw_string_trans(sl_x+(sl_w-136)/2, sl_y+sl_h/2+8, "Open unavailable", kn_sub);
+        vga_draw_string_trans(cv_x+2, kn_content_y+cv_h-12, "No presentation", kn_sub);
         return 1;
     }
 
@@ -1492,62 +1398,25 @@ int draw_apps_group3(int idx) {
         gui_draw_rounded_rect(ph_x, ph_y, ph_w, ph_h, 12, RGB(10,10,16));
         /* Notch / Dynamic Island at top */
         gui_draw_rounded_rect(ph_x+ph_w/2-20, ph_y+4, 40, 12, 6, RGB(0,0,0));
-        /* iOS status bar */
-        { char clk[12];
-          runtime_power_info_t power;
-          char pctbuf[8];
-          get_clock_str(clk);
-          runtime_get_power_info(&power);
-          runtime_format_percent(power.percent, pctbuf, sizeof(pctbuf));
-          vga_draw_string_trans(ph_x+6, ph_y+18, clk, RGB(255,255,255));
-          vga_draw_string_trans(ph_x+ph_w-28, ph_y+18, pctbuf, RGB(255,255,255)); }
-        /* iOS home screen wallpaper gradient */
+        /* Unpaired phone placeholder */
         { int gri;
           for (gri=0;gri<ph_h-50;gri++) {
               int gr_y=ph_y+30+gri;
-              int r=20+gri*80/(ph_h-50), b=60+gri*100/(ph_h-50);
+              int shade=18+gri*22/(ph_h-50);
               if (gr_y>ph_y && gr_y<ph_y+ph_h) {
-                  vga_draw_hline(ph_x+1, gr_y, ph_w-2, RGB(r,30,b));
+                  vga_draw_hline(ph_x+1, gr_y, ph_w-2, RGB(shade,shade,shade+4));
               }
           }
         }
-        /* iOS App icons grid (3x3) */
-        { static const char *ios_apps[]={"Msg","Pho","Mus","Sfr","Fin","Cal","Set","Cam","Map"};
-          static uint32_t ios_col[]={RGB(52,199,89),RGB(255,149,0),RGB(252,60,68),
-              RGB(0,122,255),RGB(41,128,185),RGB(255,59,48),RGB(142,142,147),
-              RGB(30,30,30),RGB(52,199,89)};
-          int ai2, gr_size=28, gr_pad=4;
-          int gr_start_x=ph_x+6, gr_start_y=ph_y+34;
-          for (ai2=0;ai2<9;ai2++){
-              int row=ai2/3, col=ai2%3;
-              int ix2=gr_start_x+col*(gr_size+gr_pad);
-              int iy2=gr_start_y+row*(gr_size+gr_pad+10);
-              gui_draw_rounded_rect(ix2,iy2,gr_size,gr_size,6,ios_col[ai2]);
-              vga_fill_rect_alpha(ix2+1,iy2+1,gr_size-2,gr_size/3,RGB(255,255,255),30);
-              vga_draw_string_trans(ix2+3,iy2+gr_size/2-3,ios_apps[ai2],RGB(255,255,255));
-              /* label */
-              int lx3=ix2+(gr_size-str_len(ios_apps[ai2])*8)/2+4;
-              vga_draw_string_trans(lx3,iy2+gr_size+2,ios_apps[ai2],RGB(200,200,210));
-          }
-        }
-        /* iOS Dock */
-        vga_fill_rect_alpha(ph_x+4, ph_y+ph_h-32, ph_w-8, 28, RGB(255,255,255), 30);
-        gui_draw_rounded_rect(ph_x+4, ph_y+ph_h-32, ph_w-8, 28, 8, 0);
-        vga_draw_rect_outline(ph_x+4, ph_y+ph_h-32, ph_w-8, 28, RGB(255,255,255));
-        /* Dock icons: 4 apps */
-        { static uint32_t dc[]={RGB(252,60,68),RGB(52,199,89),RGB(0,122,255),RGB(41,128,185)};
-          int di2;
-          for (di2=0;di2<4;di2++){
-              gui_draw_rounded_rect(ph_x+8+di2*28, ph_y+ph_h-29, 22, 22, 5, dc[di2]);
-          }
-        }
+        vga_draw_string_trans(ph_x+(ph_w-72)/2, ph_y+ph_h/2-8, "No iPhone", RGB(210,210,218));
+        vga_draw_string_trans(ph_x+(ph_w-48)/2, ph_y+ph_h/2+4, "paired", RGB(210,210,218));
+        vga_draw_string_trans(ph_x+(ph_w-104)/2, ph_y+ph_h/2+20, "Mirroring off", RGB(140,140,150));
         /* Home indicator */
         vga_fill_rect(ph_x+ph_w/2-15, ph_y+ph_h-6, 30, 3, RGB(200,200,210));
         /* Side buttons */
         vga_fill_rect(ph_x-8, ph_y+ph_h/4, 4, 20, RGB(40,40,44));
         vga_fill_rect(ph_x+ph_w+4, ph_y+ph_h/3, 4, 30, RGB(40,40,44));
-        /* "Connected" label */
-        vga_draw_string_trans(wx+(ww-80)/2, content_y+6, "Connected", RGB(52,199,89));
+        vga_draw_string_trans(wx+(ww-128)/2, content_y+6, "No device paired", RGB(160,160,170));
         return 1;
     }
 

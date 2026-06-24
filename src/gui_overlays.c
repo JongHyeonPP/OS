@@ -120,31 +120,31 @@ void cc_draw(void) {
 
     /* WiFi tile */
     {
-        uint32_t tbg = g_pref_wifi ? (g_pref_darkmode?RGB(60,100,195):RGB(0,122,255)) : tile_off;
-        uint32_t tft = g_pref_wifi ? RGB(255,255,255) : sub_col;
+        uint32_t tbg = tile_off;
+        uint32_t tft = sub_col;
         gui_draw_rounded_rect(cx+pad, ry, half_w, 56, 8, tbg);
         /* WiFi arc icon */
         int ix = cx+pad+14, iy = ry+18;
-        gui_draw_circle(ix, iy, 11, g_pref_wifi?RGB(120,180,255):RGB(160,160,160));
+        gui_draw_circle(ix, iy, 11, RGB(160,160,160));
         gui_draw_circle(ix, iy,  7, tbg);
-        gui_draw_circle(ix, iy,  3, g_pref_wifi?RGB(255,255,255):RGB(140,140,140));
+        gui_draw_circle(ix, iy,  3, RGB(140,140,140));
         vga_draw_string_trans(cx+pad+6, ry+32, "WiFi", tft);
-        vga_draw_string_trans(cx+pad+6, ry+42, g_pref_wifi?"On":"Off", sub_col);
+        vga_draw_string_trans(cx+pad+6, ry+42, "Unavailable", sub_col);
     }
     /* Bluetooth tile */
     {
-        uint32_t tbg = g_pref_bt ? (g_pref_darkmode?RGB(50,85,195):RGB(0,122,255)) : tile_off;
-        uint32_t tft = g_pref_bt ? RGB(255,255,255) : sub_col;
+        uint32_t tbg = tile_off;
+        uint32_t tft = sub_col;
         int bx = cx+pad+half_w+tile_gap;
         gui_draw_rounded_rect(bx, ry, half_w, 56, 8, tbg);
         /* BT icon: simple B-shape */
         int bix = bx+14, biy = ry+14;
-        vga_fill_rect(bix, biy, 3, 28, g_pref_bt?RGB(180,210,255):RGB(160,160,160));
-        vga_fill_rect(bix, biy+6, 8, 2, g_pref_bt?RGB(180,210,255):RGB(160,160,160));
-        vga_fill_rect(bix, biy+14, 8, 2, g_pref_bt?RGB(180,210,255):RGB(160,160,160));
-        vga_fill_rect(bix, biy+8, 10, 6, g_pref_bt?RGB(140,180,255):RGB(150,150,150));
+        vga_fill_rect(bix, biy, 3, 28, RGB(160,160,160));
+        vga_fill_rect(bix, biy+6, 8, 2, RGB(160,160,160));
+        vga_fill_rect(bix, biy+14, 8, 2, RGB(160,160,160));
+        vga_fill_rect(bix, biy+8, 10, 6, RGB(150,150,150));
         vga_draw_string_trans(bx+6, ry+32, "Bluetooth", tft);
-        vga_draw_string_trans(bx+6, ry+42, g_pref_bt?"On":"Off", sub_col);
+        vga_draw_string_trans(bx+6, ry+42, "Unavailable", sub_col);
     }
     ry += 62;
 
@@ -356,9 +356,9 @@ int cc_click(int mx, int my) {
     /* Row 1: WiFi (left) + BT (right), h=56 */
     if (my >= ry && my < ry+56) {
         if (mx >= cx+pad && mx < cx+pad+half_w)
-            { g_pref_wifi ^= 1; toast_show("WiFi", g_pref_wifi?"Connected":"Disconnected", RGB(0,122,255)); return 1; }
+            { toast_show("WiFi", "Unavailable", RGB(120,120,130)); return 1; }
         if (mx >= cx+pad+half_w+tile_gap && mx < cx+pad+half_w*2+tile_gap)
-            { g_pref_bt ^= 1; toast_show("Bluetooth", g_pref_bt?"On":"Off", RGB(0,122,255)); return 1; }
+            { toast_show("Bluetooth", "Unavailable", RGB(120,120,130)); return 1; }
     }
     ry += 62;
     /* Row 2: AirDrop (left) + Focus (right), h=40 */
@@ -3477,14 +3477,6 @@ void writing_tools_draw(void) {
     static const uint32_t icols[]={
         RGB(0,122,255),RGB(52,199,89),RGB(255,149,0),RGB(147,44,246),RGB(255,59,48),RGB(30,200,220)
     };
-    static const char *results[]={
-        "Proofreading complete. Fixed 2 grammar issues.",
-        "Text rewritten in clearer, modern language.",
-        "Text made more warm and conversational.",
-        "Text made more formal and professional.",
-        "Text shortened by 40%. Key points preserved.",
-        "Summary: document covers kernel design & UI."
-    };
     int wt_w=300, wt_h=220;
     int wt_x=(VGA_WIDTH-wt_w)/2, wt_y=(VGA_HEIGHT-wt_h)/2;
     uint32_t wt_bg  = g_pref_darkmode ? RGB(34,34,40) : RGB(248,248,252);
@@ -3506,24 +3498,13 @@ void writing_tools_draw(void) {
     vga_draw_string_trans(wt_x+28, wt_y+9, "Writing Tools", wt_txt);
     vga_draw_string_trans(wt_x+wt_w-18, wt_y+9, "X", wt_sub);
     if (g_wt_done == 2 && g_wt_sel >= 0) {
-        /* Show result */
-        vga_draw_string_trans(wt_x+8, wt_y+34, results[g_wt_sel], RGB(52,199,89));
-        vga_draw_string_trans(wt_x+8, wt_y+50, "Applied to document.", wt_sub);
+        vga_draw_string_trans(wt_x+8, wt_y+34, "Writing Tools unavailable", RGB(160,160,170));
+        vga_draw_string_trans(wt_x+8, wt_y+50, "No text engine configured.", wt_sub);
         gui_draw_rounded_rect(wt_x+wt_w/2-30, wt_y+wt_h-24, 60, 18, 4, RGB(0,122,255));
         vga_draw_string_trans(wt_x+wt_w/2-14, wt_y+wt_h-19, "Done", RGB(255,255,255));
     } else if (g_wt_done == 1) {
-        /* Processing animation */
-        uint32_t t8=timer_ticks();
-        int dot=(t8/200)%3;
-        vga_draw_string_trans(wt_x+8, wt_y+34, "Processing", wt_txt);
-        if (dot>=0) vga_draw_string_trans(wt_x+90, wt_y+34, ".", wt_txt);
-        if (dot>=1) vga_draw_string_trans(wt_x+98, wt_y+34, ".", wt_txt);
-        if (dot>=2) vga_draw_string_trans(wt_x+106, wt_y+34, ".", wt_txt);
-        /* Progress bar */
-        int prog=(int)((t8 - g_wt_tick)*100/1500);
-        if (prog>100) { g_wt_done=2; prog=100; }
+        g_wt_done=2;
         vga_fill_rect(wt_x+8, wt_y+50, wt_w-16, 8, wt_sep);
-        vga_fill_rect(wt_x+8, wt_y+50, (wt_w-16)*prog/100, 8, RGB(147,44,246));
     } else {
         /* Tool buttons grid */
         int bi2, bx2=wt_x+8, by2=wt_y+32;
@@ -3751,15 +3732,9 @@ void print_dialog_draw(void) {
     int prev_x = pd_x+8, prev_y = pd_y+38, prev_w = 90, prev_h = 120;
     vga_fill_rect(prev_x, prev_y, prev_w, prev_h, g_pref_darkmode?RGB(50,50,55):RGB(220,225,235));
     gui_draw_rounded_rect_outline(prev_x, prev_y, prev_w, prev_h, 2, pd_sep);
-    /* Paper inside preview */
-    vga_fill_rect(prev_x+8, prev_y+8, prev_w-16, prev_h-16, g_pref_darkmode?RGB(65,65,70):RGB(255,255,255));
-    vga_draw_hline(prev_x+12, prev_y+20, prev_w-24, pd_sub);
-    vga_draw_hline(prev_x+12, prev_y+28, prev_w-24, pd_sub);
-    vga_draw_hline(prev_x+12, prev_y+36, prev_w-36, pd_sub);
-    vga_draw_hline(prev_x+12, prev_y+50, prev_w-24, pd_sub);
-    vga_draw_hline(prev_x+12, prev_y+58, prev_w-28, pd_sub);
-    vga_fill_rect(prev_x+12, prev_y+72, prev_w-24, 28, g_pref_darkmode?RGB(50,80,110):RGB(180,200,230));
-    vga_draw_string_trans(prev_x+4, prev_y+prev_h+4, "1 of 4", pd_sub);
+    vga_draw_string_trans(prev_x+13, prev_y+52, "No", pd_sub);
+    vga_draw_string_trans(prev_x+13, prev_y+66, "preview", pd_sub);
+    vga_draw_string_trans(prev_x+4, prev_y+prev_h+4, "No printer", pd_sub);
     /* Right panel: settings */
     int set_x = prev_x + prev_w + 8;
     int set_w = pd_w - prev_w - 24;
@@ -3768,8 +3743,8 @@ void print_dialog_draw(void) {
     vga_draw_string_trans(set_x, sy3, "Printer:", pd_sub);
     vga_fill_rect(set_x, sy3+12, set_w, 16, g_pref_darkmode?RGB(50,50,56):RGB(236,236,242));
     gui_draw_rounded_rect_outline(set_x, sy3+12, set_w, 16, 2, pd_sep);
-    vga_draw_string_trans(set_x+4, sy3+16, "HP LaserJet Pro", pd_txt);
-    vga_draw_string_trans(set_x+set_w-12, sy3+16, "v", pd_sub);
+    vga_draw_string_trans(set_x+4, sy3+16, "No printer configured", pd_txt);
+    vga_draw_string_trans(set_x+set_w-12, sy3+16, "-", pd_sub);
     /* Copies */
     sy3 += 34;
     vga_draw_string_trans(set_x, sy3, "Copies:", pd_sub);
@@ -4032,4 +4007,677 @@ void screenshot_tool_draw(void) {
         vga_draw_hline(0, my, W, RGB(255,255,255));
         vga_draw_vline(mx, 0, H, RGB(255,255,255));
     }
+}
+
+void crash_reporter_draw(void) {
+    if (!g_crash_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 110);
+    int dw=460, dh=200;
+    int dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 12, RGB(44,44,48));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 12, RGB(80,80,88));
+    vga_fill_rect(dx+20, dy+20, 48, 48, RGB(0,120,220));
+    gui_draw_rounded_rect_outline(dx+20, dy+20, 48, 48, 8, RGB(60,160,255));
+    vga_draw_string_trans(dx+34, dy+36, "APP", RGB(255,255,255));
+    vga_draw_string_trans(dx+78, dy+22, "No crash report available", RGB(230,230,235));
+    vga_draw_string_trans(dx+78, dy+40, "Diagnostics are not configured.", RGB(160,160,168));
+    vga_draw_string_trans(dx+20, dy+100, "Crash capture unavailable", RGB(0,120,255));
+    int by2=dy+dh-44;
+    gui_draw_rounded_rect(dx+dw-110, by2, 90, 30, 6, RGB(0,105,215));
+    vga_draw_string_trans(dx+dw-89, by2+11, "Done", RGB(255,255,255));
+}
+
+void system_update_draw(void) {
+    if (!g_update_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 100);
+    int dw=520, dh=360, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 14, RGB(40,40,44));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 14, RGB(75,75,85));
+    int i; for(i=0;i<64;i++){
+        int t=i*255/64;
+        vga_draw_hline(dx,dy+i,dw,RGB(20+t*20/255,20+t*30/255,40+t*60/255));
+    }
+    vga_fill_rect(dx+20, dy+8, 48, 48, RGB(30,120,40));
+    vga_draw_string_trans(dx+28, dy+24, "SYS", RGB(200,255,200));
+    vga_draw_string_trans(dx+80, dy+12, "Software Update", RGB(240,240,245));
+    vga_draw_string_trans(dx+80, dy+28, "Update source unavailable", RGB(180,220,255));
+    vga_draw_hline(dx, dy+64, dw, RGB(75,75,85));
+    vga_draw_string_trans(dx+20, dy+76, "No update catalog is configured.", RGB(230,230,235));
+    vga_draw_string_trans(dx+20, dy+100, "Connect a real update provider before offering installs.", RGB(200,200,210));
+    vga_fill_rect(dx+20, dy+136, dw-40, 16, RGB(55,55,60));
+    vga_draw_string_trans(dx+20, dy+164, "Status: unavailable", RGB(160,160,175));
+    int by2=dy+dh-50; vga_draw_hline(dx, by2-8, dw, RGB(75,75,85));
+    gui_draw_rounded_rect(dx+dw-110, by2, 90, 32, 6, RGB(65,65,72));
+    vga_draw_string_trans(dx+dw-89, by2+12, "Done", RGB(220,220,228));
+}
+
+void focus_filter_draw(void) {
+    if (!g_focus_filter_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 100);
+    int dw=480, dh=380, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 14, RGB(42,42,46));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 14, RGB(78,78,88));
+    vga_draw_string_trans(dx+(dw-13*8)/2, dy+18, "Focus Filters", RGB(235,235,240));
+    vga_draw_hline(dx, dy+42, dw, RGB(72,72,82));
+    static const char *m[]={"Work","Personal","Sleep","Driving"};
+    static const uint32_t tc[]={RGB(0,110,255),RGB(52,199,89),RGB(100,65,165),RGB(255,159,10)};
+    int t2; for(t2=0;t2<4;t2++){
+        int tx=dx+20+t2*112, ty2=dy+56;
+        gui_draw_rounded_rect(tx, ty2, 100, 28, 6, (t2==g_focus_filter_mode)?tc[t2]:RGB(58,58,65));
+        int ml=str_len(m[t2]);
+        vga_draw_string_trans(tx+(100-ml*8)/2, ty2+10, m[t2],
+            (t2==g_focus_filter_mode)?RGB(255,255,255):RGB(180,180,190));
+    }
+    int fy=dy+100;
+    vga_draw_string_trans(dx+20, fy, "Allowed Notifications:", RGB(200,200,210));
+    fy+=22;
+    static const char *fl[]={"Phone Calls from Favorites","Messages from Contacts",
+        "Time-sensitive alerts","Reminders with due dates","Calendar invitations"};
+    static int fon[]={1,1,1,0,1};
+    int fi; for(fi=0;fi<5;fi++){
+        int fy2=fy+fi*34;
+        gui_draw_rounded_rect(dx+20, fy2+4, 38, 22, 11, fon[fi]?RGB(52,199,89):RGB(80,80,90));
+        gui_draw_circle(fon[fi]?(dx+30):(dx+39), fy2+15, 8, RGB(255,255,255));
+        vga_draw_string_trans(dx+68, fy2+8, fl[fi], RGB(210,210,218));
+    }
+    fy+=5*34+10; vga_draw_hline(dx, fy, dw, RGB(72,72,82)); fy+=10;
+    vga_draw_string_trans(dx+20, fy, "App Filters:", RGB(200,200,210));
+    static const char *af[]={"Calendar","Mail","Messages","Safari"};
+    int ai; for(ai=0;ai<4;ai++){
+        int ax=dx+20+ai*110, ay=fy+18;
+        gui_draw_rounded_rect(ax, ay, 100, 26, 6, RGB(0,100,210));
+        vga_draw_string_trans(ax+(100-str_len(af[ai])*8)/2, ay+9, af[ai], RGB(255,255,255));
+    }
+    int by2=dy+dh-44; vga_draw_hline(dx, by2-8, dw, RGB(72,72,82));
+    gui_draw_rounded_rect(dx+dw-100, by2, 80, 30, 6, RGB(0,105,215));
+    vga_draw_string_trans(dx+dw-84, by2+11, "Done", RGB(255,255,255));
+    gui_draw_rounded_rect(dx+20, by2, 80, 30, 6, RGB(65,65,72));
+    vga_draw_string_trans(dx+30, by2+11, "Cancel", RGB(220,220,228));
+}
+
+void icloud_panel_draw(void) {
+    if (!g_icloud_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 90);
+    int dw=380, dh=320, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 14, RGB(42,42,48));
+    vga_fill_rect(dx, dy, dw, 56, RGB(0,95,215));
+    gui_draw_circle(dx+dw/2-18, dy+28, 14, RGB(255,255,255));
+    gui_draw_circle(dx+dw/2, dy+24, 18, RGB(255,255,255));
+    gui_draw_circle(dx+dw/2+20, dy+28, 12, RGB(255,255,255));
+    vga_fill_rect(dx+dw/2-30, dy+28, 62, 18, RGB(255,255,255));
+    vga_draw_string_trans(dx+(dw-21*8)/2, dy+62, "No iCloud account set", RGB(190,190,200));
+    static const struct{const char *nm;const char *st;int p;} it[]={
+        {"Photos","Unavailable",0},{"iCloud Drive","Unavailable",0},
+        {"Notes","Unavailable",0},{"Contacts","Unavailable",0},{"Keychain","Unavailable",0}};
+    int si; for(si=0;si<5;si++){
+        int iy=dy+84+si*38;
+        vga_draw_string_trans(dx+20, iy, it[si].nm, RGB(225,225,230));
+        vga_draw_string_trans(dx+20, iy+14, it[si].st, RGB(140,140,155));
+        vga_fill_rect(dx+dw-110, iy+4, 90, 8, RGB(55,55,65));
+        if(si<4) vga_draw_hline(dx+16, iy+30, dw-32, RGB(65,65,75));
+    }
+    int by2=dy+dh-40; vga_draw_hline(dx, by2-8, dw, RGB(65,65,75));
+    vga_draw_string_trans(dx+20, by2, "Storage unavailable", RGB(160,160,175));
+    gui_draw_rounded_rect(dx+dw-100, by2-5, 80, 26, 5, RGB(65,65,75));
+    vga_draw_string_trans(dx+dw-88, by2+4, "Done", RGB(220,220,228));
+}
+
+void bluetooth_dialog_draw(void) {
+    if (!g_bt_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 90);
+    int dw=400, dh=320, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 14, RGB(42,42,48));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 14, RGB(78,78,90));
+    vga_fill_rect(dx+(dw-32)/2, dy+12, 32, 32, RGB(0,120,250));
+    vga_draw_string_trans(dx+(dw-8)/2, dy+20, "B", RGB(255,255,255));
+    vga_draw_string_trans(dx+(dw-9*8)/2, dy+50, "Bluetooth", RGB(230,230,235));
+    vga_draw_string_trans(dx+(dw-25*8)/2, dy+64, "Bluetooth stack unavailable", RGB(160,160,175));
+    vga_draw_hline(dx, dy+82, dw, RGB(68,68,80));
+    gui_draw_rounded_rect(dx+16, dy+104, dw-32, 54, 5, RGB(52,52,60));
+    vga_draw_string_trans(dx+28, dy+122, "No Bluetooth devices available", RGB(230,230,235));
+    vga_draw_string_trans(dx+28, dy+138, "Pairing service unavailable", RGB(160,160,175));
+    int by2=dy+dh-42; vga_draw_hline(dx, by2-8, dw, RGB(68,68,80));
+    gui_draw_rounded_rect(dx+20, by2, 80, 28, 5, RGB(65,65,75));
+    vga_draw_string_trans(dx+30, by2+9, "Cancel", RGB(220,220,228));
+    gui_draw_rounded_rect(dx+dw-100, by2, 80, 28, 5, RGB(65,65,75));
+    vga_draw_string_trans(dx+dw-88, by2+9, "Done", RGB(220,220,228));
+}
+
+void keyboard_shortcuts_draw(void) {
+    if (!g_kbshort_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 140);
+    int dw=570, dh=450, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 14, RGB(36,36,40));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 14, RGB(72,72,82));
+    vga_fill_rect(dx, dy, dw, 44, RGB(28,28,32));
+    vga_draw_string_trans(dx+(dw-18*8)/2, dy+16, "Keyboard Shortcuts", RGB(235,235,240));
+    char pg2[4]; pg2[0]='0'+g_kbshort_page+1; pg2[1]='/'; pg2[2]='3'; pg2[3]=0;
+    vga_draw_string_trans(dx+dw-38, dy+16, pg2, RGB(140,140,155));
+    vga_draw_hline(dx, dy+44, dw, RGB(65,65,75));
+    static const char *kk[3][14]={
+      {"Tab","Ctrl+C","Ctrl+N","Ctrl+M","Ctrl+L","Ctrl+A","Ctrl+E",
+       "Ctrl+S","Ctrl+H","Ctrl+I","Ctrl+B","Ctrl+U","F8","Esc"},
+      {"p","Space","Ctrl+D","F1","F2","F3","F4","F5","Ctrl+Q",
+       "Insert","Ctrl+F","Ctrl+1-4","TL Corner","BR Corner"},
+      {"Ctrl+T","Ctrl+W","Ctrl+G","Ctrl+2","Ctrl+3","Ctrl+4","Ctrl+5",
+       "Ctrl+\\","Ctrl+]","Ctrl+J","Ctrl+8","Ctrl+0","Ctrl+Z","Ctrl+O"}};
+    static const char *dd[3][14]={
+      {"Spotlight","Control Ctr","Notif Ctr","Mission Ctrl","Launchpad","App Switcher","App Expose",
+       "Siri","AirDrop","iCloud","Bluetooth","Sys Update","Shortcut Guide","Close"},
+      {"Screenshot","Quick Look","Dark Mode","Night Shift","Focus Mode","App Expose","Launchpad",
+       "App Switcher","Quick Note","Writing Tools","Focus Filters","Switch Space","Mission Ctrl","Screen Saver"},
+      {"Time Machine","Safari","Chess","2048","Pong","Sudoku","Wordle",
+       "Snake","Breakout","Messages","Photo Booth","Stage Manager","Zoom","FaceTime"}};
+    int cw=(dw-40)/2, si2;
+    for(si2=0;si2<14;si2++){
+        int c2=si2/7, r2=si2%7;
+        int kx=dx+20+c2*cw, ky=dy+54+r2*52;
+        int kw=str_len(kk[g_kbshort_page][si2])*8+12; if(kw<40)kw=40;
+        gui_draw_rounded_rect(kx, ky, kw, 20, 3, RGB(60,60,70));
+        vga_draw_string_trans(kx+5, ky+6, kk[g_kbshort_page][si2], RGB(215,215,235));
+        vga_draw_string_trans(kx+kw+8, ky+6, dd[g_kbshort_page][si2], RGB(175,175,195));
+    }
+    int pi3;
+    for(pi3=0;pi3<3;pi3++)
+        gui_draw_circle(dx+dw/2-20+pi3*20, dy+dh-18, 5,
+            (pi3==g_kbshort_page)?RGB(255,255,255):RGB(90,90,105));
+    if(g_kbshort_page>0){
+        gui_draw_rounded_rect(dx+20,dy+dh-36,70,24,4,RGB(60,60,70));
+        vga_draw_string_trans(dx+30,dy+dh-26,"< Prev",RGB(210,210,225));
+    }
+    if(g_kbshort_page<2){
+        gui_draw_rounded_rect(dx+dw-90,dy+dh-36,70,24,4,RGB(0,95,210));
+        vga_draw_string_trans(dx+dw-80,dy+dh-26,"Next >",RGB(255,255,255));
+    } else {
+        gui_draw_rounded_rect(dx+dw-90,dy+dh-36,70,24,4,RGB(60,60,70));
+        vga_draw_string_trans(dx+dw-78,dy+dh-26,"Done",RGB(210,210,225));
+    }
+}
+
+void time_machine_draw(void) {
+    if (!g_timemachine_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 150);
+    int dw=480, dh=350, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 16, RGB(28,28,32));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 16, RGB(65,65,80));
+    vga_fill_rect(dx, dy, dw, 56, RGB(20,20,26));
+    int cx2=dx+dw/2, cy2=dy+28;
+    gui_draw_circle(cx2, cy2, 22, RGB(100,160,220));
+    gui_draw_circle_outline(cx2, cy2, 22, RGB(60,120,180));
+    vga_draw_string_trans(cx2-12, cy2-5, "TM", RGB(255,255,255));
+    vga_draw_string_trans(dx+(dw-12*8)/2, dy+18, "Time Machine", RGB(220,220,235));
+    vga_draw_string_trans(dx+(dw-21*8)/2, dy+64, "Backup service unavailable", RGB(200,200,215));
+    int bx=dx+40, by=dy+88, bw=dw-80, bh=16;
+    vga_fill_rect(bx, by, bw, bh, RGB(40,40,50));
+    gui_draw_rounded_rect_outline(bx, by, bw, bh, 8, RGB(70,70,90));
+    vga_draw_string_trans(dx+40, dy+116, "No backup destination configured", RGB(160,160,180));
+    vga_draw_string_trans(dx+40, dy+132, "No backup history available", RGB(160,160,180));
+    vga_draw_hline(dx, dy+160, dw, RGB(55,55,70));
+    vga_draw_string_trans(dx+20, dy+168, "Recent Backups:", RGB(190,190,210));
+    gui_draw_rounded_rect(dx+20, dy+188, dw-40, 42, 4, RGB(38,38,48));
+    vga_draw_string_trans(dx+30, dy+204, "No backups found", RGB(200,200,218));
+    int by2=dy+dh-44; vga_draw_hline(dx, by2-8, dw, RGB(55,55,70));
+    gui_draw_rounded_rect(dx+20, by2, 150, 28, 5, RGB(60,60,75));
+    vga_draw_string_trans(dx+32, by2+9, "Service unavailable", RGB(220,220,228));
+    gui_draw_rounded_rect(dx+dw-100, by2, 80, 28, 5, RGB(60,60,75));
+    vga_draw_string_trans(dx+dw-88, by2+9, "Done", RGB(220,220,228));
+}
+
+void color_meter_draw(void) {
+    if (!g_colormeter_visible) return;
+    int mx2=mouse_get_x(), my2=mouse_get_y();
+    uint32_t px=vga_get_pixel(mx2, my2);
+    int r2=(px>>16)&0xFF, gv=(px>>8)&0xFF, b2=px&0xFF;
+    int dw=200, dh=160;
+    int dx=mx2+20; if(dx+dw>VGA_WIDTH) dx=mx2-dw-10;
+    int dy=my2+20; if(dy+dh>VGA_HEIGHT) dy=my2-dh-10;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 10, RGB(35,35,40));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 10, RGB(70,70,85));
+    vga_draw_string_trans(dx+8, dy+8, "Color Meter", RGB(220,220,230));
+    vga_draw_hline(dx, dy+24, dw, RGB(60,60,75));
+    vga_fill_rect(dx+8, dy+30, 44, 44, RGB(r2,gv,b2));
+    gui_draw_rounded_rect_outline(dx+8, dy+30, 44, 44, 4, RGB(90,90,105));
+    vga_draw_hline(mx2-8, my2, 17, RGB(255,255,255));
+    vga_draw_vline(mx2, my2-8, 17, RGB(255,255,255));
+    char rv[8], gv2[8], bv[8];
+    int_to_str(r2, rv); int_to_str(gv, gv2); int_to_str(b2, bv);
+    static const char hc[]="0123456789ABCDEF";
+    char hx[8]; hx[0]='#';
+    hx[1]=hc[(r2>>4)&0xF]; hx[2]=hc[r2&0xF];
+    hx[3]=hc[(gv>>4)&0xF]; hx[4]=hc[gv&0xF];
+    hx[5]=hc[(b2>>4)&0xF]; hx[6]=hc[b2&0xF]; hx[7]=0;
+    char rs[8]; rs[0]='R'; rs[1]=':'; rs[2]=' ';
+    { int i=3; const char *s=rv; while(*s) rs[i++]=*s++; rs[i]=0; }
+    char gs[8]; gs[0]='G'; gs[1]=':'; gs[2]=' ';
+    { int i=3; const char *s=gv2; while(*s) gs[i++]=*s++; gs[i]=0; }
+    char bs[8]; bs[0]='B'; bs[1]=':'; bs[2]=' ';
+    { int i=3; const char *s=bv; while(*s) bs[i++]=*s++; bs[i]=0; }
+    vga_draw_string_trans(dx+60, dy+32, rs, RGB(255,100,100));
+    vga_draw_string_trans(dx+60, dy+48, gs, RGB(100,220,100));
+    vga_draw_string_trans(dx+60, dy+64, bs, RGB(100,160,255));
+    vga_draw_string_trans(dx+60, dy+82, hx, RGB(220,220,230));
+    vga_fill_rect(dx+8, dy+100, r2*184/255, 7, RGB(255,80,80));
+    vga_fill_rect(dx+8, dy+112, gv*184/255, 7, RGB(80,220,80));
+    vga_fill_rect(dx+8, dy+124, b2*184/255, 7, RGB(80,140,255));
+}
+
+void notif_history_draw(void) {
+    if (!g_notifhist_visible) return;
+    int dw=340, dh=460, dx=VGA_WIDTH-dw-8, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 12, RGB(30,30,36));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 12, RGB(65,65,80));
+    vga_fill_rect(dx, dy, dw, 44, RGB(24,24,30));
+    vga_draw_string_trans(dx+(dw-20*8)/2, dy+14, "Notification History", RGB(230,230,240));
+    vga_draw_hline(dx, dy+44, dw, RGB(58,58,72));
+    gui_draw_rounded_rect(dx+16, dy+72, dw-32, 64, 4, RGB(40,40,50));
+    vga_draw_string_trans(dx+28, dy+94, "No notification history", RGB(190,190,205));
+    vga_draw_string_trans(dx+28, dy+112, "Persistent log unavailable", RGB(130,130,150));
+    int by2=dy+dh-42; vga_draw_hline(dx, by2, dw, RGB(58,58,72));
+    vga_draw_string_trans(dx+20, by2+12, "Clear All", RGB(255,59,48));
+    gui_draw_rounded_rect(dx+dw-100, by2+8, 80, 26, 5, RGB(60,60,75));
+    vga_draw_string_trans(dx+dw-88, by2+14, "Done", RGB(220,220,228));
+}
+
+void wifi_panel_draw(void) {
+    if (!g_wifi_visible) return;
+    int dw=340, dh=380, dx=VGA_WIDTH-dw-12, dy=28;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 12, RGB(34,34,38));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 12, RGB(70,70,82));
+    vga_fill_rect(dx, dy, dw, 52, RGB(28,28,32));
+    vga_draw_string_trans(dx+(dw-6*8)/2, dy+10, "Wi-Fi", RGB(235,235,240));
+    gui_draw_rounded_rect(dx+16, dy+28, dw-32, 20, 5, RGB(65,65,75));
+    vga_draw_string_trans(dx+(dw-18*8)/2, dy+32, "Wi-Fi unavailable", RGB(220,220,228));
+    vga_draw_hline(dx, dy+52, dw, RGB(62,62,75));
+    vga_draw_string_trans(dx+16, dy+62, "MY NETWORKS", RGB(120,120,140));
+    gui_draw_rounded_rect(dx+12, dy+80, dw-24, 54, 6, RGB(44,44,52));
+    vga_draw_string_trans(dx+24, dy+98, "No wireless interface detected", RGB(230,230,238));
+    vga_draw_string_trans(dx+24, dy+114, "Network scan unavailable", RGB(150,150,170));
+    vga_draw_hline(dx, dy+220, dw, RGB(62,62,75));
+    vga_draw_string_trans(dx+16, dy+230, "OTHER NETWORKS", RGB(120,120,140));
+    gui_draw_rounded_rect(dx+12, dy+248, dw-24, 42, 6, RGB(44,44,52));
+    vga_draw_string_trans(dx+24, dy+264, "No scan results", RGB(220,220,230));
+    int by2=dy+dh-38; vga_draw_hline(dx, by2, dw, RGB(62,62,75));
+    vga_draw_string_trans(dx+16, by2+12, "Network Settings...", RGB(0,122,255));
+    vga_draw_string_trans(dx+dw-72, by2+12, "Done", RGB(0,122,255));
+}
+
+void display_settings_draw(void) {
+    if (!g_display_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 90);
+    int dw=480, dh=380, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 14, RGB(40,40,46));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 14, RGB(72,72,85));
+    vga_fill_rect(dx, dy, dw, 48, RGB(32,32,38));
+    vga_draw_string_trans(dx+(dw-7*8)/2, dy+16, "Display", RGB(235,235,240));
+    vga_draw_hline(dx, dy+48, dw, RGB(65,65,78));
+    int bry=dy+68;
+    vga_draw_string_trans(dx+24, bry, "Brightness", RGB(200,200,212));
+    int bx=dx+140, bw=dw-170, bh=12, by=bry+4;
+    vga_fill_rect(bx, by, bw, bh, RGB(55,55,65));
+    gui_draw_rounded_rect_outline(bx, by, bw, bh, 6, RGB(80,80,95));
+    int bp=bw*g_display_brightness/100;
+    vga_fill_rect(bx, by, bp, bh, RGB(255,255,255));
+    gui_draw_circle(bx+bp, by+bh/2, 9, RGB(255,255,255));
+    gui_draw_circle_outline(bx+bp, by+bh/2, 9, RGB(200,200,220));
+    vga_draw_hline(dx, bry+36, dw, RGB(58,58,72));
+    int ry=bry+50;
+    vga_draw_string_trans(dx+24, ry, "Resolution", RGB(200,200,212));
+    static const char *res[]={"2560x1600 (Retina)","1920x1200","1680x1050","1440x900"};
+    int ri; for(ri=0;ri<4;ri++){
+        int ry2=ry+24+ri*34;
+        gui_draw_rounded_rect(dx+140, ry2, dw-164, 26, 4, ri==0?RGB(0,90,210):RGB(50,50,60));
+        vga_draw_string_trans(dx+152, ry2+8, res[ri], ri==0?RGB(255,255,255):RGB(185,185,200));
+        if(ri==0){gui_draw_circle(dx+dw-28, ry2+13, 7, RGB(255,255,255)); gui_draw_circle_outline(dx+dw-28, ry2+13, 7, RGB(150,200,255));}
+    }
+    int ty=ry+24+4*34+6; vga_draw_hline(dx, ty, dw, RGB(58,58,72)); ty+=16;
+    static const char *togs[]={"True Tone","Night Shift","Auto Brightness"};
+    static int tvals[]={1,0,1};
+    int ti; for(ti=0;ti<3;ti++){
+        int ty2=ty+ti*36;
+        vga_draw_string_trans(dx+24, ty2+5, togs[ti], RGB(200,200,212));
+        gui_draw_rounded_rect(dx+dw-62, ty2, 44, 24, 12, tvals[ti]?RGB(52,199,89):RGB(70,70,85));
+        gui_draw_circle(tvals[ti]?(dx+dw-28):(dx+dw-50), ty2+12, 9, RGB(255,255,255));
+        if(ti<2) vga_draw_hline(dx+16, ty2+30, dw-32, RGB(58,58,72));
+    }
+    int by3=dy+dh-44; vga_draw_hline(dx, by3, dw, RGB(65,65,78));
+    gui_draw_rounded_rect(dx+dw-100, by3+8, 80, 28, 5, RGB(0,100,215));
+    vga_draw_string_trans(dx+dw-88, by3+16, "Done", RGB(255,255,255));
+}
+
+void sound_settings_draw(void) {
+    if (!g_sound_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 90);
+    int dw=460, dh=360, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 14, RGB(40,40,46));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 14, RGB(72,72,85));
+    vga_fill_rect(dx, dy, dw, 48, RGB(32,32,38));
+    vga_draw_string_trans(dx+(dw-5*8)/2, dy+16, "Sound", RGB(235,235,240));
+    vga_draw_hline(dx, dy+48, dw, RGB(65,65,78));
+    int sy=dy+64;
+    vga_draw_string_trans(dx+24, sy, "Output Volume", RGB(200,200,212));
+    gui_draw_circle(dx+160, sy+6, 6, RGB(120,120,140));
+    gui_draw_circle_outline(dx+160, sy+6, 6, RGB(90,90,110));
+    int vx=dx+178, vw=dw-210, vh=10, vy=sy+2;
+    vga_fill_rect(vx, vy, vw, vh, RGB(55,55,68));
+    gui_draw_rounded_rect_outline(vx, vy, vw, vh, 5, RGB(80,80,95));
+    int vp=vw*g_sound_volume/100;
+    vga_fill_rect(vx, vy, vp, vh, RGB(255,255,255));
+    gui_draw_circle(vx+vp, vy+vh/2, 8, RGB(255,255,255));
+    gui_draw_circle_outline(vx+vp, vy+vh/2, 8, RGB(200,200,220));
+    vga_draw_string_trans(dx+dw-30, sy, ")", RGB(160,160,180));
+    vga_draw_hline(dx, sy+28, dw, RGB(58,58,72));
+    int sy2=sy+42;
+    vga_draw_string_trans(dx+24, sy2, "Output Device", RGB(200,200,212));
+    static const char *od[]={"Built-in Speakers","AirPods Pro","HDMI Output","USB Audio"};
+    int oi; for(oi=0;oi<4;oi++){
+        int oy=sy2+22+oi*32;
+        gui_draw_rounded_rect(dx+130, oy, dw-154, 24, 4, oi==0?RGB(0,85,200):RGB(48,48,60));
+        vga_draw_string_trans(dx+142, oy+7, od[oi], oi==0?RGB(255,255,255):RGB(185,185,205));
+        if(oi==0){gui_draw_circle(dx+dw-28, oy+12, 6, RGB(200,255,200)); gui_draw_circle_outline(dx+dw-28, oy+12, 6, RGB(100,200,100));}
+    }
+    vga_draw_hline(dx, sy2+22+4*32+4, dw, RGB(58,58,72));
+    int sy3=sy2+22+4*32+20;
+    vga_draw_string_trans(dx+24, sy3, "Input Device", RGB(200,200,212));
+    static const char *id2[]={"Built-in Microphone","External Mic"};
+    int ii; for(ii=0;ii<2;ii++){
+        int iy=sy3+22+ii*32;
+        gui_draw_rounded_rect(dx+130, iy, dw-154, 24, 4, ii==0?RGB(0,85,200):RGB(48,48,60));
+        vga_draw_string_trans(dx+142, iy+7, id2[ii], ii==0?RGB(255,255,255):RGB(185,185,205));
+    }
+    vga_draw_string_trans(dx+24, sy3+86, "Input Level:", RGB(160,160,180));
+    int ilx=dx+130, ilw=dw-154;
+    vga_fill_rect(ilx, sy3+84, ilw, 8, RGB(48,48,60));
+    vga_fill_rect(ilx, sy3+84, ilw*3/10, 8, RGB(52,199,89));
+    int by3=dy+dh-44; vga_draw_hline(dx, by3, dw, RGB(65,65,78));
+    gui_draw_rounded_rect(dx+dw-100, by3+8, 80, 28, 5, RGB(0,100,215));
+    vga_draw_string_trans(dx+dw-88, by3+16, "Done", RGB(255,255,255));
+}
+
+void activity_monitor_draw(void) {
+    if (!g_actmon_visible) return;
+    runtime_system_info_t sys;
+    runtime_get_system_info(&sys);
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 80);
+    int dw=580, dh=420, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 12, RGB(28,28,32));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 12, RGB(65,65,80));
+    vga_fill_rect(dx, dy, dw, 44, RGB(22,22,28));
+    vga_draw_string_trans(dx+(dw-16*8)/2, dy+14, "Activity Monitor", RGB(235,235,240));
+    vga_draw_hline(dx, dy+44, dw, RGB(58,58,72));
+    vga_fill_rect(dx, dy+44, dw, 22, RGB(34,34,42));
+    vga_draw_string_trans(dx+20, dy+52, "Process Name", RGB(160,160,180));
+    vga_draw_string_trans(dx+280, dy+52, "CPU %", RGB(160,160,180));
+    vga_draw_string_trans(dx+380, dy+52, "Memory", RGB(160,160,180));
+    vga_draw_string_trans(dx+480, dy+52, "PID", RGB(160,160,180));
+    vga_draw_hline(dx, dy+66, dw, RGB(50,50,65));
+    {
+        struct { const char *name; uint32_t count; uint32_t bytes; } rows[] = {
+            {"Processes", sys.process_count, 0},
+            {"Tasks", sys.task_count, 0},
+            {"Drivers", sys.driver_count, 0},
+            {"Heap Used", 0, sys.heap_used_bytes},
+            {"Physical Free", 0, sys.pmm_free_bytes}
+        };
+        int pi;
+        for(pi=0;pi<5;pi++){
+            int py=dy+70+pi*30;
+            char val[20];
+            if(pi%2==0) vga_fill_rect(dx, py, dw, 30, RGB(32,32,40));
+            vga_draw_string_trans(dx+20, py+10, rows[pi].name, RGB(220,220,228));
+            if(rows[pi].bytes) runtime_format_bytes(rows[pi].bytes, val, sizeof(val));
+            else runtime_format_uint(rows[pi].count, val, sizeof(val));
+            vga_draw_string_trans(dx+380, py+10, val, RGB(200,210,228));
+            vga_draw_string_trans(dx+480, py+10, "-", RGB(180,180,200));
+        }
+        vga_draw_string_trans(dx+20, dy+238, "Per-process samples unavailable", RGB(150,150,170));
+    }
+    vga_draw_hline(dx, dy+372, dw, RGB(58,58,72));
+    vga_fill_rect(dx, dy+372, dw, 48, RGB(22,22,28));
+    vga_draw_string_trans(dx+20, dy+380, "CPU Usage:", RGB(150,150,170));
+    int cux=dx+110, culen=180;
+    vga_fill_rect(cux, dy+378, culen, 14, RGB(42,42,55));
+    vga_fill_rect(cux, dy+378, culen*sys.cpu_load_percent/100, 14, RGB(60,200,80));
+    { char mbuf[40]; char used[16]; char total[16]; int mp=0;
+      runtime_format_bytes(sys.pmm_total_bytes - sys.pmm_free_bytes, used, sizeof(used));
+      runtime_format_bytes(sys.pmm_total_bytes, total, sizeof(total));
+      mbuf[0]=0;
+      overlay_append_text(mbuf, &mp, sizeof(mbuf), "Memory: ");
+      overlay_append_text(mbuf, &mp, sizeof(mbuf), used);
+      overlay_append_text(mbuf, &mp, sizeof(mbuf), " / ");
+      overlay_append_text(mbuf, &mp, sizeof(mbuf), total);
+      vga_draw_string_trans(dx+20, dy+396, mbuf, RGB(150,150,170)); }
+    gui_draw_rounded_rect(dx+dw-100, dy+dh-36, 80, 26, 5, RGB(60,60,75));
+    vga_draw_string_trans(dx+dw-88, dy+dh-26, "Done", RGB(220,220,228));
+}
+
+void facetime_draw(void) {
+    if (!g_facetime_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 200);
+    int dw=360, dh=280, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 18, RGB(22,22,28));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 18, RGB(60,60,80));
+    int i; for(i=0;i<dh;i++){
+        int t=i*40/dh;
+        vga_draw_hline(dx, dy+i, dw, RGB(10+t,10+t,20+t*2));
+    }
+    int cx2=dx+dw/2, cy2=dy+80;
+    gui_draw_circle(cx2, cy2, 38, RGB(80,130,200));
+    gui_draw_circle_outline(cx2, cy2, 38, RGB(60,100,180));
+    gui_draw_circle(cx2, cy2-10, 16, RGB(160,200,240));
+    gui_draw_circle(cx2, cy2+22, 26, RGB(100,150,210));
+    vga_draw_string_trans(dx+(dw-24*8)/2, cy2+52, "Call service unavailable", RGB(220,220,228));
+    vga_draw_string_trans(dx+(dw-21*8)/2, cy2+70, "No account configured", RGB(160,180,210));
+    int btn_y=dy+dh-70;
+    gui_draw_circle(dx+dw/2, btn_y+20, 28, RGB(52,52,60));
+    gui_draw_circle_outline(dx+dw/2, btn_y+20, 28, RGB(80,80,100));
+    vga_draw_string_trans(dx+dw/2-16, btn_y+15, "Done", RGB(200,200,218));
+    vga_draw_string_trans(dx+dw/2-32, btn_y+44, "FaceTime", RGB(120,140,170));
+}
+
+void privacy_panel_draw(void) {
+    if (!g_privacy_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 90);
+    int dw=500, dh=400, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 14, RGB(38,38,44));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 14, RGB(72,72,85));
+    vga_fill_rect(dx, dy, dw, 48, RGB(30,30,38));
+    vga_draw_string_trans(dx+(dw-20*8)/2, dy+16, "Privacy & Security", RGB(235,235,240));
+    vga_draw_hline(dx, dy+48, dw, RGB(65,65,78));
+    static const char *tabs[]={"Location","Camera","Microphone","Screen Rec"};
+    int ti; for(ti=0;ti<4;ti++){
+        int tx=dx+16+ti*120;
+        gui_draw_rounded_rect(tx, dy+56, 112, 26, 5,
+            (ti==g_privacy_tab)?RGB(0,90,210):RGB(50,50,62));
+        vga_draw_string_trans(tx+(112-str_len(tabs[ti])*8)/2, dy+64, tabs[ti],
+            (ti==g_privacy_tab)?RGB(255,255,255):RGB(170,170,188));
+    }
+    vga_draw_hline(dx, dy+90, dw, RGB(58,58,72));
+    int cy=dy+106;
+    if(g_privacy_tab==0){
+        vga_draw_string_trans(dx+20, cy, "Location Services", RGB(200,200,215));
+        gui_draw_rounded_rect(dx+dw-64, cy-2, 44, 24, 12, RGB(52,199,89));
+        gui_draw_circle(dx+dw-30, cy+10, 9, RGB(255,255,255));
+        cy+=34; vga_draw_hline(dx+16, cy, dw-32, RGB(55,55,70)); cy+=14;
+        static const char *apps[]={"Maps","Camera","Weather","Find My","Safari","Photos","Fitness"};
+        static int perms[]={2,1,2,2,0,1,1};
+        static const char *pstr[]={"Never","Ask","Always"};
+        static const uint32_t pcol[]={RGB(255,80,80),RGB(255,180,40),RGB(60,200,80)};
+        int ai; for(ai=0;ai<7;ai++){
+            vga_draw_string_trans(dx+20, cy+ai*30+8, apps[ai], RGB(205,205,218));
+            gui_draw_rounded_rect(dx+dw-100, cy+ai*30, 80, 22, 4, RGB(48,48,62));
+            vga_draw_string_trans(dx+dw-85, cy+ai*30+6, pstr[perms[ai]], pcol[perms[ai]]);
+            if(ai<6) vga_draw_hline(dx+16, cy+ai*30+26, dw-32, RGB(52,52,68));
+        }
+    } else if(g_privacy_tab==1){
+        vga_draw_string_trans(dx+20, cy, "Camera Access", RGB(200,200,215)); cy+=30;
+        static const char *ca[]={"FaceTime","Safari","Messages","Zoom","Teams"};
+        static int cv[]={1,0,1,1,0};
+        int ci; for(ci=0;ci<5;ci++){
+            vga_draw_string_trans(dx+20, cy+ci*32+8, ca[ci], RGB(205,205,218));
+            gui_draw_rounded_rect(dx+dw-66, cy+ci*32+2, 46, 22, 11, cv[ci]?RGB(52,199,89):RGB(75,75,88));
+            gui_draw_circle(cv[ci]?(dx+dw-32):(dx+dw-53), cy+ci*32+13, 8, RGB(255,255,255));
+            if(ci<4) vga_draw_hline(dx+16, cy+ci*32+28, dw-32, RGB(52,52,68));
+        }
+    } else if(g_privacy_tab==2){
+        vga_draw_string_trans(dx+20, cy, "Microphone Access", RGB(200,200,215)); cy+=30;
+        static const char *ma[]={"FaceTime","Voice Memos","Siri","Zoom","Discord"};
+        static int mv[]={1,1,1,0,1};
+        int mi2; for(mi2=0;mi2<5;mi2++){
+            vga_draw_string_trans(dx+20, cy+mi2*32+8, ma[mi2], RGB(205,205,218));
+            gui_draw_rounded_rect(dx+dw-66, cy+mi2*32+2, 46, 22, 11, mv[mi2]?RGB(52,199,89):RGB(75,75,88));
+            gui_draw_circle(mv[mi2]?(dx+dw-32):(dx+dw-53), cy+mi2*32+13, 8, RGB(255,255,255));
+            if(mi2<4) vga_draw_hline(dx+16, cy+mi2*32+28, dw-32, RGB(52,52,68));
+        }
+    } else {
+        vga_draw_string_trans(dx+20, cy, "Screen Recording", RGB(200,200,215)); cy+=30;
+        vga_draw_string_trans(dx+20, cy+10, "No apps have requested Screen Recording access.", RGB(160,160,180));
+        cy+=50;
+        vga_draw_string_trans(dx+20, cy, "FileVault", RGB(200,200,215));
+        gui_draw_rounded_rect(dx+20, cy+22, dw-40, 56, 8, RGB(45,45,58));
+        gui_draw_circle(dx+36, cy+50, 14, RGB(52,199,89));
+        vga_draw_string_trans(dx+58, cy+38, "FileVault is ON", RGB(52,199,89));
+        vga_draw_string_trans(dx+58, cy+56, "Your disk is encrypted.", RGB(155,155,175));
+    }
+    int by3=dy+dh-44; vga_draw_hline(dx, by3, dw, RGB(65,65,78));
+    gui_draw_rounded_rect(dx+dw-100, by3+8, 80, 28, 5, RGB(0,100,215));
+    vga_draw_string_trans(dx+dw-88, by3+16, "Done", RGB(255,255,255));
+}
+
+void reminders_draw(void) {
+    if (!g_reminders_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 80);
+    int dw=460, dh=420, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 14, RGB(30,30,36));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 14, RGB(65,65,78));
+    vga_fill_rect(dx, dy, dw, 48, RGB(24,24,30));
+    vga_draw_string_trans(dx+(dw-9*8)/2, dy+16, "Reminders", RGB(235,235,240));
+    vga_draw_hline(dx, dy+48, dw, RGB(58,58,72));
+    static const struct{const char *name;uint32_t col;int cnt;} lists[]={
+        {"Today",RGB(255,59,48),3},{"Scheduled",RGB(255,149,0),5},
+        {"All",RGB(0,122,255),12},{"Flagged",RGB(255,204,0),2},
+        {"Personal",RGB(52,199,89),4},{"Work",RGB(0,122,255),6},
+        {"Shopping",RGB(255,149,0),3}};
+    if(g_reminders_list==0){
+        int li; for(li=0;li<7;li++){
+            int ly=dy+56+li*46;
+            gui_draw_rounded_rect(dx+16, ly, dw-32, 38, 8, RGB(38,38,48));
+            gui_draw_circle(dx+36, ly+19, 14, lists[li].col);
+            vga_draw_string_trans(dx+58, ly+13, lists[li].name, RGB(225,225,232));
+            char cs[4]; int_to_str(lists[li].cnt, cs);
+            vga_draw_string_trans(dx+dw-30-str_len(cs)*8, ly+13, cs, RGB(140,140,160));
+            vga_draw_string_trans(dx+dw-18, ly+13, ">", RGB(100,100,120));
+        }
+        int by3=dy+dh-46; vga_draw_hline(dx, by3, dw, RGB(58,58,72));
+        gui_draw_rounded_rect(dx+20, by3+9, 120, 28, 5, RGB(0,90,200));
+        vga_draw_string_trans(dx+28, by3+17, "+ Add List", RGB(255,255,255));
+    } else {
+        vga_draw_string_trans(dx+20, dy+60, "< Back", RGB(0,122,255));
+        static const char *tasks[]={"Buy groceries","Call dentist","Review PR #42",
+            "Exercise 30min","Read chapter 5","Send weekly report"};
+        static int done[]={1,0,0,1,0,0};
+        int ti; for(ti=0;ti<6;ti++){
+            int ty=dy+80+ti*44;
+            gui_draw_rounded_rect(dx+16, ty, dw-32, 36, 6, RGB(38,38,50));
+            gui_draw_circle_outline(dx+36, ty+18, 12, done[ti]?RGB(52,199,89):RGB(80,80,100));
+            if(done[ti]) gui_draw_circle(dx+36, ty+18, 8, RGB(52,199,89));
+            vga_draw_string_trans(dx+56, ty+12, tasks[ti], done[ti]?RGB(100,100,120):RGB(220,220,230));
+            if(done[ti]){
+                int tl=str_len(tasks[ti]);
+                vga_draw_hline(dx+56, ty+19, tl*8, RGB(100,100,120));
+            }
+        }
+        int by3=dy+dh-46; vga_draw_hline(dx, by3, dw, RGB(58,58,72));
+        gui_draw_rounded_rect(dx+20, by3+9, 120, 28, 5, RGB(0,90,200));
+        vga_draw_string_trans(dx+28, by3+17, "+ New Reminder", RGB(255,255,255));
+        gui_draw_rounded_rect(dx+dw-90, by3+9, 70, 28, 5, RGB(55,55,68));
+        vga_draw_string_trans(dx+dw-82, by3+17, "Done", RGB(220,220,228));
+    }
+}
+
+void calendar_draw(void) {
+    if (!g_calendar_visible) return;
+    vga_fill_rect_alpha(0, 0, VGA_WIDTH, VGA_HEIGHT, RGB(0,0,0), 90);
+    int dw=500, dh=420, dx=(VGA_WIDTH-dw)/2, dy=(VGA_HEIGHT-dh)/2;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 14, RGB(28,28,34));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 14, RGB(65,65,80));
+    vga_fill_rect(dx, dy, dw, 48, RGB(22,22,30));
+    vga_draw_string_trans(dx+24, dy+16, "<", RGB(0,122,255));
+    vga_draw_string_trans(dx+dw-18, dy+16, ">", RGB(0,122,255));
+    static const char *months[]={"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
+    char mstr[16]; int mi=0;
+    { const char *s=months[g_calendar_month]; while(*s) mstr[mi++]=*s++; }
+    mstr[mi++]=' ';
+    char yr[8]; int_to_str(g_calendar_year, yr);
+    { const char *s=yr; while(*s) mstr[mi++]=*s++; }
+    mstr[mi]=0;
+    vga_draw_string_trans(dx+(dw-mi*8)/2, dy+16, mstr, RGB(235,235,240));
+    vga_draw_hline(dx, dy+48, dw, RGB(58,58,72));
+    static const char *dnames[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+    int di; for(di=0;di<7;di++)
+        vga_draw_string_trans(dx+20+di*68, dy+56, dnames[di], RGB(150,150,170));
+    vga_draw_hline(dx, dy+74, dw, RGB(52,52,68));
+    static const int days_in_month[]={31,28,31,30,31,30,31,31,30,31,30,31};
+    int dim=days_in_month[g_calendar_month];
+    int start_dow=(g_calendar_month+2+g_calendar_year*365/12)%7;
+    static const int evdays[]={5,12,18,24,28};
+    static const char *evnames[]={"Meeting","Dentist","Lunch","Review","Trip"};
+    static const uint32_t evcols[]={RGB(255,59,48),RGB(52,199,89),RGB(0,122,255),RGB(255,149,0),RGB(175,82,222)};
+    int day; for(day=1;day<=dim;day++){
+        int pos=day-1+start_dow;
+        int col=pos%7, row=pos/7;
+        int cx2=dx+20+col*68, cy2=dy+82+row*52;
+        int is_today=(day==24 && g_calendar_month==5 && g_calendar_year==2026);
+        if(is_today){
+            gui_draw_circle(cx2+12, cy2+12, 14, RGB(255,59,48));
+            vga_draw_string_trans(day<10?(cx2+8):(cx2+4), cy2+7,
+                day<10?"0":"", RGB(255,255,255));
+            char ds[4]; int_to_str(day, ds); vga_draw_string_trans(day<10?(cx2+16):(cx2+5), cy2+7, ds, RGB(255,255,255));
+        } else {
+            char ds[4]; int_to_str(day, ds);
+            vga_draw_string_trans(cx2+4, cy2+7, ds, RGB(210,210,225));
+        }
+        int ei; for(ei=0;ei<5;ei++){
+            if(evdays[ei]==day){
+                gui_draw_rounded_rect(cx2, cy2+26, 60, 14, 3, evcols[ei]);
+                vga_draw_string_trans(cx2+4, cy2+29, evnames[ei], RGB(255,255,255));
+            }
+        }
+    }
+    int by3=dy+dh-38; vga_draw_hline(dx, by3, dw, RGB(58,58,72));
+    vga_draw_string_trans(dx+(dw-16*8)/2, by3+12, "Add New Event...", RGB(0,122,255));
+}
+
+void airplay_draw(void) {
+    if (!g_airplay_visible) return;
+    int dw=280, dh=320, dx=VGA_WIDTH-dw-12, dy=28;
+    gui_draw_rounded_rect(dx, dy, dw, dh, 12, RGB(34,34,40));
+    gui_draw_rounded_rect_outline(dx, dy, dw, dh, 12, RGB(68,68,82));
+    vga_fill_rect(dx, dy, dw, 44, RGB(26,26,34));
+    vga_draw_string_trans(dx+(dw-7*8)/2, dy+14, "AirPlay", RGB(235,235,240));
+    vga_draw_hline(dx, dy+44, dw, RGB(62,62,76));
+    vga_draw_string_trans(dx+16, dy+54, "OUTPUT TO:", RGB(115,115,138));
+    static const struct{const char *nm;const char *sub;int active;} devs[]={
+        {"This Mac","Built-in Display",1},{"Samsung 4K TV","Living Room",0},
+        {"Apple TV","Bedroom",0},{"LG OLED","Office",0}};
+    int di; for(di=0;di<4;di++){
+        int dy2=dy+72+di*54;
+        gui_draw_rounded_rect(dx+12, dy2, dw-24, 44, 8, devs[di].active?RGB(0,80,195):RGB(42,42,55));
+        if(di==0){
+            gui_draw_circle(dx+34, dy2+22, 14, RGB(80,80,100));
+            vga_draw_string_trans(dx+28, dy2+17, "MC", RGB(200,200,215));
+        } else if(di==2){
+            gui_draw_circle(dx+34, dy2+22, 14, RGB(0,80,180));
+            vga_draw_string_trans(dx+29, dy2+17, "TV", RGB(255,255,255));
+        } else {
+            gui_draw_rounded_rect(dx+22, dy2+12, 22, 20, 3, RGB(60,60,80));
+            vga_draw_string_trans(dx+25, dy2+16, "TV", RGB(180,180,200));
+        }
+        vga_draw_string_trans(dx+56, dy2+10, devs[di].nm, devs[di].active?RGB(255,255,255):RGB(215,215,228));
+        vga_draw_string_trans(dx+56, dy2+26, devs[di].sub, devs[di].active?RGB(190,220,255):RGB(145,145,165));
+        if(devs[di].active){gui_draw_circle(dx+dw-24, dy2+22, 8, RGB(200,255,200)); gui_draw_circle_outline(dx+dw-24, dy2+22, 8, RGB(100,200,100));}
+        if(di<3) vga_draw_hline(dx+16, dy2+44, dw-32, RGB(52,52,68));
+    }
+    int by3=dy+dh-38; vga_draw_hline(dx, by3, dw, RGB(62,62,76));
+    vga_draw_string_trans(dx+16, by3+12, "Mirror Screen", RGB(0,122,255));
+    vga_draw_string_trans(dx+dw-52, by3+12, "Done", RGB(0,122,255));
 }

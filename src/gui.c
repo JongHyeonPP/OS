@@ -94,6 +94,73 @@ const char *g_ql_filename = "document.txt";
 int g_scr_visible = 0;
 int g_scr_mode    = 0;
 
+/* Crash Reporter */
+int g_crash_visible = 0;
+
+/* System Update */
+int g_update_visible = 0;
+
+/* Focus Filter */
+int g_focus_filter_visible = 0;
+int g_focus_filter_mode = 0;
+
+/* iCloud */
+int g_icloud_visible = 0;
+
+/* Bluetooth */
+int g_bt_visible = 0;
+
+/* Keyboard Shortcuts */
+int g_kbshort_visible = 0;
+int g_kbshort_page = 0;
+
+/* Time Machine */
+int g_timemachine_visible = 0;
+
+/* Digital Color Meter */
+int g_colormeter_visible = 0;
+
+/* Notification History */
+int g_notifhist_visible = 0;
+
+/* WiFi */
+int g_wifi_visible = 0;
+int g_wifi_connecting = 0;
+
+/* Display Settings */
+int g_display_visible = 0;
+int g_display_brightness = 80;
+
+/* Sound Settings */
+int g_sound_visible = 0;
+int g_sound_volume = 70;
+
+/* Activity Monitor */
+int g_actmon_visible = 0;
+
+/* FaceTime */
+int g_facetime_visible = 0;
+int g_facetime_calling = 0;
+
+/* Privacy & Security */
+int g_privacy_visible = 0;
+int g_privacy_tab = 0;
+
+/* Reminders */
+int g_reminders_visible = 0;
+int g_reminders_list = 0;
+
+/* Calendar */
+int g_calendar_visible = 0;
+int g_calendar_month = 5;
+int g_calendar_year = 2026;
+
+/* AirPlay */
+int g_airplay_visible = 0;
+
+/* Maps */
+int g_maps_visible = 0;
+
 /* Siri overlay */
 int      g_siri_visible  = 0;
 uint32_t g_siri_birth    = 0;
@@ -122,9 +189,6 @@ int g_airdrop_progress = 0;  /* 0-100 */
 /* Handoff state */
 int g_handoff_visible = 0;
 int g_handoff_tick    = 0;
-
-/* Universal Control */
-int g_uc_active = 0;
 
 /* Writing Tools overlay (macOS Sequoia) */
 int      g_wt_visible = 0;
@@ -1037,7 +1101,6 @@ int g_contacts_sel = 0;
 
 /* ====== Preview ====== */
 int g_preview_page = 0;
-int g_preview_zoom = 100;  /* percent */
 
 /* ====== Apple TV ====== */
 int g_atv_sel = 0;
@@ -1325,6 +1388,25 @@ void draw_scene(int mx, int my) {
 
     /* Handoff notification */
     if (g_handoff_visible) handoff_draw();
+
+    if (g_crash_visible) crash_reporter_draw();
+    if (g_update_visible) system_update_draw();
+    if (g_focus_filter_visible) focus_filter_draw();
+    if (g_icloud_visible) icloud_panel_draw();
+    if (g_bt_visible) bluetooth_dialog_draw();
+    if (g_kbshort_visible) keyboard_shortcuts_draw();
+    if (g_timemachine_visible) time_machine_draw();
+    if (g_colormeter_visible) color_meter_draw();
+    if (g_notifhist_visible) notif_history_draw();
+    if (g_wifi_visible) wifi_panel_draw();
+    if (g_display_visible) display_settings_draw();
+    if (g_sound_visible) sound_settings_draw();
+    if (g_actmon_visible) activity_monitor_draw();
+    if (g_facetime_visible) facetime_draw();
+    if (g_privacy_visible) privacy_panel_draw();
+    if (g_reminders_visible) reminders_draw();
+    if (g_calendar_visible) calendar_draw();
+    if (g_airplay_visible) airplay_draw();
 
     /* Siri overlay */
     if (g_siri_visible) siri_draw();

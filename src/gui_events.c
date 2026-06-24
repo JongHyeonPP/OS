@@ -451,7 +451,7 @@ void gui_run(void) {
                         else if (str_eq(aname,"Freeform"))  { nw2->x=110;nw2->y=55;nw2->w=360;nw2->h=310; }
                         else if (str_eq(aname,"Disk Utility")) { nw2->x=130;nw2->y=60;nw2->w=340;nw2->h=260; }
                         else if (str_eq(aname,"Weather"))   { nw2->x=180;nw2->y=70;nw2->w=260;nw2->h=280; }
-                        else if (str_eq(aname,"FaceTime"))  { nw2->x=200;nw2->y=80;nw2->w=220;nw2->h=260; g_facetime_active=1; g_facetime_contact=0; }
+                        else if (str_eq(aname,"FaceTime"))  { nw2->x=200;nw2->y=80;nw2->w=220;nw2->h=260; g_facetime_active=0; g_facetime_contact=0; }
                         else if (str_eq(aname,"Contacts"))  { nw2->x=80; nw2->y=50;nw2->w=420;nw2->h=360; }
                         else if (str_eq(aname,"AirDrop"))             { nw2->x=240;nw2->y=100;nw2->w=240;nw2->h=220; }
                         else if (str_eq(aname,"Keyboard Shortcuts"))  { nw2->x=90;nw2->y=40;nw2->w=620;nw2->h=500; }
@@ -679,8 +679,8 @@ void gui_run(void) {
                   int scx3 = sw->x + ssb_w + 10;
                   int scy3 = scy + 10;
                   if (g_settings_tab == 0) {
-                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+231&&my<scy3+231+sth){g_pref_wifi^=1;dirty=1;}
-                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+251&&my<scy3+251+sth){g_pref_bt^=1;dirty=1;}
+                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+231&&my<scy3+231+sth){toast_show("WiFi","Unavailable",RGB(120,120,130));dirty=1;}
+                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+251&&my<scy3+251+sth){toast_show("Bluetooth","Unavailable",RGB(120,120,130));dirty=1;}
                       {int swi;for(swi=0;swi<5;swi++){
                        int swx=swi<4?scx3+swi*74:scx3, swy=swi<4?scy3+132:scy3+170;
                        if(mx>=swx&&mx<swx+62&&my>=swy&&my<swy+30){g_pref_wallpaper=swi;dirty=1;}}}
@@ -691,7 +691,7 @@ void gui_run(void) {
                   } else if (g_settings_tab == 5) {
                       if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+15&&my<scy3+15+sth){g_pref_dnd^=1;dirty=1;}
                   } else if (g_settings_tab == 7) {
-                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+15&&my<scy3+15+sth){g_pref_bt^=1;dirty=1;}
+                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+15&&my<scy3+15+sth){toast_show("Bluetooth","Unavailable",RGB(120,120,130));dirty=1;}
                   }
                   break;
               }
@@ -915,12 +915,11 @@ void gui_run(void) {
                     if (mx>=w->x+w->w/2-60-18 && mx<w->x+w->w/2-60+18 && my>=btn_y-18 && my<btn_y+18) {
                         win_close(i); g_facetime_active=0; dirty=1; goto end_left_press;
                     }
-                    /* Accept: right */
+                    /* Accept is unavailable without a call backend. */
                     if (mx>=w->x+w->w/2+60-18 && mx<w->x+w->w/2+60+18 && my>=btn_y-18 && my<btn_y+18) {
-                        g_facetime_active=2; dirty=1; goto end_left_press;
+                        toast_show("FaceTime","Call service unavailable",RGB(120,120,130)); dirty=1; goto end_left_press;
                     }
                 } else if (g_facetime_active == 2) {
-                    /* Connected: End call (red circle center) */
                     int cb_y = fcy+fch-32;
                     if (mx>=w->x+w->w/2-14 && mx<w->x+w->w/2+14 && my>=cb_y && my<cb_y+28) {
                         win_close(i); g_facetime_active=0; dirty=1; goto end_left_press;
@@ -1884,8 +1883,8 @@ void gui_run(void) {
                 int cx3 = w->x + sb_w3 + 10;
                 int cy3 = cy_tab + 10;
                 if (g_settings_tab == 0) {
-                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+231&&my<cy3+231+th2){g_pref_wifi^=1;dirty=1;}
-                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+251&&my<cy3+251+th2){g_pref_bt^=1;dirty=1;}
+                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+231&&my<cy3+231+th2){toast_show("WiFi","Unavailable",RGB(120,120,130));dirty=1;}
+                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+251&&my<cy3+251+th2){toast_show("Bluetooth","Unavailable",RGB(120,120,130));dirty=1;}
                     {int wi3;for(wi3=0;wi3<5;wi3++){
                      int wx4=wi3<4?cx3+wi3*74:cx3, wy4=wi3<4?cy3+132:cy3+170;
                      if(mx>=wx4&&mx<wx4+62&&my>=wy4&&my<wy4+30){g_pref_wallpaper=wi3;dirty=1;}}}
@@ -1896,7 +1895,7 @@ void gui_run(void) {
                 } else if (g_settings_tab == 5) {
                     if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+15&&my<cy3+15+th2){g_pref_dnd^=1;dirty=1;}
                 } else if (g_settings_tab == 7) {
-                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+15&&my<cy3+15+th2){g_pref_bt^=1;dirty=1;}
+                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+15&&my<cy3+15+th2){toast_show("Bluetooth","Unavailable",RGB(120,120,130));dirty=1;}
                 }
             }
             /* Button press */
@@ -2449,6 +2448,48 @@ void gui_run(void) {
                         g_print_visible = 0; dirty = 1;
                     } else if (g_share_visible) {
                         g_share_visible = 0; dirty = 1;
+                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
+                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
+                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
+                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
+                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
+                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
+                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
+                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
+                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
+                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
+                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
+                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
+                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
+                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
+                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
+                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
+                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
+                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
+                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
+                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
+                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
+                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
+                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
+                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
+                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
+                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
+                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
+                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
+                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
+                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
+                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
+                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
+                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
+                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
+                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
+                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
+                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
+                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
+                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
+                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
+                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
+                    } else if (g_maps_visible) { g_maps_visible=0; dirty=1;
                     } else if (g_airdrop_visible) {
                         g_airdrop_visible = 0; dirty = 1;
                     } else if (g_ql_visible) {
@@ -2546,7 +2587,7 @@ void gui_run(void) {
                           nwft->title="FaceTime";nwft->visible=1;nwft->focused=0;
                           g_win_anim[g_num_windows]=OPEN_ANIM;
                           g_num_windows++;
-                          g_facetime_active=1; g_facetime_contact=0;
+                          g_facetime_active=0; g_facetime_contact=0;
                       }
                       dirty=1;
                     }
@@ -2723,9 +2764,37 @@ void gui_run(void) {
                       }
                       dirty=1;
                     }
-                } else if (ch == 0x08) { /* Ctrl+H = AirDrop panel toggle */
+                } else if (ch == 0x08) { /* Ctrl+H = AirDrop */
                     g_airdrop_visible = !g_airdrop_visible;
                     if (g_airdrop_visible) g_airdrop_sending = 0;
+                    dirty = 1;
+                } else if (ch == 0x09) { /* Ctrl+I = iCloud */
+                    g_icloud_visible = !g_icloud_visible; dirty = 1;
+                } else if (ch == 0x02) { /* Ctrl+B = Bluetooth */
+                    g_bt_visible = !g_bt_visible; dirty=1;
+                } else if (ch == 0x15) { /* Ctrl+U = System Update */
+                    g_update_visible = !g_update_visible; dirty=1;
+                } else if (ch == 0x06) { /* Ctrl+F = Focus Filter */
+                    g_focus_filter_visible = !g_focus_filter_visible; dirty=1;
+                } else if (ch == 0x14) { /* Ctrl+T = Time Machine */
+                    g_timemachine_visible = !g_timemachine_visible; dirty=1;
+                } else if (ch == 0x0C) { /* Ctrl+L = Color Meter */
+                    g_colormeter_visible = !g_colormeter_visible; dirty=1;
+                } else if (ch == 0x0E) { /* Ctrl+N = Notif History */
+                    g_notifhist_visible = !g_notifhist_visible; dirty=1;
+                } else if (ch == 0xF8) { /* F8 = Keyboard Shortcuts */
+                    g_kbshort_visible = !g_kbshort_visible; dirty=1;
+                } else if (ch == 0x17) { /* Ctrl+W = WiFi */
+                    g_wifi_visible = !g_wifi_visible; dirty=1;
+                } else if (ch == 0x07) { /* Ctrl+G = Display */
+                    g_display_visible = !g_display_visible; dirty=1;
+                } else if (ch == 0x12) { /* Ctrl+R = Sound */
+                    g_sound_visible = !g_sound_visible; dirty=1;
+                } else if (ch == 0x0F) { /* Ctrl+O = Activity Monitor */
+                    g_actmon_visible = !g_actmon_visible; dirty=1;
+                } else if (ch == 0x1A) { /* Ctrl+Z = FaceTime */
+                    g_facetime_visible = !g_facetime_visible;
+                    if (g_facetime_visible) g_facetime_calling = 0;
                     dirty = 1;
                 } else if (ch == 0x1C) { /* Ctrl+\ = Snake game */
                     { int jj, ff=0;
@@ -3283,7 +3352,7 @@ void gui_run(void) {
                     /* Writing Tools: ESC closes, 1-6 selects tool */
                     if (ch == KEY_ESC || ch == 0x1B) { g_wt_visible=0; dirty=1; }
                     else if (ch>='1'&&ch<='6'&&g_wt_done==0){
-                        g_wt_sel=ch-'1'; g_wt_done=1; g_wt_tick=timer_ticks(); dirty=1;
+                        g_wt_sel=ch-'1'; g_wt_done=2; g_wt_tick=timer_ticks(); dirty=1;
                     }
                 } else if (g_qn_visible) {
                     /* Quick Note input */

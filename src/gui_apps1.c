@@ -357,7 +357,7 @@ int draw_apps_group1(int idx) {
             vga_draw_string_trans(cx+60, cy+46, membuf, sub);
             vga_draw_hline(cx, cy+60, rw, sep2);
             vga_draw_string_trans(cx, cy+66, "SOFTWARE UPDATE", cat2);
-            vga_draw_string_trans(cx, cy+82, "Your system is up to date.", sub);
+            vga_draw_string_trans(cx, cy+82, "Update source unavailable.", sub);
             vga_draw_string_trans(cx, cy+96, sys.release, RGB(52,199,89));
             vga_draw_hline(cx, cy+110, rw, sep2);
             vga_draw_string_trans(cx, cy+116, "WALLPAPER", cat2);
@@ -388,13 +388,11 @@ int draw_apps_group1(int idx) {
             vga_draw_hline(cx, cy+212, rw, sep2);
             vga_draw_string_trans(cx, cy+218, "CONNECTIVITY", cat2);
             vga_draw_string_trans(cx, cy+234, "WiFi", lbl);
-            draw_toggle(tx_r, cy+231, g_pref_wifi);
-            vga_draw_string_trans(cx+40, cy+234, g_pref_wifi?"Connected":"Off",
-                g_pref_wifi?RGB(52,199,89):sub);
+            draw_toggle(tx_r, cy+231, 0);
+            vga_draw_string_trans(cx+40, cy+234, "Unavailable", sub);
             vga_draw_string_trans(cx, cy+254, "Bluetooth", lbl);
-            draw_toggle(tx_r, cy+251, g_pref_bt);
-            vga_draw_string_trans(cx+74, cy+254, g_pref_bt?"On":"Off",
-                g_pref_bt?RGB(52,199,89):sub);
+            draw_toggle(tx_r, cy+251, 0);
+            vga_draw_string_trans(cx+74, cy+254, "Unavailable", sub);
             {
                 uint32_t up=timer_ticks()/1000;
                 uint32_t hh=up/3600, mm=(up/60)%60, ss=up%60;
@@ -628,7 +626,7 @@ int draw_apps_group1(int idx) {
             vga_draw_string_trans(cx+50, cy+18, (net && net->up)?"Connected":"Offline",
                 (net && net->up)?RGB(52,199,89):RGB(255,59,48));
             vga_draw_hline(cx, cy+32, rw, sep2);
-            vga_draw_string_trans(cx, cy+38, "WI-FI", cat2);
+            vga_draw_string_trans(cx, cy+38, "INTERFACE", cat2);
             vga_draw_string_trans(cx, cy+54, "Network:", lbl);
             vga_draw_string_trans(cx+72, cy+54, net ? net->name : "none", sub);
             vga_draw_string_trans(cx, cy+68, "IP:", lbl);
@@ -641,10 +639,11 @@ int draw_apps_group1(int idx) {
             { int si2;
               for (si2=0;si2<5;si2++) {
                   int bh2=4+si2*4;
-                  uint32_t bc2=(g_pref_wifi&&si2<=3)?RGB(52,199,89):(g_pref_darkmode?RGB(55,55,65):RGB(205,205,205));
+                  uint32_t bc2=g_pref_darkmode?RGB(55,55,65):RGB(205,205,205);
                   vga_fill_rect(cx+62+si2*10, cy+120-bh2, 8, bh2, bc2);
               }
             }
+            vga_draw_string_trans(cx+118, cy+110, "n/a", sub);
             vga_draw_hline(cx, cy+130, rw, sep2);
             vga_draw_string_trans(cx, cy+136, "STATISTICS", cat2);
             vga_draw_string_trans(cx, cy+152, "TX Packets:", lbl);
@@ -665,29 +664,18 @@ int draw_apps_group1(int idx) {
             vga_draw_string_trans(cx, cy, "BLUETOOTH", cat2);
             vga_draw_hline(cx, cy+12, rw, sep2);
             vga_draw_string_trans(cx, cy+18, "Bluetooth", lbl);
-            draw_toggle(tx_r, cy+15, g_pref_bt);
-            vga_draw_string_trans(cx+80, cy+18, g_pref_bt?"On":"Off", g_pref_bt?RGB(52,199,89):sub);
+            draw_toggle(tx_r, cy+15, 0);
+            vga_draw_string_trans(cx+80, cy+18, "Unavailable", sub);
             vga_draw_hline(cx, cy+36, rw, sep2);
             vga_draw_string_trans(cx, cy+42, "MY DEVICES", cat2);
-            static const char *bt_devs[] = {"Magic Keyboard","Magic Mouse 2","AirPods Pro","Apple Watch"};
-            static const int bt_conn[]   = {1, 1, 1, 0};
-            int bi;
-            for (bi=0;bi<4;bi++) {
-                int by=cy+58+bi*26;
-                vga_fill_rect(cx-2,by-2,rw+2,22,g_pref_darkmode?RGB(34,34,40):RGB(252,252,255));
-                vga_draw_rect_outline(cx-2,by-2,rw+2,22,sep2);
-                gui_draw_circle(cx+7, by+9, 5,
-                    bt_conn[bi]?RGB(52,199,89):(g_pref_darkmode?RGB(60,60,70):RGB(200,200,205)));
-                vga_draw_string_trans(cx+18, by+6, bt_devs[bi], lbl);
-                vga_draw_string_trans(cx+175, by+6, bt_conn[bi]?"Connected":"Not Connected",
-                    bt_conn[bi]?RGB(52,199,89):sub);
-            }
+            vga_fill_rect(cx-2,cy+58,rw+2,36,g_pref_darkmode?RGB(34,34,40):RGB(252,252,255));
+            vga_draw_rect_outline(cx-2,cy+58,rw+2,36,sep2);
+            vga_draw_string_trans(cx+18, cy+70, "No Bluetooth devices available", sub);
             vga_draw_hline(cx, cy+168, rw, sep2);
             vga_draw_string_trans(cx, cy+174, "NEARBY DEVICES", cat2);
             vga_fill_rect(cx-2,cy+190,rw+2,22,g_pref_darkmode?RGB(34,34,40):RGB(252,252,255));
             vga_draw_rect_outline(cx-2,cy+190,rw+2,22,sep2);
-            gui_draw_circle(cx+7, cy+201, 5, RGB(255,149,0));
-            vga_draw_string_trans(cx+18, cy+196, "iPhone 15 Pro", lbl);
+            vga_draw_string_trans(cx+18, cy+196, "Scan unavailable", sub);
             vga_draw_string_trans(cx+155, cy+196, "Not Paired", sub);
             vga_draw_hline(cx, cy+220, rw, sep2);
             vga_draw_string_trans(cx, cy+226, "Discoverable as:", sub);
