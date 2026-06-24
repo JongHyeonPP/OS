@@ -1369,9 +1369,8 @@ int draw_apps_group2(int idx) {
     if (g_windows[idx].title && str_eq(g_windows[idx].title, "Music")) {
         const gui_window_t *win = &g_windows[idx];
         if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->h, wh=win->h;
-        (void)ww;
-        int mw=win->w;
+        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
+        int mw=ww;
         uint32_t mu_bg  = g_pref_darkmode ? RGB(18,16,22)    : RGB(248,245,252);
         uint32_t mu_hd  = g_pref_darkmode ? RGB(30,26,38)    : RGB(232,226,242);
         uint32_t mu_sep = g_pref_darkmode ? RGB(55,50,68)    : RGB(205,198,218);
@@ -1655,6 +1654,8 @@ int draw_apps_group2(int idx) {
         int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
         int by = wy+TITLEBAR_H+1;
         int bh = wh-TITLEBAR_H-19;
+        int ww_safe = ww > 0 ? ww : 1;
+        if (bh < 1) bh = 1;
         /* Dynamic sky gradient using time-of-day from timer */
         uint32_t t_wth = timer_ticks();
         int phase_wth = (int)((t_wth / 5000) % 64);
@@ -1677,7 +1678,7 @@ int draw_apps_group2(int idx) {
             vga_draw_hline(wx+1, by+row3, ww-2, RGB(r3,g3,b3));
         }
         /* Animated clouds */
-        { int cloud_ox = (int)((t_wth/200) % ww);
+        { int cloud_ox = (int)((t_wth/200) % (uint32_t)ww_safe);
           vga_fill_rect_alpha(wx+2+(cloud_ox%100), by+30, 40, 16, RGB(255,255,255), 60);
           vga_fill_rect_alpha(wx+2+(cloud_ox%100)-4, by+38, 48, 10, RGB(255,255,255), 60);
           vga_fill_rect_alpha(wx+ww/2+(cloud_ox%80), by+45, 30, 12, RGB(255,255,255), 50);
@@ -1720,6 +1721,7 @@ int draw_apps_group2(int idx) {
         vga_draw_hline(wx+1, hf_y, ww-2, RGB(255,255,255));
         vga_draw_string_trans(wx+4, hf_y+2, "HOURLY FORECAST", RGB(200,220,255));
         { int hi4,n_hr=RUNTIME_HOURLY_COUNT; int hw=(ww-4)/n_hr;
+          if (hw < 1) hw = 1;
           for(hi4=0;hi4<n_hr;hi4++) {
               int hx=wx+2+hi4*hw;
               vga_draw_string_trans(hx+(hw-str_len(weather.hourly_label[hi4])*8)/2, hf_y+12, weather.hourly_label[hi4], RGB(200,220,255));
@@ -1744,6 +1746,7 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(wx+4, fc_y+2, "3-DAY FORECAST", RGB(200,220,255));
         { datetime_t now_w;
           int di; int dw2=(ww-4)/RUNTIME_WEATHER_DAYS;
+          if (dw2 < 1) dw2 = 1;
           get_current_datetime(&now_w);
           for(di=0;di<RUNTIME_WEATHER_DAYS;di++) {
               int dx2=wx+2+di*dw2;
@@ -1782,6 +1785,7 @@ int draw_apps_group2(int idx) {
         int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
         int vy = wy+TITLEBAR_H+1;
         int vh = wh-TITLEBAR_H-19;
+        if (vh < 1) vh = 1;
         uint32_t tnow = timer_ticks();
         static const char *ft_contacts[] = {"Jiyeon Kim","Seonjae Park","Minho Lee","Eunji Choi"};
         int cid = (g_facetime_contact >= 0 && g_facetime_contact < 4) ? g_facetime_contact : 0;
@@ -1922,6 +1926,7 @@ int draw_apps_group2(int idx) {
         int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
         int cy_tm = wy+TITLEBAR_H+1;
         int ch_tm = wh-TITLEBAR_H-19;
+        if (ch_tm < 1) ch_tm = 1;
         /* Space background gradient (dark purple to black) */
         int tmr;
         for (tmr=0; tmr<ch_tm; tmr++) {
@@ -1933,10 +1938,12 @@ int draw_apps_group2(int idx) {
         uint32_t t_tm = timer_ticks();
         { static const uint8_t stx[16]={12,34,67,89,120,145,200,230,45,78,110,160,190,22,55,180};
           static const uint8_t sty[16]={8,25,42,60,15,38,22,50,70,35,55,12,45,68,30,58};
+          int star_w = ww > 4 ? ww - 4 : 1;
+          int star_h = ch_tm > 4 ? ch_tm - 4 : 1;
           int si4;
           for (si4=0; si4<16; si4++) {
-              int sx=(int)stx[si4] % (ww-4);
-              int sy=(int)sty[si4] % (ch_tm-4);
+              int sx=(int)stx[si4] % star_w;
+              int sy=(int)sty[si4] % star_h;
               uint8_t bri=(uint8_t)(150+((t_tm/200+si4*17)%3)*30);
               vga_put_pixel(wx+2+sx, cy_tm+sy, RGB(bri,bri,bri));
           }

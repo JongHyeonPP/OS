@@ -305,6 +305,9 @@ void gui_run(void) {
                 if (nm3 == 0) {
                     for (i3=0;i3<g_num_windows;i3++) if(g_windows[i3].visible) matches3[nm3++]=i3;
                 }
+                if (nm3 == 0) {
+                    g_expose_visible = 0; dirty = 1; goto end_left_press;
+                }
                 int cols_e3 = (nm3<=2)?nm3:(nm3<=4)?2:3;
                 int tw3 = (VGA_WIDTH-40)/cols_e3-12; if(tw3<60)tw3=60;
                 int th3 = (VGA_HEIGHT-MENUBAR_H-60)/((nm3+cols_e3-1)/cols_e3)-14; if(th3<40)th3=40;
@@ -770,6 +773,7 @@ void gui_run(void) {
                       int avail_w2 = w->w - 2 - 22;
                       int tab_w2 = avail_w2 / n_tabs2;
                       if (tab_w2 > 160) tab_w2 = 160;
+                      if (tab_w2 < 1) tab_w2 = 1;
                       int ti4;
                       for (ti4=0; ti4<n_tabs2; ti4++) {
                           int tx4 = w->x + 1 + ti4*(tab_w2+1);
@@ -924,6 +928,7 @@ void gui_run(void) {
                 if (i != top_win_idx) continue;
                 int cy_pb = w->y + TITLEBAR_H;
                 int fth_pb = 14, nf_pb = 6, ftw_pb = w->w / nf_pb;
+                if (ftw_pb < 1) ftw_pb = 1;
                 /* Filter tab strip */
                 { int fi_pb;
                   for (fi_pb=0; fi_pb<nf_pb; fi_pb++) {
@@ -1052,6 +1057,7 @@ void gui_run(void) {
                 int bsz_sdk = w->w-14; if(bsz_sdk>w->h-TITLEBAR_H-50) bsz_sdk=w->h-TITLEBAR_H-50;
                 int bx0_sdk = w->x+(w->w-bsz_sdk)/2, by0_sdk = cy_sdk+26;
                 int cell_sdk = bsz_sdk/9;
+                if (cell_sdk < 1) break;
                 /* Board click */
                 if (mx>=bx0_sdk && mx<bx0_sdk+bsz_sdk && my>=by0_sdk && my<by0_sdk+bsz_sdk) {
                     if (!g_sdk_started) {
@@ -1121,6 +1127,7 @@ void gui_run(void) {
                 int bsz=w->h-TITLEBAR_H-32; if(bsz>w->w-16)bsz=w->w-16; if(bsz>168)bsz=168;
                 int bx=w->x+(w->w-bsz)/2, by=w->y+TITLEBAR_H+6;
                 int sq=bsz/8;
+                if (sq < 1) break;
                 if(mx>=bx&&mx<bx+bsz&&my>=by&&my<by+bsz){
                     int cr=(my-by)/sq, cc=(mx-bx)/sq;
                     if(cr>=0&&cr<8&&cc>=0&&cc<8){
@@ -1363,6 +1370,7 @@ void gui_run(void) {
                   dim2 = datetime_days_in_month(cal_y, cal_m);
                   start_col2 = datetime_day_of_week(cal_y, cal_m, 1);
                   int cell_w2=cw0/7, cell_h2=(w->h-TITLEBAR_H-1-28-18-20)/6;
+                  if(cell_w2<1)cell_w2=1;
                   if(cell_h2<1)cell_h2=1;
                   int day_y0=cy0+28+18;
                   if(my>=day_y0&&my<day_y0+cell_h2*6){
@@ -1681,6 +1689,7 @@ void gui_run(void) {
                 if (!w->visible || !w->title || !str_eq(w->title,"Clock")) continue;
                 int tby2 = w->y + TITLEBAR_H + 1;
                 int tbw2 = w->w / 4;
+                if (tbw2 < 1) tbw2 = 1;
                 /* Tab bar click */
                 if (my >= tby2 && my < tby2+16) {
                     int ti2 = (mx - w->x - 1) / tbw2;
@@ -1722,6 +1731,7 @@ void gui_run(void) {
                   if (!w->visible || !w->title || !str_eq(w->title,"Activity Monitor")) continue;
                   int am_taby = w->y + TITLEBAR_H + 1;
                   int am_tabw = (w->w-2)/4;
+                  if (am_tabw < 1) am_tabw = 1;
                   if (my >= am_taby && my < am_taby+22) {
                       int ti_am = (mx - w->x - 1) / am_tabw;
                       if (ti_am >= 0 && ti_am < 4) { g_am_tab = ti_am; dirty=1; goto end_left_press; }

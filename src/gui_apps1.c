@@ -1072,6 +1072,7 @@ int draw_apps_group1(int idx) {
         /* Album art square */
         int art_sz = (ww-2 > 120) ? 100 : ww/2;
         if (art_sz > wh/2 - 20) art_sz = wh/2 - 20;
+        if (art_sz < 1) art_sz = 1;
         int art_x = wx + (ww-art_sz)/2;
         int art_y = wy + TITLEBAR_H + 28;
         /* Rounded art with gradient */
@@ -1369,6 +1370,7 @@ int draw_apps_group1(int idx) {
             int avail_w = ww - 2 - 22; /* 22px for "+" button */
             int tab_w = avail_w / n_tabs;
             if (tab_w > 160) tab_w = 160;
+            if (tab_w < 1) tab_w = 1;
             int ti3;
             for (ti3 = 0; ti3 < n_tabs; ti3++) {
                 int tx3 = wx + 1 + ti3 * (tab_w + 1);
@@ -2066,6 +2068,7 @@ int draw_apps_group1(int idx) {
         int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
         int cy = wy+TITLEBAR_H+1;
         int ch = wh-TITLEBAR_H-19;
+        if (ch < 1) ch = 1;
         /* Zoom/pan transform: virtual coords [0..ww, 0..ch] → screen coords */
         int mz = g_maps_zoom < 1 ? 1 : (g_maps_zoom > 4 ? 4 : g_maps_zoom);
         int mpx = g_maps_pan_x, mpy = g_maps_pan_y;
@@ -2097,7 +2100,8 @@ int draw_apps_group1(int idx) {
             vga_fill_rect(MX(1), MY(ch*2/5), MW(ww-2), MH(ch/5), RGB(20,50,100));
             /* Tree clusters */
             { int ti; for(ti=0;ti<10;ti++) {
-                int tx3 = 10 + ti*32; if (tx3 > ww-18) tx3 = tx3%(ww-18);
+                int tree_span = ww > 18 ? ww - 18 : 1;
+                int tx3 = 10 + ti*32; if (tx3 > ww-18) tx3 = tx3%tree_span;
                 int ty3 = ch/2+ch/5+5+ti*4;
                 vga_fill_rect(MX(tx3), MY(ty3), MW(16), MH(12), RGB(20,70,20));
             }}

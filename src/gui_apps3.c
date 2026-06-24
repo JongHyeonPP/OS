@@ -959,6 +959,8 @@ int draw_apps_group3(int idx) {
         int pv_x = wx+mb_w+1;
         int pv_w = ww-mb_w-2;
         int pv_h = content_h*3/5;
+        if (pv_w < 1) pv_w = 1;
+        if (pv_h < 1) pv_h = 1;
         /* Preview area */
         vga_fill_rect(pv_x, content_y, pv_w, pv_h, RGB(0,0,0));
         /* "Video frame" gradient */
@@ -1897,6 +1899,8 @@ int draw_apps_group3(int idx) {
         vga_draw_vline(vx2+viewer_w, panel_y, panel_h, fc_sep);
         /* Video frame mockup */
         { int vfx=vx2+6, vfy=panel_y+8, vfw=viewer_w-12, vfh=panel_h-28;
+          int third_w = vfw / 3;
+          if (third_w < 1) third_w = 1;
           vga_fill_rect(vfx, vfy, vfw, vfh, RGB(10,10,14));
           /* Safe area guides */
           vga_draw_rect_outline(vfx+vfw/10, vfy+vfh/10, vfw*8/10, vfh*8/10, RGB(50,50,60));
@@ -1911,7 +1915,7 @@ int draw_apps_group3(int idx) {
           /* Mountain silhouette in frame */
           { int mi6;
             for (mi6=0;mi6<vfw-2;mi6++){
-                int mh6=(mi6<vfw/3)?(mi6*(vfh/3)/(vfw/3)):(vfh/3-(mi6-vfw/3)*(vfh/4)/(vfw/3));
+                int mh6=(mi6<third_w)?(mi6*(vfh/3)/third_w):(vfh/3-(mi6-third_w)*(vfh/4)/third_w);
                 if (mh6<0) mh6=0;
                 if (mh6>vfh/2-2) mh6=vfh/2-2;
                 vga_fill_rect(vfx+1+mi6, vfy+vfh/2-mh6, 1, mh6, RGB(25,55,90));
@@ -2082,6 +2086,7 @@ int draw_apps_group3(int idx) {
         /* Track regions */
         { static uint32_t rc2[]={RGB(0,90,200),RGB(120,30,200),RGB(0,130,180),RGB(200,130,0),RGB(180,30,30),RGB(40,170,60)};
           int ri6, track_h3=(content_h-29-12)/6;
+          if (track_h3 < 5) track_h3 = 5;
           for (ri6=0;ri6<6;ri6++){
               int ry3=content_y+41+ri6*track_h3;
               if (ry3+track_h3-2>content_y+content_h-2) break;

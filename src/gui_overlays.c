@@ -875,6 +875,7 @@ int mission_control_hit(int mx, int my) {
     int n_vis = 0, i;
     for (i=0;i<g_num_windows;i++)
         if (g_windows[i].visible) n_vis++;
+    if (n_vis == 0) return -1;
     int mc_top = MENUBAR_H + 70;
     int thumb_h = (VGA_HEIGHT - mc_top - DOCK_H - 40) / 2;
     if (thumb_h < 60) thumb_h = 60;
@@ -995,6 +996,11 @@ void app_expose_draw(void) {
     if (nm == 0) {
         for (i = 0; i < g_num_windows; i++)
             if (g_windows[i].visible) matches[nm++] = i;
+    }
+    if (nm == 0) {
+        vga_draw_string_trans(VGA_WIDTH/2 - 40, MENUBAR_H + 72,
+            "No windows", RGB(170,175,190));
+        return;
     }
 
     /* Layout thumbnails in a grid */

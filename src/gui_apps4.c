@@ -161,6 +161,8 @@ int draw_apps_group4(int idx) {
         int cv_x=wx+mo_lw+2;
         int cv_w=ww-mo_lw-80;
         int cv_y=content_y+25, cv_h=content_h-25;
+        if (cv_w < 1) cv_w = 1;
+        if (cv_h < 1) cv_h = 1;
         /* Canvas background — animated scene */
         { int gri3;
           for (gri3=0;gri3<cv_h;gri3++){
@@ -171,9 +173,11 @@ int draw_apps_group4(int idx) {
         /* Animated particle effect */
         { int pi7;
           uint32_t t7=timer_ticks();
+          int particle_w = cv_w > 40 ? cv_w - 40 : 1;
+          int particle_h = cv_h > 20 ? cv_h - 20 : 1;
           for (pi7=0;pi7<12;pi7++){
-              int px7=cv_x+20+(pi7*37+t7/20)%(cv_w-40);
-              int py7=cv_y+10+(pi7*53+t7/15)%(cv_h-20);
+              int px7=cv_x+20+(pi7*37+t7/20)%particle_w;
+              int py7=cv_y+10+(pi7*53+t7/15)%particle_h;
               int pr7=2+pi7%4;
               gui_draw_circle(px7,py7,pr7,mo_acc);
           }
@@ -1137,7 +1141,7 @@ int draw_apps_group4(int idx) {
             RGB(200,200,200), RGB(210,160,80), RGB(160,160,160),
             RGB(180,130,80),  RGB(255,200,0),  RGB(100,220,255)
         };
-        int nf=6, ftw=ww/nf, fty=cy0+2, fth=14;
+        int nf=6, ftw=ww>nf?ww/nf:1, fty=cy0+2, fth=14;
         { int fi4;
           for (fi4=0;fi4<nf;fi4++) {
               uint32_t bg2 = (fi4==g_pb_filter) ? pb_acc[fi4] : RGB(30,30,34);
@@ -1150,6 +1154,8 @@ int draw_apps_group4(int idx) {
 
         /* ---- Viewfinder ---- */
         int vx2=wx+8, vy2=cy0+fth+6, vw2=ww-16, vh2=wh-TITLEBAR_H-fth-60;
+        if (vw2 < 1) vw2 = 1;
+        if (vh2 < 1) vh2 = 1;
         /* Background */
         uint32_t vbg2 = RGB(18,20,22);
         if (g_pb_filter==1) vbg2=RGB(32,22,8);
@@ -1163,11 +1169,12 @@ int draw_apps_group4(int idx) {
         int fx2=vx2+vw2/2, fy2=vy2+vh2/2;
         /* Background gradient lines */
         { int li2; for(li2=0;li2<vh2;li2+=4) {
+              int fill_w2 = vw2 > 2 ? vw2 - 2 : 1;
               uint32_t lc2 = RGB(li2*40/vh2+8, li2*30/vh2+8, li2*50/vh2+18);
               if (g_pb_filter==1) lc2=RGB(li2*50/vh2+20,li2*35/vh2+10,0);
               else if (g_pb_filter==2) { int g2=li2*40/vh2+10; lc2=RGB(g2,g2,g2); }
               else if (g_pb_filter==5) lc2=RGB(0,li2*60/vh2,li2*40/vh2+10);
-              vga_fill_rect(vx2+1, vy2+li2, vw2-2, 4, lc2);
+              vga_fill_rect(vx2+1, vy2+li2, fill_w2, 4, lc2);
         }}
 
         /* Shoulders / body */
