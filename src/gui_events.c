@@ -187,7 +187,7 @@ static int gui_contacts_visible_selection(void) {
                            g_contact_names_for_search[sel],
                            g_contact_phones_for_search[sel]))
         return sel;
-    return first >= 0 ? first : 0;
+    return first;
 }
 
 static int gui_filename_has_ext(const char *name, const char *ext) {
@@ -1663,6 +1663,10 @@ void gui_run(void) {
                             "emma@email.com", "frank@email.com", "grace@email.com", "henry@email.com"
                         };
                         int sel_ct = gui_contacts_visible_selection();
+                        if (sel_ct < 0) {
+                            toast_show("Contacts", "No matching contact", RGB(120,120,130));
+                            dirty = 1; goto end_left_press;
+                        }
                         if (ca == 0) { g_facetime_visible=1; g_facetime_calling=1; toast_show("Contacts","Calling contact",RGB(52,199,89)); }
                         else if (ca == 1) { (void)gui_open_basic_app("FaceTime"); toast_show("Contacts","FaceTime started",RGB(0,199,190)); }
                         else if (ca == 2) { (void)gui_open_basic_app("Messages"); toast_show("Contacts","Message thread opened",RGB(52,199,89)); }

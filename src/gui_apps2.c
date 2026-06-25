@@ -1525,11 +1525,15 @@ int draw_apps_group2(int idx) {
         /* Detail pane (right, showing selected contact) */
         vga_fill_rect(det_x, ct_top+44, ww-1-list_w, ct_h-44, ct_bg);
         { int sel = g_ct_sel < n_ct ? g_ct_sel : 0;
-          if (!gui_search_matches(GUI_SEARCH_CONTACTS, ct_list[sel].name, ct_list[sel].phone))
-              sel = first_match_ct >= 0 ? first_match_ct : 0;
-          /* Large avatar */
           int av_x = det_x + (ww-1-list_w)/2;
           int av_y = ct_top+60;
+          if (!gui_search_matches(GUI_SEARCH_CONTACTS, ct_list[sel].name, ct_list[sel].phone))
+              sel = first_match_ct;
+          if (sel < 0) {
+              vga_draw_string_trans(det_x+16, av_y+12, "No contact selected", ct_sub);
+              vga_draw_string_trans(det_x+16, av_y+28, "Refine your search", ct_sub);
+          } else {
+          /* Large avatar */
           gui_draw_circle(av_x, av_y+24, 28, ct_list[sel].col);
           char avl[2]; avl[0]=ct_list[sel].letter; avl[1]=0;
           vga_draw_string_trans(av_x-4, av_y+16, avl, RGB(255,255,255));
@@ -1573,6 +1577,7 @@ int draw_apps_group2(int idx) {
               vga_draw_string_trans(det_x+4, iy3+6, ct_info2[ii3].label, ct_sub);
               vga_draw_string_trans(det_x+56, iy3+6, ct_info2[ii3].val, ct_info2[ii3].vc);
               vga_draw_hline(det_x+4, iy3+inf_row_h-1, ww-list_w-8, ct_bd);
+          }
           }
         }
         return 1;
