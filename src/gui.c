@@ -1399,6 +1399,7 @@ void draw_scene(int mx, int my) {
     if (g_focus_filter_visible) focus_filter_draw();
     if (g_icloud_visible) icloud_panel_draw();
     if (g_bt_visible) bluetooth_dialog_draw();
+    if (g_kbshort_visible) keyboard_shortcuts_draw();
     if (g_timemachine_visible) time_machine_draw();
     if (g_colormeter_visible) color_meter_draw();
     if (g_notifhist_visible) notif_history_draw();
