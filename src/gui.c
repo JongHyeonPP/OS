@@ -371,6 +371,27 @@ char g_safari_form_titles[SAFARI_MAX_FORMS][SAFARI_LINK_TITLE_MAX];
 uint32_t g_safari_page_status_code = 0;
 uint32_t g_safari_loaded_tick = 0;
 
+static const safari_home_site_t g_safari_home_sites[] = {
+    { "Example",     "http://example.com/",              RGB(66,133,244), 'E' },
+    { "NeverSSL",    "http://neverssl.com/",             RGB(255,149,0),  'N' },
+    { "CERN",        "http://info.cern.ch/",             RGB(36,41,46),   'C' },
+    { "Example.org", "http://example.org/",              RGB(52,199,89),  'O' },
+    { "Localhost",   "http://localhost/",                RGB(0,122,255),  'L' },
+    { "Hosts",       "http://localhost/etc/hosts",       RGB(88,86,214),  'H' },
+    { "Routes",      "http://localhost/proc/net/route",  RGB(255,45,85),  'R' },
+    { "MyOS",        "about:home",                       RGB(80,80,80),   'M' },
+};
+
+int safari_home_site_count(void) {
+    return (int)(sizeof(g_safari_home_sites) / sizeof(g_safari_home_sites[0]));
+}
+
+const safari_home_site_t *safari_home_site_at(int index) {
+    if (index < 0 || index >= safari_home_site_count())
+        return 0;
+    return &g_safari_home_sites[index];
+}
+
 static void safari_copy(char *dst, int max, const char *src);
 static void safari_history_reset_tab(int tab, const char *url);
 static void safari_load_url_internal(const char *url, const char *method,

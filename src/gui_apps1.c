@@ -1470,17 +1470,7 @@ int draw_apps_group1(int idx) {
             int fy = sby + sbh + 14;
             vga_draw_string_trans(wx+12, fy, "HTTP SITES", sp_sub);
             fy += 12;
-            static const struct { const char *name; uint32_t col; char letter; } fav_sites[] = {
-                { "Example",  RGB(66,133,244),  'E' },
-                { "NeverSSL", RGB(255,149,0),   'N' },
-                { "CERN",     RGB(36,41,46),    'C' },
-                { "Example.org", RGB(52,199,89), 'O' },
-                { "Localhost",RGB(0,122,255),   'L' },
-                { "Hosts",    RGB(88,86,214),   'H' },
-                { "Routes",   RGB(255,45,85),   'R' },
-                { "MyOS",     RGB(80,80,80),    'M' },
-            };
-            int n_fav = 8, fav_cols = 4;
+            int n_fav = safari_home_site_count(), fav_cols = 4;
             int fav_sz = (ww-24)/fav_cols - 4;
             if (fav_sz > 48) fav_sz = 48;
             int fi;
@@ -1489,12 +1479,14 @@ int draw_apps_group1(int idx) {
                 int fx = wx+12 + fc*(fav_sz+10);
                 int fya = fy + fr*(fav_sz+24);
                 if (fya + fav_sz + 24 > cy2 + ph - 8) break;
-                gui_draw_rounded_rect(fx, fya, fav_sz, fav_sz, 10, fav_sites[fi].col);
+                const safari_home_site_t *site = safari_home_site_at(fi);
+                if (!site) continue;
+                gui_draw_rounded_rect(fx, fya, fav_sz, fav_sz, 10, site->color);
                 vga_fill_rect_alpha(fx+2, fya+2, fav_sz-4, fav_sz/3, RGB(255,255,255), 45);
-                { char ltr[2]; ltr[0]=fav_sites[fi].letter; ltr[1]=0;
+                { char ltr[2]; ltr[0]=site->letter; ltr[1]=0;
                   vga_draw_string_trans(fx+fav_sz/2-4, fya+fav_sz/2-4, ltr, RGB(255,255,255)); }
-                int nlen = str_len(fav_sites[fi].name);
-                vga_draw_string_trans(fx+(fav_sz-nlen*8)/2, fya+fav_sz+2, fav_sites[fi].name, sp_sub);
+                int nlen = str_len(site->name);
+                vga_draw_string_trans(fx+(fav_sz-nlen*8)/2, fya+fav_sz+2, site->name, sp_sub);
             }
 
             {

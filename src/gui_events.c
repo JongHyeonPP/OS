@@ -1064,21 +1064,20 @@ void gui_run(void) {
                             g_safari_url_focused=1; g_safari_form_focused=-1; g_safari_url[0]=0; dirty=1; goto end_left_press;
                         }
                         {
-                            static const char *fav_urls2[] = {
-                                "http://example.com/", "http://neverssl.com/", "http://info.cern.ch/", "http://example.org/",
-                                "http://localhost/", "http://localhost/etc/hosts", "http://localhost/proc/net/route", "about:home"
-                            };
                             int fy2 = sby2 + sbh2 + 14 + 12;
                             int fav_cols2 = 4;
                             int fav_sz2 = (w->w-24)/fav_cols2 - 4;
+                            int n_fav2 = safari_home_site_count();
                             int fi2;
                             if (fav_sz2 > 48) fav_sz2 = 48;
-                            for (fi2=0; fi2<8; fi2++) {
+                            for (fi2=0; fi2<n_fav2; fi2++) {
                                 int fc2 = fi2 % fav_cols2, fr2 = fi2 / fav_cols2;
                                 int fx2 = w->x+12 + fc2*(fav_sz2+10);
                                 int fya2 = fy2 + fr2*(fav_sz2+24);
+                                const safari_home_site_t *site2 = safari_home_site_at(fi2);
+                                if (!site2) continue;
                                 if (mx>=fx2 && mx<fx2+fav_sz2 && my>=fya2 && my<fya2+fav_sz2+14) {
-                                    safari_load_url(fav_urls2[fi2]); dirty=1; goto end_left_press;
+                                    safari_load_url(site2->url); dirty=1; goto end_left_press;
                                 }
                             }
                         }

@@ -147,6 +147,7 @@
  * ======================================================================= */
 typedef struct { const char *name; uint32_t color; char letter; } lp_icon_t;
 typedef struct { const char *word; const char *phonetic; const char *pos; const char *def1; const char *def2; } dict_entry_t;
+typedef struct { const char *name; const char *url; uint32_t color; char letter; } safari_home_site_t;
 
 /* =========================================================================
  * Extern declarations for all shared global variables
@@ -795,6 +796,8 @@ int safari_is_home_url(const char *url);
 void safari_load_url(const char *url);
 void safari_load_current_tab(void);
 void safari_reload(void);
+int safari_home_site_count(void);
+const safari_home_site_t *safari_home_site_at(int index);
 int safari_url_has_scheme(const char *url, const char *scheme);
 int safari_can_go_back(void);
 int safari_can_go_forward(void);
