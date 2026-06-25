@@ -4608,6 +4608,14 @@ static int safari_is_redirect_status(uint32_t code) {
     return code == 301U || code == 302U || code == 303U || code == 307U || code == 308U;
 }
 
+static int safari_redirect_switches_to_get(uint32_t code, const char *method) {
+    if (code == 303U) return 1;
+    if ((code == 301U || code == 302U) && method &&
+        !safari_eq_ci(method, "GET") && !safari_eq_ci(method, "HEAD"))
+        return 1;
+    return 0;
+}
+
 static void safari_resolve_location(const safari_request_t *req, const char *location, char *out, int max) {
     const char *p = location;
     int pos = 0;
@@ -5349,9 +5357,10 @@ have_response:
             }
             safari_resolve_location(&req, location, resolved, sizeof(resolved));
             if (resolved[0]) {
+                int redirect_get = safari_redirect_switches_to_get(g_safari_page_status_code, http_method);
                 safari_load_url_internal(resolved,
-                                         g_safari_page_status_code == 303U ? "GET" : http_method,
-                                         g_safari_page_status_code == 303U ? "" : http_body,
+                                         redirect_get ? "GET" : http_method,
+                                         redirect_get ? "" : http_body,
                                          record_history, redirect_depth + 1);
                 return;
             }
