@@ -2215,16 +2215,21 @@ int draw_apps_group4(int idx) {
         vga_draw_string_trans(wx+88, wy+TITLEBAR_H+8, re_feeds[active_re], re_acc);
         vga_draw_hline(wx+82, wy+TITLEBAR_H+22, ww-84, RGB(44,44,50));
         static const char *re_arts[]={"Ask HN: What are you building?","Show HN: My bare-metal OS","New features in Swift 6","Apple plans ARM Mac Pro","WASM is eating the world"};
-        for(ri3=0;ri3<5;ri3++){
-            int ay2=wy+TITLEBAR_H+28+ri3*28;
-            vga_fill_rect(wx+82, ay2, ww-84, 26, RGB(26,26,32));
-            vga_draw_hline(wx+82, ay2+26, ww-84, RGB(40,40,48));
-            vga_draw_string_trans(wx+90, ay2+5, re_arts[ri3], re_txt);
-            {
-                char re_age[24];
-                runtime_format_relative_time((uint32_t)(7200U + (uint32_t)ri3 * 1800U), re_age, sizeof(re_age));
-                vga_draw_string_trans(wx+90, ay2+17, re_age, re_sub);
-            }
+        { int active_article = g_reeder_article;
+          if (active_article < 0 || active_article > 4) active_article = 0;
+          for(ri3=0;ri3<5;ri3++){
+              int ay2=wy+TITLEBAR_H+28+ri3*28;
+              int is_article = ri3 == active_article;
+              vga_fill_rect(wx+82, ay2, ww-84, 26, is_article ? RGB(42,30,34) : RGB(26,26,32));
+              vga_draw_hline(wx+82, ay2+26, ww-84, RGB(40,40,48));
+              vga_draw_string_trans(wx+90, ay2+5, re_arts[ri3], is_article ? re_acc : re_txt);
+              {
+                  char re_age[24];
+                  runtime_format_relative_time((uint32_t)(7200U + (uint32_t)ri3 * 1800U), re_age, sizeof(re_age));
+                  vga_draw_string_trans(wx+90, ay2+17, re_age, re_sub);
+              }
+          }
+          vga_draw_string_trans(wx+88, wy+wh-16, re_arts[active_article], re_sub);
         }
         return 1;
     }

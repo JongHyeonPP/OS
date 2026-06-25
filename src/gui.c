@@ -6315,6 +6315,7 @@ uint32_t g_things_done_mask = 0x23U;
 int g_raycast_result = 0;
 int g_bear_note = 0;
 int g_reeder_feed = 0;
+int g_reeder_article = 0;
 int g_alfred_result = 0;
 int g_onepassword_search_focused = 0;
 int g_raycast_search_focused = 0;

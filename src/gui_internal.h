@@ -819,6 +819,7 @@ extern uint32_t g_things_done_mask;
 extern int g_raycast_result;
 extern int g_bear_note;
 extern int g_reeder_feed;
+extern int g_reeder_article;
 extern int g_alfred_result;
 extern int g_onepassword_search_focused;
 extern int g_raycast_search_focused;

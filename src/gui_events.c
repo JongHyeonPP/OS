@@ -3715,6 +3715,14 @@ void gui_run(void) {
                             g_reeder_feed=ri_re; dirty=1; goto end_left_press;
                         }
                     }
+                    for (ri_re=0; ri_re<5; ri_re++) {
+                        int ay_re=cy_re+28+ri_re*28;
+                        if (mx>=w->x+82 && mx<w->x+w->w-2 && my>=ay_re && my<ay_re+26) {
+                            g_reeder_article=ri_re;
+                            toast_show("Reeder 5","Article selected",RGB(220,50,50));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
                 } else if (str_eq(w->title,"Color Picker")) {
                     int cpt_x_ev=w->x+4, cpt_y_ev=w->y+TITLEBAR_H+6;
                     static const char *cp_tabs_ev[] = { "Wheel", "Sliders", "Palette" };
