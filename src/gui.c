@@ -3254,6 +3254,8 @@ static void safari_describe_tls_probe(const safari_request_t *req, const uint8_t
                   "\nIf this fallback is shown, full HTTPS rendering still needs this site's TLS variant to complete application traffic, plus certificate signature/chain trust and broader TLS compatibility.");
 }
 
+static int safari_response_body_received(const char *response, int total);
+
 static int safari_fetch_raw_http(const safari_request_t *req, const char *method,
                                  const char *request_body,
                                  char *response, int max, char *err, int err_max) {
@@ -3362,6 +3364,9 @@ static int safari_fetch_raw_http(const safari_request_t *req, const char *method
                 ack = expected_seq;
                 (void)net_tcp_send4(ifindex, req->ipv4, src_port, req->port, seq, ack,
                                     NET_TCP_ACK, 0, 0);
+                response[total] = 0;
+                if (safari_response_body_received(response, total))
+                    break;
             }
         }
         if (n == 0 && (rflags & NET_TCP_FIN) && rseq != expected_seq) {
@@ -4068,6 +4073,7 @@ static int safari_fetch_https_tls13(const safari_request_t *req, const char *met
     int req_pos = 0;
     int total = 0;
     int closed = 0;
+    int http_complete = 0;
     if (!req || !response || max <= 0) return -1;
     if (!safari_tls13_record_selftest()) {
         safari_copy(err, err_max, "TLS record selftest failed");
@@ -4186,7 +4192,7 @@ static int safari_fetch_https_tls13(const safari_request_t *req, const char *met
             return -1;
     }
     app_scan = tls_total;
-    for (tries = 0; tries < 520 && total + 1 < max && !closed; tries++) {
+    for (tries = 0; tries < 520 && total + 1 < max && !closed && !http_complete; tries++) {
         int n;
         srcip = 0; srcp = 0; rseq = 0; rack = 0; rflags = 0;
         net_poll();
@@ -4223,6 +4229,10 @@ static int safari_fetch_https_tls13(const safari_request_t *req, const char *met
                         return -1;
                     }
                     if (total > 0 && safari_ci_contains(response, "\r\n\r\n")) {
+                        if (safari_response_body_received(response, total)) {
+                            http_complete = 1;
+                            break;
+                        }
                         if (safari_ci_contains(response, "Connection: close") && closed) break;
                     }
                 } else if (tls_in[app_scan] == 21U) {
@@ -4422,6 +4432,62 @@ static int safari_header_value(const char *response, const char *name, char *out
         if (*p == '\n') p++;
     }
     return -1;
+}
+
+static int safari_http_header_end_offset(const char *response, int total) {
+    int i;
+    if (!response || total <= 0) return -1;
+    for (i = 0; i + 3 < total; i++) {
+        if (response[i] == '\r' && response[i + 1] == '\n' &&
+            response[i + 2] == '\r' && response[i + 3] == '\n')
+            return i + 4;
+    }
+    for (i = 0; i + 1 < total; i++) {
+        if (response[i] == '\n' && response[i + 1] == '\n')
+            return i + 2;
+    }
+    return -1;
+}
+
+static int safari_parse_uint_dec(const char *s, uint32_t *out) {
+    uint32_t value = 0;
+    int any = 0;
+    if (!s || !out) return -1;
+    while (*s == ' ' || *s == '\t') s++;
+    while (*s >= '0' && *s <= '9') {
+        uint32_t digit = (uint32_t)(*s - '0');
+        if (value > (0xffffffffU - digit) / 10U) return -1;
+        value = value * 10U + digit;
+        any = 1;
+        s++;
+    }
+    while (*s == ' ' || *s == '\t') s++;
+    if (!any || *s) return -1;
+    *out = value;
+    return 0;
+}
+
+static int safari_header_uint(const char *response, const char *name, uint32_t *out) {
+    char value[32];
+    if (safari_header_value(response, name, value, sizeof(value)) != 0) return -1;
+    return safari_parse_uint_dec(value, out);
+}
+
+static int safari_response_uses_chunked(const char *response) {
+    char value[64];
+    if (safari_header_value(response, "Transfer-Encoding", value, sizeof(value)) != 0)
+        return 0;
+    return safari_ci_contains(value, "chunked");
+}
+
+static int safari_response_body_received(const char *response, int total) {
+    uint32_t content_length = 0;
+    int body_offset = safari_http_header_end_offset(response, total);
+    if (body_offset < 0) return 0;
+    if (safari_response_uses_chunked(response)) return 0;
+    if (safari_header_uint(response, "Content-Length", &content_length) != 0) return 0;
+    if (body_offset > total) return 0;
+    return (uint32_t)(total - body_offset) >= content_length;
 }
 
 static int safari_is_redirect_status(uint32_t code) {
