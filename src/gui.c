@@ -540,6 +540,26 @@ static void safari_url_encode_component(const char *src, char *dst, int max) {
     }
 }
 
+static int safari_text_has_whitespace(const char *s) {
+    int i;
+    if (!s) return 0;
+    for (i = 0; s[i]; i++) {
+        if (s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n')
+            return 1;
+    }
+    return 0;
+}
+
+static void safari_make_search_url(const char *query, char *out, int max) {
+    char encoded[SAFARI_URL_MAX];
+    int pos = 0;
+    if (!out || max <= 0) return;
+    out[0] = 0;
+    safari_url_encode_component(query, encoded, sizeof(encoded));
+    safari_append(out, &pos, max, "http://frogfind.com/?q=");
+    safari_append(out, &pos, max, encoded);
+}
+
 static void safari_append_host_header(char *dst, int *pos, int max, const safari_request_t *req) {
     if (!req) return;
     safari_append(dst, pos, max, req->host);
@@ -868,6 +888,15 @@ static void safari_normalize_url_text(const char *input, char *out, int max) {
         safari_starts_with_ci(p, "http://") ||
         safari_starts_with_ci(p, "https://")) {
         safari_copy(out, max, p);
+        return;
+    }
+    if (p[0] == '/') {
+        safari_append(out, &pos, max, "http://localhost");
+        safari_append(out, &pos, max, p);
+        return;
+    }
+    if (safari_text_has_whitespace(p)) {
+        safari_make_search_url(p, out, max);
         return;
     }
     safari_append(out, &pos, max, "http://");

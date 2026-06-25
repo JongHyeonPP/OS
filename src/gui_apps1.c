@@ -1465,7 +1465,7 @@ int draw_apps_group1(int idx) {
             gui_draw_circle(sbx+12, sby+12, 5, sp_sub);
             gui_draw_circle(sbx+12, sby+12, 3, sp_bg);
             vga_draw_line(sbx+16, sby+16, sbx+20, sby+20, sp_sub);
-            vga_draw_string_trans(sbx+22, sby+8, "Enter web address", sp_sub);
+            vga_draw_string_trans(sbx+22, sby+8, "Enter address or search", sp_sub);
 
             int fy = sby + sbh + 14;
             vga_draw_string_trans(wx+12, fy, "HTTP SITES", sp_sub);
