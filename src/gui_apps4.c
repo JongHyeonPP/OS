@@ -1757,7 +1757,8 @@ int draw_apps_group4(int idx) {
             int ry2=wy+TITLEBAR_H+52+ri2*26;
             if(ri2==0) vga_fill_rect(wx+2, ry2-2, ww-4, 28, RGB(30,30,40));
             gui_draw_rounded_rect(wx+10, ry2+3, 18, 18, 4, rc_icols[ri2]);
-            vga_draw_string_trans(wx+14, ry2+9, &rc_cmds[ri2][0], RGB(255,255,255));
+            { char cmd_icon[2]; cmd_icon[0] = rc_cmds[ri2][0]; cmd_icon[1] = 0;
+              vga_draw_string_trans(wx+14, ry2+9, cmd_icon, RGB(255,255,255)); }
             vga_draw_string_trans(wx+34, ry2+5, rc_cmds[ri2], ri2==0?rc_acc:rc_txt);
             vga_draw_string_trans(wx+ww-64, ry2+8, rc_cats[ri2], rc_sub);
         }
