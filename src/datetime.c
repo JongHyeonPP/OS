@@ -262,3 +262,8 @@ int datetime_now(datetime_t *dt) {
     datetime_apply_offset(dt, DATETIME_UTC_OFFSET_MINUTES);
     return ok;
 }
+
+int datetime_now_utc(datetime_t *dt) {
+    if (!dt) return 0;
+    return rtc_read_utc(dt);
+}

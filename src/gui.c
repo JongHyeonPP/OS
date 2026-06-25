@@ -12,6 +12,7 @@
 #include "mouse.h"
 #include "keyboard.h"
 #include "timer.h"
+#include "datetime.h"
 #include "font.h"
 #include "net.h"
 #include "uts.h"
@@ -2222,6 +2223,12 @@ typedef struct {
     int ready;
     int handshake_ready;
     int app_ready;
+    char cert_subject[96];
+    char cert_issuer[96];
+    char cert_name[96];
+    int cert_seen;
+    int cert_host_ok;
+    int cert_time_ok;
 } safari_tls13_probe_state_t;
 
 typedef struct {
@@ -2266,6 +2273,12 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
         tls_state->ready = 0;
         tls_state->handshake_ready = 0;
         tls_state->app_ready = 0;
+        tls_state->cert_subject[0] = 0;
+        tls_state->cert_issuer[0] = 0;
+        tls_state->cert_name[0] = 0;
+        tls_state->cert_seen = 0;
+        tls_state->cert_host_ok = 0;
+        tls_state->cert_time_ok = 0;
     }
     if (!req || !req->host[0] || !out || max < 128) return -1;
     host_len = str_len(req->host);
@@ -2900,7 +2913,7 @@ static void safari_describe_tls_probe(const safari_request_t *req, const uint8_t
     safari_append(out, &pos, max, saw_certificate ? "Certificate handshake was visible in plaintext.\n" :
                   "Certificate is not yet decoded; TLS 1.3 encrypts it after ServerHello.\n");
     safari_append(out, &pos, max,
-                  "\nIf this fallback is shown, full HTTPS rendering still needs this site's TLS variant to complete application traffic, plus certificate validation and broader TLS compatibility.");
+                  "\nIf this fallback is shown, full HTTPS rendering still needs this site's TLS variant to complete application traffic, plus certificate chain trust and broader TLS compatibility.");
 }
 
 static int safari_fetch_raw_http(const safari_request_t *req, const char *method,
@@ -3060,7 +3073,421 @@ static int safari_tcp_send_buffer4(uint32_t ifindex, uint32_t dst_ipv4,
     return 0;
 }
 
+
+typedef struct {
+    uint8_t tag;
+    int val;
+    int len;
+    int end;
+} safari_der_tlv_t;
+
+static int safari_der_read_tlv(const uint8_t *buf, int len, int off,
+                               safari_der_tlv_t *tlv) {
+    uint8_t len_byte;
+    int llen;
+    int value_len = 0;
+    int i;
+    if (!buf || !tlv || off < 0 || off + 2 > len) return -1;
+    tlv->tag = buf[off++];
+    if ((tlv->tag & 0x1FU) == 0x1FU) return -1;
+    len_byte = buf[off++];
+    if ((len_byte & 0x80U) == 0) {
+        value_len = (int)len_byte;
+    } else {
+        llen = (int)(len_byte & 0x7FU);
+        if (llen <= 0 || llen > 3 || off + llen > len) return -1;
+        for (i = 0; i < llen; i++)
+            value_len = (value_len << 8) | (int)buf[off + i];
+        off += llen;
+    }
+    if (value_len < 0 || value_len > len - off) return -1;
+    tlv->val = off;
+    tlv->len = value_len;
+    tlv->end = off + value_len;
+    return 0;
+}
+
+static int safari_der_oid_eq(const uint8_t *buf, const safari_der_tlv_t *tlv,
+                             const uint8_t *oid, int oid_len) {
+    int i;
+    if (!buf || !tlv || !oid || tlv->tag != 0x06U || tlv->len != oid_len)
+        return 0;
+    for (i = 0; i < oid_len; i++) {
+        if (buf[tlv->val + i] != oid[i]) return 0;
+    }
+    return 1;
+}
+
+static int safari_x509_parse_digits(const uint8_t *buf, int len, int off,
+                                    int digits, int *value) {
+    int i;
+    int v = 0;
+    if (!buf || !value || off < 0 || digits <= 0 || off + digits > len)
+        return 0;
+    for (i = 0; i < digits; i++) {
+        uint8_t ch = buf[off + i];
+        if (ch < '0' || ch > '9') return 0;
+        v = v * 10 + (int)(ch - '0');
+    }
+    *value = v;
+    return 1;
+}
+
+static int safari_x509_parse_time(const uint8_t *buf, int len, uint8_t tag,
+                                  datetime_t *dt) {
+    int year;
+    int pos;
+    int tmp;
+    if (!buf || !dt) return 0;
+    if (tag == 0x17U) {
+        if (!safari_x509_parse_digits(buf, len, 0, 2, &tmp)) return 0;
+        year = (tmp >= 50) ? 1900 + tmp : 2000 + tmp;
+        pos = 2;
+    } else if (tag == 0x18U) {
+        if (!safari_x509_parse_digits(buf, len, 0, 4, &year)) return 0;
+        pos = 4;
+    } else {
+        return 0;
+    }
+    if (!safari_x509_parse_digits(buf, len, pos, 2, &dt->month)) return 0;
+    pos += 2;
+    if (!safari_x509_parse_digits(buf, len, pos, 2, &dt->day)) return 0;
+    pos += 2;
+    if (!safari_x509_parse_digits(buf, len, pos, 2, &dt->hour)) return 0;
+    pos += 2;
+    if (!safari_x509_parse_digits(buf, len, pos, 2, &dt->minute)) return 0;
+    pos += 2;
+    dt->second = 0;
+    if (pos + 2 <= len && buf[pos] >= '0' && buf[pos] <= '9' &&
+        buf[pos + 1] >= '0' && buf[pos + 1] <= '9') {
+        if (!safari_x509_parse_digits(buf, len, pos, 2, &dt->second)) return 0;
+    }
+    dt->year = year;
+    if (dt->month < 1 || dt->month > 12 ||
+        dt->day < 1 || dt->day > datetime_days_in_month(dt->year, dt->month) ||
+        dt->hour > 23 || dt->minute > 59 || dt->second > 59)
+        return 0;
+    dt->weekday = datetime_day_of_week(dt->year, dt->month, dt->day);
+    return 1;
+}
+
+static int safari_x509_time_cmp(const datetime_t *a, const datetime_t *b) {
+    if (a->year != b->year) return (a->year < b->year) ? -1 : 1;
+    if (a->month != b->month) return (a->month < b->month) ? -1 : 1;
+    if (a->day != b->day) return (a->day < b->day) ? -1 : 1;
+    if (a->hour != b->hour) return (a->hour < b->hour) ? -1 : 1;
+    if (a->minute != b->minute) return (a->minute < b->minute) ? -1 : 1;
+    if (a->second != b->second) return (a->second < b->second) ? -1 : 1;
+    return 0;
+}
+
+static void safari_x509_copy_der_string(const uint8_t *buf, int len, uint8_t tag,
+                                        char *out, int max) {
+    int i;
+    int pos = 0;
+    if (!out || max <= 0) return;
+    out[0] = 0;
+    if (!buf || len <= 0) return;
+    if (tag == 0x1EU) {
+        for (i = 0; i + 1 < len && pos + 1 < max; i += 2) {
+            unsigned char ch = (buf[i] == 0) ? buf[i + 1] : '?';
+            out[pos++] = (ch >= 32U && ch < 127U) ? (char)ch : '?';
+        }
+    } else {
+        for (i = 0; i < len && pos + 1 < max; i++) {
+            unsigned char ch = buf[i];
+            out[pos++] = (ch >= 32U && ch < 127U) ? (char)ch : '?';
+        }
+    }
+    out[pos] = 0;
+}
+
+static int safari_x509_find_name_attr_inner(const uint8_t *buf, int len,
+                                            int start, int end,
+                                            const uint8_t *oid, int oid_len,
+                                            char *out, int max, int depth) {
+    int pos = start;
+    if (!buf || !oid || !out || depth > 8) return 0;
+    while (pos < end) {
+        safari_der_tlv_t tlv;
+        if (safari_der_read_tlv(buf, len, pos, &tlv) != 0 || tlv.end > end)
+            return 0;
+        if (tlv.tag == 0x30U) {
+            safari_der_tlv_t first;
+            if (safari_der_read_tlv(buf, len, tlv.val, &first) == 0 &&
+                first.end <= tlv.end && safari_der_oid_eq(buf, &first, oid, oid_len)) {
+                safari_der_tlv_t value;
+                if (safari_der_read_tlv(buf, len, first.end, &value) == 0 &&
+                    value.end <= tlv.end) {
+                    safari_x509_copy_der_string(buf + value.val, value.len,
+                                                value.tag, out, max);
+                    return out[0] != 0;
+                }
+            }
+            if (safari_x509_find_name_attr_inner(buf, len, tlv.val, tlv.end,
+                                                 oid, oid_len, out, max, depth + 1))
+                return 1;
+        } else if (tlv.tag == 0x31U) {
+            if (safari_x509_find_name_attr_inner(buf, len, tlv.val, tlv.end,
+                                                 oid, oid_len, out, max, depth + 1))
+                return 1;
+        }
+        pos = tlv.end;
+    }
+    return 0;
+}
+
+static int safari_x509_find_name_attr(const uint8_t *buf, int len,
+                                      const safari_der_tlv_t *name,
+                                      const uint8_t *oid, int oid_len,
+                                      char *out, int max) {
+    if (!name || name->tag != 0x30U) return 0;
+    return safari_x509_find_name_attr_inner(buf, len, name->val, name->end,
+                                           oid, oid_len, out, max, 0);
+}
+
+static int safari_x509_name_len(const char *s) {
+    int len = s ? str_len(s) : 0;
+    while (len > 0 && s[len - 1] == '.') len--;
+    return len;
+}
+
+static int safari_x509_match_n_ci(const char *a, const char *b, int len) {
+    int i;
+    for (i = 0; i < len; i++) {
+        if (!safari_ieq_char(a[i], b[i])) return 0;
+    }
+    return 1;
+}
+
+static int safari_x509_dns_name_match(const char *host, const char *pattern) {
+    int hlen = safari_x509_name_len(host);
+    int plen = safari_x509_name_len(pattern);
+    int i;
+    if (!host || !pattern || hlen <= 0 || plen <= 0) return 0;
+    if (plen > 2 && pattern[0] == '*' && pattern[1] == '.') {
+        int suffix_len = plen - 1;
+        int label_len = hlen - suffix_len;
+        if (label_len <= 0) return 0;
+        if (!safari_x509_match_n_ci(host + label_len, pattern + 1, suffix_len))
+            return 0;
+        for (i = 0; i < label_len; i++) {
+            if (host[i] == '.') return 0;
+        }
+        return 1;
+    }
+    return hlen == plen && safari_x509_match_n_ci(host, pattern, hlen);
+}
+
+static int safari_x509_parse_san_names(safari_tls13_probe_state_t *state,
+                                       const safari_request_t *req,
+                                       const uint8_t *buf, int len,
+                                       int *san_count, int *san_host_ok,
+                                       char *first_san, int first_max) {
+    safari_der_tlv_t seq;
+    int pos;
+    if (!state || !req || !buf || !san_count || !san_host_ok)
+        return 0;
+    if (safari_der_read_tlv(buf, len, 0, &seq) != 0 || seq.tag != 0x30U)
+        return 0;
+    pos = seq.val;
+    while (pos < seq.end) {
+        safari_der_tlv_t gn;
+        char name[96];
+        if (safari_der_read_tlv(buf, len, pos, &gn) != 0 || gn.end > seq.end)
+            return 0;
+        if (gn.tag == 0x82U) {
+            safari_x509_copy_der_string(buf + gn.val, gn.len, gn.tag,
+                                        name, sizeof(name));
+            if (name[0]) {
+                (*san_count)++;
+                if (first_san && first_max > 0 && !first_san[0])
+                    safari_copy(first_san, first_max, name);
+                if (safari_x509_dns_name_match(req->host, name))
+                    *san_host_ok = 1;
+            }
+        }
+        pos = gn.end;
+    }
+    return *san_count > 0;
+}
+
+static int safari_x509_parse_extensions(safari_tls13_probe_state_t *state,
+                                        const safari_request_t *req,
+                                        const uint8_t *cert, int cert_len,
+                                        const safari_der_tlv_t *ext_field,
+                                        int *san_count, int *san_host_ok,
+                                        char *first_san, int first_max) {
+    static const uint8_t oid_subject_alt_name[] = { 0x55U, 0x1DU, 0x11U };
+    safari_der_tlv_t seq;
+    int pos;
+    if (!ext_field || ext_field->tag != 0xA3U) return 0;
+    if (safari_der_read_tlv(cert, cert_len, ext_field->val, &seq) != 0 ||
+        seq.tag != 0x30U)
+        return 0;
+    pos = seq.val;
+    while (pos < seq.end) {
+        safari_der_tlv_t ext;
+        safari_der_tlv_t oid;
+        safari_der_tlv_t value;
+        int p;
+        if (safari_der_read_tlv(cert, cert_len, pos, &ext) != 0 ||
+            ext.end > seq.end)
+            return 0;
+        p = ext.val;
+        if (safari_der_read_tlv(cert, cert_len, p, &oid) != 0 ||
+            oid.end > ext.end)
+            return 0;
+        p = oid.end;
+        if (p < ext.end) {
+            safari_der_tlv_t maybe_critical;
+            if (safari_der_read_tlv(cert, cert_len, p, &maybe_critical) == 0 &&
+                maybe_critical.end <= ext.end && maybe_critical.tag == 0x01U)
+                p = maybe_critical.end;
+        }
+        if (safari_der_read_tlv(cert, cert_len, p, &value) == 0 &&
+            value.end <= ext.end && value.tag == 0x04U &&
+            safari_der_oid_eq(cert, &oid, oid_subject_alt_name,
+                              (int)sizeof(oid_subject_alt_name))) {
+            safari_x509_parse_san_names(state, req, cert + value.val, value.len,
+                                        san_count, san_host_ok,
+                                        first_san, first_max);
+        }
+        pos = ext.end;
+    }
+    return *san_count > 0;
+}
+
+static int safari_tls13_parse_leaf_certificate(safari_tls13_probe_state_t *state,
+                                               const safari_request_t *req,
+                                               const uint8_t *cert, int cert_len) {
+    static const uint8_t oid_common_name[] = { 0x55U, 0x04U, 0x03U };
+    safari_der_tlv_t cert_seq;
+    safari_der_tlv_t tbs;
+    safari_der_tlv_t field;
+    safari_der_tlv_t issuer;
+    safari_der_tlv_t validity;
+    safari_der_tlv_t subject;
+    datetime_t not_before;
+    datetime_t not_after;
+    datetime_t now;
+    char first_san[96];
+    int san_count = 0;
+    int san_host_ok = 0;
+    int pos;
+    int p;
+    if (!state || !req || !cert || cert_len <= 0) return -1;
+    state->cert_seen = 1;
+    state->cert_subject[0] = 0;
+    state->cert_issuer[0] = 0;
+    state->cert_name[0] = 0;
+    state->cert_host_ok = 0;
+    state->cert_time_ok = 0;
+    first_san[0] = 0;
+    if (safari_der_read_tlv(cert, cert_len, 0, &cert_seq) != 0 ||
+        cert_seq.tag != 0x30U)
+        return -1;
+    pos = cert_seq.val;
+    if (safari_der_read_tlv(cert, cert_len, pos, &tbs) != 0 ||
+        tbs.tag != 0x30U || tbs.end > cert_seq.end)
+        return -1;
+    pos = tbs.val;
+    if (safari_der_read_tlv(cert, cert_len, pos, &field) != 0)
+        return -1;
+    if (field.tag == 0xA0U)
+        pos = field.end;
+    if (safari_der_read_tlv(cert, cert_len, pos, &field) != 0) return -1;
+    pos = field.end; /* serialNumber */
+    if (safari_der_read_tlv(cert, cert_len, pos, &field) != 0) return -1;
+    pos = field.end; /* signature */
+    if (safari_der_read_tlv(cert, cert_len, pos, &issuer) != 0 ||
+        issuer.tag != 0x30U)
+        return -1;
+    safari_x509_find_name_attr(cert, cert_len, &issuer, oid_common_name,
+                               (int)sizeof(oid_common_name),
+                               state->cert_issuer, sizeof(state->cert_issuer));
+    pos = issuer.end;
+    if (safari_der_read_tlv(cert, cert_len, pos, &validity) != 0 ||
+        validity.tag != 0x30U)
+        return -1;
+    p = validity.val;
+    if (safari_der_read_tlv(cert, cert_len, p, &field) == 0 &&
+        field.end <= validity.end &&
+        safari_x509_parse_time(cert + field.val, field.len, field.tag, &not_before)) {
+        p = field.end;
+        if (safari_der_read_tlv(cert, cert_len, p, &field) == 0 &&
+            field.end <= validity.end &&
+            safari_x509_parse_time(cert + field.val, field.len, field.tag, &not_after) &&
+            datetime_now_utc(&now)) {
+            state->cert_time_ok =
+                safari_x509_time_cmp(&now, &not_before) >= 0 &&
+                safari_x509_time_cmp(&now, &not_after) <= 0;
+        }
+    }
+    pos = validity.end;
+    if (safari_der_read_tlv(cert, cert_len, pos, &subject) != 0 ||
+        subject.tag != 0x30U)
+        return -1;
+    safari_x509_find_name_attr(cert, cert_len, &subject, oid_common_name,
+                               (int)sizeof(oid_common_name),
+                               state->cert_subject, sizeof(state->cert_subject));
+    pos = subject.end;
+    if (safari_der_read_tlv(cert, cert_len, pos, &field) != 0) return -1;
+    pos = field.end; /* subjectPublicKeyInfo */
+    while (pos < tbs.end) {
+        if (safari_der_read_tlv(cert, cert_len, pos, &field) != 0 ||
+            field.end > tbs.end)
+            break;
+        if (field.tag == 0xA3U)
+            safari_x509_parse_extensions(state, req, cert, cert_len, &field,
+                                         &san_count, &san_host_ok,
+                                         first_san, sizeof(first_san));
+        pos = field.end;
+    }
+    if (san_count > 0) {
+        safari_copy(state->cert_name, sizeof(state->cert_name), first_san);
+        state->cert_host_ok = san_host_ok;
+    } else if (state->cert_subject[0]) {
+        safari_copy(state->cert_name, sizeof(state->cert_name), state->cert_subject);
+        state->cert_host_ok = safari_x509_dns_name_match(req->host, state->cert_subject);
+    }
+    return 0;
+}
+
+static int safari_tls13_parse_certificate_message(safari_tls13_probe_state_t *state,
+                                                  const safari_request_t *req,
+                                                  const uint8_t *body,
+                                                  int body_len) {
+    int ctx_len;
+    int pos;
+    int list_len;
+    int list_end;
+    int cert_len;
+    if (!state || !req || !body || body_len < 4) return -1;
+    state->cert_seen = 0;
+    state->cert_subject[0] = 0;
+    state->cert_issuer[0] = 0;
+    state->cert_name[0] = 0;
+    state->cert_host_ok = 0;
+    state->cert_time_ok = 0;
+    ctx_len = (int)body[0];
+    pos = 1 + ctx_len;
+    if (pos + 3 > body_len) return -1;
+    list_len = ((int)body[pos] << 16) | ((int)body[pos + 1] << 8) | (int)body[pos + 2];
+    pos += 3;
+    list_end = pos + list_len;
+    if (list_len <= 0 || list_end > body_len || pos + 3 > list_end)
+        return -1;
+    cert_len = ((int)body[pos] << 16) | ((int)body[pos + 1] << 8) | (int)body[pos + 2];
+    pos += 3;
+    if (cert_len <= 0 || pos + cert_len > list_end)
+        return -1;
+    return safari_tls13_parse_leaf_certificate(state, req, body + pos, cert_len);
+}
+
+
 static int safari_tls13_complete_server_handshake(safari_tls13_probe_state_t *state,
+                                                  const safari_request_t *req,
                                                   const uint8_t *buf, int len,
                                                   uint8_t *client_finished_record,
                                                   int client_finished_max,
@@ -3125,6 +3552,10 @@ static int safari_tls13_complete_server_handshake(safari_tls13_probe_state_t *st
                     int hend = hp + 4 + (int)hlen;
                     safari_sha256_ctx_t tmp;
                     if (hend > plain_len) return -1;
+                    if (htype == 11U)
+                        (void)safari_tls13_parse_certificate_message(&work, req,
+                                                                     plain + hp + 4,
+                                                                     (int)hlen);
                     if (htype == 20U) {
                         tmp = transcript;
                         safari_sha256_final(&tmp, transcript_hash);
@@ -3203,6 +3634,12 @@ static int safari_tls13_complete_server_handshake(safari_tls13_probe_state_t *st
     state->server_app_seq = 0;
     state->handshake_ready = 1;
     state->app_ready = 1;
+    safari_copy(state->cert_subject, sizeof(state->cert_subject), work.cert_subject);
+    safari_copy(state->cert_issuer, sizeof(state->cert_issuer), work.cert_issuer);
+    safari_copy(state->cert_name, sizeof(state->cert_name), work.cert_name);
+    state->cert_seen = work.cert_seen;
+    state->cert_host_ok = work.cert_host_ok;
+    state->cert_time_ok = work.cert_time_ok;
     return 0;
 }
 
@@ -3237,7 +3674,8 @@ static int safari_tls13_append_received_record(safari_tls13_probe_state_t *state
 static int safari_fetch_https_tls13(const safari_request_t *req, const char *method,
                                     const char *request_body,
                                     char *response, int max,
-                                    char *err, int err_max) {
+                                    char *err, int err_max,
+                                    safari_tls13_probe_state_t *out_state) {
     static uint8_t tls_in[SAFARI_RESPONSE_MAX];
     uint8_t chunk[NET_TCP_PAYLOAD_MAX];
     uint8_t hello[512];
@@ -3347,7 +3785,7 @@ static int safari_fetch_https_tls13(const safari_request_t *req, const char *met
                                 NET_TCP_ACK, 0, 0);
             {
                 int fin_len = 0;
-                if (safari_tls13_complete_server_handshake(&state, tls_in, tls_total,
+                if (safari_tls13_complete_server_handshake(&state, req, tls_in, tls_total,
                                                            outrec, sizeof(outrec), &fin_len) == 0) {
                     if (safari_tcp_send_buffer4(ifindex, req->ipv4, src_port, req->port,
                                                 &seq, ack, outrec, fin_len,
@@ -3441,6 +3879,8 @@ static int safari_fetch_https_tls13(const safari_request_t *req, const char *met
         safari_copy(err, err_max, "No HTTPS response bytes decrypted");
         return -1;
     }
+    if (out_state)
+        *out_state = state;
     return total;
 }
 
@@ -4228,6 +4668,7 @@ static void safari_load_url_internal(const char *url, const char *method,
     int n;
     int sp = 0;
     int https_tls13_loaded = 0;
+    safari_tls13_probe_state_t https_tls_state;
     const char *http_method = (method && method[0]) ? method : "GET";
     const char *http_body = request_body ? request_body : "";
     safari_normalize_state();
@@ -4271,7 +4712,7 @@ static void safari_load_url_internal(const char *url, const char *method,
         err[0] = 0;
         n = safari_fetch_https_tls13(&req, http_method, http_body,
                                      response, SAFARI_RESPONSE_MAX,
-                                     err, sizeof(err));
+                                     err, sizeof(err), &https_tls_state);
         if (n >= 0) {
             https_tls13_loaded = 1;
             goto have_response;
@@ -4380,9 +4821,20 @@ have_response:
     safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, " (");
     safari_append_ipv4(g_safari_page_status, &sp, SAFARI_STATUS_MAX, req.ipv4);
     safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, ")");
-    if (https_tls13_loaded)
-        safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX,
-                      " TLS 1.3; certificate not validated");
+    if (https_tls13_loaded) {
+        if (https_tls_state.cert_seen &&
+            https_tls_state.cert_host_ok &&
+            https_tls_state.cert_time_ok) {
+            safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX,
+                          " TLS1.3 cert host/time ok; chain not trusted");
+        } else if (https_tls_state.cert_seen) {
+            safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX,
+                          " TLS1.3 cert warning; chain not trusted");
+        } else {
+            safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX,
+                          " TLS1.3 cert unparsed; chain not trusted");
+        }
+    }
     safari_set_tab_title(title);
     if (record_history) safari_history_push_url(g_safari_page_url);
 }

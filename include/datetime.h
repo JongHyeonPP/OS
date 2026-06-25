@@ -14,6 +14,7 @@ typedef struct {
 } datetime_t;
 
 int datetime_now(datetime_t *dt);
+int datetime_now_utc(datetime_t *dt);
 int datetime_is_leap_year(int year);
 int datetime_days_in_month(int year, int month);
 int datetime_day_of_week(int year, int month, int day);
