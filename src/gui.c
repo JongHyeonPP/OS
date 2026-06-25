@@ -211,6 +211,7 @@ int g_airdrop_mode = 0;      /* 0=Contacts Only, 1=Everyone */
 /* Handoff state */
 int g_handoff_visible = 0;
 int g_handoff_tick    = 0;
+int g_handoff_selected = 0;
 
 /* Writing Tools overlay (macOS Sequoia) */
 int      g_wt_visible = 0;

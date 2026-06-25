@@ -496,18 +496,27 @@ int draw_apps_group4(int idx) {
             {"iPhone","Mail","Re: Project Update",RGB(0,122,255)},
             {"Mac","Pages","Annual Report 2026.pages",RGB(255,149,0)},
         };
+        int hf_sel = g_handoff_selected;
+        if (hf_sel < 0) hf_sel = 0;
+        if (hf_sel > 3) hf_sel = 3;
         int ai, ay=cy+30;
         for (ai=0;ai<4;ai++){
             if (ay+36>cy+wh-TITLEBAR_H) break;
-            gui_draw_rounded_rect(wx+8, ay, ww-16, 32, 5, g_pref_darkmode?RGB(36,36,44):RGB(250,250,255));
-            vga_draw_rect_outline(wx+8, ay, ww-16, 32, hf_sep);
+            gui_draw_rounded_rect(wx+8, ay, ww-16, 32, 5,
+                                  ai==hf_sel ? RGB(0,122,255) : (g_pref_darkmode?RGB(36,36,44):RGB(250,250,255)));
+            vga_draw_rect_outline(wx+8, ay, ww-16, 32, ai==hf_sel ? RGB(0,122,255) : hf_sep);
             gui_draw_circle(wx+22, ay+16, 10, acts[ai].col);
             vga_draw_string_trans(wx+22-4, ay+13, acts[ai].app, RGB(255,255,255));
-            vga_draw_string_trans(wx+36, ay+6, acts[ai].doc, hf_txt);
-            vga_draw_string_trans(wx+36, ay+18, acts[ai].dev, hf_sub);
+            vga_draw_string_trans(wx+36, ay+6, acts[ai].doc, ai==hf_sel ? RGB(255,255,255) : hf_txt);
+            vga_draw_string_trans(wx+36, ay+18, acts[ai].dev, ai==hf_sel ? RGB(220,235,255) : hf_sub);
             ay += 36;
         }
-        vga_draw_string_trans(wx+10, cy+wh-TITLEBAR_H-18, "Continue on this Mac", hf_sub);
+        { char hf_line[48]; int hp = 0;
+          hf_line[0] = 0;
+          apps4_append_text(hf_line, &hp, sizeof(hf_line), "Continue ");
+          apps4_append_text(hf_line, &hp, sizeof(hf_line), acts[hf_sel].app);
+          apps4_append_text(hf_line, &hp, sizeof(hf_line), " on this Mac");
+          vga_draw_string_trans(wx+10, cy+wh-TITLEBAR_H-18, hf_line, RGB(0,122,255)); }
         return 1;
     }
 

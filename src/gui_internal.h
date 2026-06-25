@@ -234,6 +234,7 @@ extern int g_photos_edit_tool;
 /* Handoff */
 extern int g_handoff_visible;
 extern int g_handoff_tick;
+extern int g_handoff_selected;
 
 /* Writing Tools */
 extern int      g_wt_visible;

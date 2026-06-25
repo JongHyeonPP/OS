@@ -2476,6 +2476,33 @@ void gui_run(void) {
                     if (di == 5 || di == 11 || di == 15) ix2 += 8;
                 }
             }
+            /* Handoff activity selection and continue */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Handoff")) continue;
+                if (i != top_win_idx) continue;
+                { int cy_hf = w->y + TITLEBAR_H;
+                  int ai_hf;
+                  static const char *apps_hf[] = {"Safari","Notes","Mail","Pages"};
+                  for (ai_hf=0; ai_hf<4; ai_hf++) {
+                      int ay_hf = cy_hf + 30 + ai_hf * 36;
+                      if (ay_hf + 32 > cy_hf + w->h - TITLEBAR_H) break;
+                      if (mx>=w->x+8 && mx<w->x+w->w-8 && my>=ay_hf && my<ay_hf+32) {
+                          g_handoff_selected = ai_hf;
+                          dirty=1; goto end_left_press;
+                      }
+                  }
+                  if (mx>=w->x+8 && mx<w->x+w->w-8 &&
+                      my>=cy_hf+w->h-TITLEBAR_H-24 && my<cy_hf+w->h-TITLEBAR_H) {
+                      if (g_handoff_selected < 0) g_handoff_selected = 0;
+                      if (g_handoff_selected > 3) g_handoff_selected = 3;
+                      (void)gui_open_basic_app(apps_hf[g_handoff_selected]);
+                      toast_show("Handoff","Continued on this Mac",RGB(52,199,89));
+                      dirty=1; goto end_left_press;
+                  }
+                }
+                break;
+            }
             /* News article selection */
             for (i = 0; i < g_num_windows; i++) {
                 gui_window_t *w = &g_windows[i];
