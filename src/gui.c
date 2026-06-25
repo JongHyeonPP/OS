@@ -2516,6 +2516,9 @@ typedef struct {
     int cert_seen;
     int cert_host_ok;
     int cert_time_ok;
+    uint16_t cert_verify_scheme;
+    int cert_verify_seen;
+    int cert_verify_checked;
 } safari_tls13_probe_state_t;
 
 typedef struct {
@@ -2568,6 +2571,9 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
         tls_state->cert_seen = 0;
         tls_state->cert_host_ok = 0;
         tls_state->cert_time_ok = 0;
+        tls_state->cert_verify_scheme = 0;
+        tls_state->cert_verify_seen = 0;
+        tls_state->cert_verify_checked = 0;
     }
     if (!req || !req->host[0] || !out || max < 128) return -1;
     host_len = str_len(req->host);
@@ -3245,7 +3251,7 @@ static void safari_describe_tls_probe(const safari_request_t *req, const uint8_t
     safari_append(out, &pos, max, saw_certificate ? "Certificate handshake was visible in plaintext.\n" :
                   "Certificate is not yet decoded; TLS 1.3 encrypts it after ServerHello.\n");
     safari_append(out, &pos, max,
-                  "\nIf this fallback is shown, full HTTPS rendering still needs this site's TLS variant to complete application traffic, plus certificate chain trust and broader TLS compatibility.");
+                  "\nIf this fallback is shown, full HTTPS rendering still needs this site's TLS variant to complete application traffic, plus certificate signature/chain trust and broader TLS compatibility.");
 }
 
 static int safari_fetch_raw_http(const safari_request_t *req, const char *method,
@@ -3817,6 +3823,19 @@ static int safari_tls13_parse_certificate_message(safari_tls13_probe_state_t *st
     return safari_tls13_parse_leaf_certificate(state, req, body + pos, cert_len);
 }
 
+static int safari_tls13_parse_certificate_verify_message(safari_tls13_probe_state_t *state,
+                                                         const uint8_t *body,
+                                                         int body_len) {
+    uint16_t sig_len;
+    if (!state || !body || body_len < 4) return -1;
+    sig_len = (uint16_t)(((uint16_t)body[2] << 8) | body[3]);
+    if (4 + (int)sig_len > body_len) return -1;
+    state->cert_verify_scheme = (uint16_t)(((uint16_t)body[0] << 8) | body[1]);
+    state->cert_verify_seen = 1;
+    state->cert_verify_checked = 0;
+    return 0;
+}
+
 
 static int safari_tls13_complete_server_handshake(safari_tls13_probe_state_t *state,
                                                   const safari_request_t *req,
@@ -3888,6 +3907,10 @@ static int safari_tls13_complete_server_handshake(safari_tls13_probe_state_t *st
                         (void)safari_tls13_parse_certificate_message(&work, req,
                                                                      plain + hp + 4,
                                                                      (int)hlen);
+                    if (htype == 15U)
+                        (void)safari_tls13_parse_certificate_verify_message(&work,
+                                                                            plain + hp + 4,
+                                                                            (int)hlen);
                     if (htype == 20U) {
                         tmp = transcript;
                         safari_sha256_final(&tmp, transcript_hash);
@@ -3983,6 +4006,9 @@ static int safari_tls13_complete_server_handshake(safari_tls13_probe_state_t *st
     state->cert_seen = work.cert_seen;
     state->cert_host_ok = work.cert_host_ok;
     state->cert_time_ok = work.cert_time_ok;
+    state->cert_verify_scheme = work.cert_verify_scheme;
+    state->cert_verify_seen = work.cert_verify_seen;
+    state->cert_verify_checked = work.cert_verify_checked;
     return 0;
 }
 
@@ -5169,13 +5195,13 @@ have_response:
             https_tls_state.cert_host_ok &&
             https_tls_state.cert_time_ok) {
             safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX,
-                          " TLS1.3 cert host/time ok; chain not trusted");
+                          " TLS1.3 cert name/time ok; sig/chain not trusted");
         } else if (https_tls_state.cert_seen) {
             safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX,
-                          " TLS1.3 cert warning; chain not trusted");
+                          " TLS1.3 cert warning; sig/chain not trusted");
         } else {
             safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX,
-                          " TLS1.3 cert unparsed; chain not trusted");
+                          " TLS1.3 cert unparsed; sig/chain not trusted");
         }
     }
     safari_set_tab_title(title);
