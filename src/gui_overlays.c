@@ -2758,6 +2758,45 @@ static void term_print_runtime_gui(void) {
     term_print2("Mode: ", sys.display);
 }
 
+static int term_app_is_known(const char *name) {
+    int i;
+    if (!name || !name[0]) return 0;
+    for (i = 0; g_spot_apps[i]; i++) {
+        if (str_eq(name, g_spot_apps[i])) return 1;
+    }
+    return 0;
+}
+
+static int term_open_app_named(const char *name) {
+    int i;
+    if (!term_app_is_known(name)) return -1;
+    for (i = 0; i < g_num_windows; i++) {
+        if (g_windows[i].title && str_eq(g_windows[i].title, name)) {
+            g_windows[i].visible = 1;
+            win_bring_to_front(i);
+            return 0;
+        }
+    }
+    if (g_num_windows >= MAX_WINDOWS) return -2;
+    {
+        gui_window_t *nw = &g_windows[g_num_windows];
+        nw->x = 80 + (g_num_windows % 5) * 18;
+        nw->y = 52 + (g_num_windows % 4) * 16;
+        nw->w = 360;
+        nw->h = 280;
+        nw->title = name;
+        nw->visible = 1;
+        nw->focused = 0;
+        nw->dragging = 0;
+        nw->maximized = 0;
+        g_win_anim[g_num_windows] = OPEN_ANIM;
+        g_win_minimized[g_num_windows] = 0;
+        g_win_close_anim[g_num_windows] = 0;
+        g_num_windows++;
+    }
+    return 0;
+}
+
 void term_process_command(void) {
     char cmd[INPUT_MAX + 1];
     int i;
@@ -2895,7 +2934,16 @@ void term_process_command(void) {
         term_println("4  help");
         term_println("5  history");
     } else if (CMD_IS("open .") || CMD_IS("open")) {
-        term_println("open: GUI launch unavailable from terminal");
+        int rc = term_open_app_named("Finder");
+        if (rc == 0) term_println("open: launched");
+        else if (rc == -2) term_println("open: window limit reached");
+        else term_println("open: app not found");
+    } else if (cmd[0]=='o'&&cmd[1]=='p'&&cmd[2]=='e'&&cmd[3]=='n'&&cmd[4]==' '&&cmd[5]) {
+        const char *app_name = cmd + 5;
+        int rc = term_open_app_named(app_name);
+        if (rc == 0) term_println("open: launched");
+        else if (rc == -2) term_println("open: window limit reached");
+        else term_println("open: app not found");
     } else if (CMD_IS("gui")) {
         term_print_runtime_gui();
     } else if (CMD_IS("reboot")) {
