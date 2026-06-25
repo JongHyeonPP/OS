@@ -929,7 +929,7 @@ const char *g_spot_apps[] = {
     "Stickies", "Dictionary", "Chess", "2048", "Grapher", "Wordle", "Snake",
     "Digital Color Meter", "Feedback Assistant", "Photo Booth",
     "SF Symbols", "Transporter", "AR Quick Look",
-    "Clips", "Transmit", "Proxyman", "Retcon", "Overflow 3",
+    "Clips", "Transmit", "Proxyman", "Overflow 3",
     "Lasso", "iStudiez Pro", "Keynote Remote", "Numbers Remote", "Pages Remote",
     "1Password", "Fantastical", "Things 3", "Raycast", "Lungo",
     "Tot", "Klokki", "Bear", "Reeder 5", "CleanMyMac X",
