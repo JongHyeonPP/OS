@@ -2,6 +2,65 @@
 #include "task.h"
 #include "tty.h"
 
+
+static uint32_t gui_netutil_default_target(void) {
+    const netif_t *net = runtime_primary_netif();
+    uint32_t target = runtime_dns_server4();
+    int i;
+    for (i = 0; i < (int)net_route_count(); i++) {
+        const net_route_t *route = net_route_at((uint32_t)i);
+        if (route && route->dest == 0 && route->mask == 0 && route->gateway) {
+            target = route->gateway;
+            break;
+        }
+    }
+    if (!target && net) target = net->ipv4;
+    return target;
+}
+
+static int gui_netutil_scan_tcp_port(uint32_t target, uint16_t dst_port) {
+    uint8_t chunk[NET_TCP_PAYLOAD_MAX];
+    uint32_t ifindex = 0;
+    uint32_t seq;
+    uint32_t srcip = 0;
+    uint32_t rseq = 0;
+    uint32_t rack = 0;
+    uint16_t srcp = 0;
+    uint16_t flags = 0;
+    uint16_t src_port;
+    int tries;
+    if (!target || !dst_port || net_route_lookup4(target, &ifindex, 0) < 0)
+        return -2;
+    src_port = (uint16_t)(46000U + ((timer_ticks() + (uint32_t)dst_port * 17U) % 12000U));
+    seq = 0x4E555000U ^ timer_ticks() ^ (uint32_t)dst_port;
+    if (net_tcp_send4(ifindex, target, src_port, dst_port, seq, 0,
+                      NET_TCP_SYN, 0, 0) < 0)
+        return -2;
+    for (tries = 0; tries < 70; tries++) {
+        int n;
+        srcip = 0;
+        srcp = 0;
+        rseq = 0;
+        rack = 0;
+        flags = 0;
+        net_poll();
+        n = net_tcp_recv4(src_port, chunk, sizeof(chunk), &srcip, &srcp,
+                          &rseq, &rack, &flags);
+        if (n < 0) break;
+        if (srcip != target || srcp != dst_port) continue;
+        if ((flags & NET_TCP_SYN) && (flags & NET_TCP_ACK)) {
+            (void)net_tcp_send4(ifindex, target, src_port, dst_port,
+                                seq + 1U, rseq + 1U,
+                                NET_TCP_ACK | NET_TCP_RST, 0, 0);
+            return 1;
+        }
+        if (flags & NET_TCP_RST)
+            return -1;
+    }
+    return -2;
+}
+
+
 static int gui_window_visible_named(const char *title) {
     int i;
     for (i = 0; i < g_num_windows; i++) {
@@ -1763,20 +1822,10 @@ void gui_run(void) {
                   if (g_netutil_tab == 1 &&
                       mx>=w->x+w->w-76 && mx<w->x+w->w-8 &&
                       my>=cy_nu+28 && my<cy_nu+44) {
-                      const netif_t *net_nu = runtime_primary_netif();
-                      uint32_t target_nu = runtime_dns_server4();
+                      uint32_t target_nu = gui_netutil_default_target();
                       uint32_t ifindex_nu = 0;
                       uint32_t start_nu;
                       int ping_ok_nu = -1;
-                      int ri_nu2;
-                      for (ri_nu2 = 0; ri_nu2 < (int)net_route_count(); ri_nu2++) {
-                          const net_route_t *route_nu = net_route_at((uint32_t)ri_nu2);
-                          if (route_nu && route_nu->dest == 0 && route_nu->mask == 0 && route_nu->gateway) {
-                              target_nu = route_nu->gateway;
-                              break;
-                          }
-                      }
-                      if (!target_nu && net_nu) target_nu = net_nu->ipv4;
                       if (target_nu &&
                           net_route_lookup4(target_nu, &ifindex_nu, 0) == 0) {
                           start_nu = timer_ticks();
@@ -1794,6 +1843,22 @@ void gui_run(void) {
                       toast_show("Network Utility",
                                  ping_ok_nu == 0 ? "Ping reply received" : "Ping failed",
                                  ping_ok_nu == 0 ? RGB(52,199,89) : RGB(255,149,0));
+                      dirty=1; goto end_left_press;
+                  }
+                  if (g_netutil_tab == 4 &&
+                      mx>=w->x+w->w-76 && mx<w->x+w->w-8 &&
+                      my>=cy_nu+28 && my<cy_nu+44) {
+                      static const uint16_t scan_ports_nu[4] = {22, 53, 80, 443};
+                      uint32_t target_nu = gui_netutil_default_target();
+                      int spi_nu;
+                      g_netutil_port_scan_target = target_nu;
+                      for (spi_nu = 0; spi_nu < 4; spi_nu++)
+                          g_netutil_port_status[spi_nu] =
+                              gui_netutil_scan_tcp_port(target_nu, scan_ports_nu[spi_nu]);
+                      if (g_netutil_port_scan_count < 999) g_netutil_port_scan_count++;
+                      toast_show("Network Utility",
+                                 target_nu ? "Port scan complete" : "No scan target",
+                                 target_nu ? RGB(52,199,89) : RGB(255,149,0));
                       dirty=1; goto end_left_press;
                   }
                 }

@@ -1869,17 +1869,40 @@ int draw_apps_group3(int idx) {
         {
             int ports[] = {22, 53, 80, 443};
             const char *names[] = {"SSH", "DNS", "HTTP", "HTTPS"};
+            uint32_t target_ip = g_netutil_port_scan_target ?
+                                 g_netutil_port_scan_target :
+                                 (gw_ip ? gw_ip : dns_ip);
+            char targetbuf[16];
             int pi4;
+            if (!target_ip && net) target_ip = net->ipv4;
+            runtime_format_ipv4(target_ip, targetbuf, sizeof(targetbuf));
             vga_fill_rect(wx+6, pa_y, ww-12, 118, nu_card);
             vga_draw_rect_outline(wx+6, pa_y, ww-12, 118, nu_sep);
             vga_draw_string_trans(wx+12, pa_y+8, "Port Scan", nu_txt);
+            vga_draw_string_trans(wx+96, pa_y+8, target_ip ? targetbuf : "not configured", nu_sub);
+            gui_draw_rounded_rect(wx+ww-76, pa_y+4, 68, 16, 3, nu_acc);
+            vga_draw_string_trans(wx+ww-72, pa_y+8, "Scan Now", RGB(255,255,255));
             for (pi4=0; pi4<4; pi4++) {
                 char pbuf[8];
-                int row_y = pa_y + 30 + pi4 * 20;
+                const char *state = "not scanned";
+                uint32_t state_color = nu_sub;
+                int row_y = pa_y + 34 + pi4 * 20;
+                if (g_netutil_port_scan_count > 0) {
+                    if (g_netutil_port_status[pi4] > 0) {
+                        state = "open";
+                        state_color = nu_grn;
+                    } else if (g_netutil_port_status[pi4] == -1) {
+                        state = "closed";
+                        state_color = RGB(255,149,0);
+                    } else {
+                        state = "timeout";
+                        state_color = RGB(255,149,0);
+                    }
+                }
                 runtime_format_uint((uint32_t)ports[pi4], pbuf, sizeof(pbuf));
                 vga_draw_string_trans(wx+16, row_y, pbuf, nu_sub);
                 vga_draw_string_trans(wx+64, row_y, names[pi4], nu_txt);
-                vga_draw_string_trans(wx+150, row_y, net && net->up ? "reachable" : "blocked", net && net->up ? nu_grn : RGB(255,149,0));
+                vga_draw_string_trans(wx+150, row_y, state, state_color);
             }
             return 1;
         }
