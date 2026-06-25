@@ -2197,7 +2197,28 @@ static void safari_x25519_public_from_private(const uint8_t private_key[32], uin
     safari_x25519_scalarmult(public_key, private_key, basepoint);
 }
 
-static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *out, int max) {
+
+typedef struct {
+    uint8_t private_key[32];
+    uint8_t public_key[32];
+    uint8_t client_random[32];
+    uint8_t client_hello[512];
+    int client_hello_len;
+    int ready;
+} safari_tls13_probe_state_t;
+
+typedef struct {
+    uint16_t version;
+    uint16_t cipher;
+    uint16_t key_share_group;
+    uint8_t key_share[32];
+    int key_share_len;
+    int msg_off;
+    int msg_len;
+} safari_tls13_server_hello_t;
+
+static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *out, int max,
+                                        safari_tls13_probe_state_t *tls_state) {
     static const uint16_t ciphers[] = {
         0x1303U, /* TLS_CHACHA20_POLY1305_SHA256 */
         0xC02FU, /* TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 */
@@ -2219,6 +2240,10 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
     int ext_start;
     int i;
     int host_len;
+    if (tls_state) {
+        tls_state->client_hello_len = 0;
+        tls_state->ready = 0;
+    }
     if (!req || !req->host[0] || !out || max < 128) return -1;
     host_len = str_len(req->host);
     if (host_len <= 0 || host_len > 253) return -1;
@@ -2227,6 +2252,13 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
     safari_tls_random(rnd, sizeof(rnd));
     safari_tls_random(x25519_private, sizeof(x25519_private));
     safari_x25519_public_from_private(x25519_private, x25519_public);
+    if (tls_state) {
+        for (i = 0; i < 32; i++) {
+            tls_state->client_random[i] = rnd[i];
+            tls_state->private_key[i] = x25519_private[i];
+            tls_state->public_key[i] = x25519_public[i];
+        }
+    }
     safari_tls_put8(out, &pos, max, 22U);       /* Handshake record */
     safari_tls_put16(out, &pos, max, 0x0301U);  /* TLS record legacy version */
     rec_len_pos = pos;
@@ -2302,6 +2334,12 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
     safari_tls_put16_at(out, rec_len_pos, (uint16_t)(pos - 5));
     safari_tls_put24_at(out, hs_len_pos, (uint32_t)(pos - hs_len_pos - 3));
     safari_tls_put16_at(out, ext_len_pos, (uint16_t)(pos - ext_start));
+    if (tls_state && pos - 5 <= (int)sizeof(tls_state->client_hello)) {
+        tls_state->client_hello_len = pos - 5;
+        for (i = 0; i < tls_state->client_hello_len; i++)
+            tls_state->client_hello[i] = out[5 + i];
+        tls_state->ready = 1;
+    }
     return pos;
 }
 
@@ -2342,7 +2380,245 @@ static const char *safari_tls_group_name(uint16_t group) {
     return "";
 }
 
+
+static int safari_tls_complete_record_count(const uint8_t *buf, int len) {
+    int off = 0;
+    int count = 0;
+    if (!buf || len <= 0) return 0;
+    while (off + 5 <= len) {
+        uint16_t rec_len = (uint16_t)(((uint16_t)buf[off + 3] << 8) | buf[off + 4]);
+        int end = off + 5 + rec_len;
+        if (end > len) break;
+        count++;
+        off = end;
+    }
+    return count;
+}
+
+
+static int safari_tls_probe_has_followup_record(const uint8_t *buf, int len) {
+    int off = 0;
+    int index = 0;
+    int saw_server_handshake = 0;
+    if (!buf || len <= 0) return 0;
+    while (off + 5 <= len) {
+        uint8_t rec_type = buf[off];
+        uint16_t rec_len = (uint16_t)(((uint16_t)buf[off + 3] << 8) | buf[off + 4]);
+        int end = off + 5 + rec_len;
+        if (end > len) break;
+        if (rec_type == 21U) return 1;
+        if (index == 0 && rec_type == 22U) {
+            saw_server_handshake = 1;
+        } else if (saw_server_handshake && (rec_type == 22U || rec_type == 23U)) {
+            return 1;
+        }
+        off = end;
+        index++;
+    }
+    return 0;
+}
+
+static const char *safari_tls13_handshake_name(uint8_t htype) {
+    if (htype == 2U) return "ServerHello";
+    if (htype == 8U) return "EncryptedExtensions";
+    if (htype == 11U) return "Certificate";
+    if (htype == 15U) return "CertificateVerify";
+    if (htype == 20U) return "Finished";
+    if (htype == 4U) return "NewSessionTicket";
+    return "Handshake";
+}
+
+static int safari_tls13_parse_server_hello(const uint8_t *buf, int len,
+                                           safari_tls13_server_hello_t *out) {
+    int off = 0;
+    if (!buf || !out) return -1;
+    out->version = 0;
+    out->cipher = 0;
+    out->key_share_group = 0;
+    out->key_share_len = 0;
+    out->msg_off = 0;
+    out->msg_len = 0;
+    while (off + 5 <= len) {
+        uint8_t rec_type = buf[off];
+        uint16_t rec_len = (uint16_t)(((uint16_t)buf[off + 3] << 8) | buf[off + 4]);
+        int rec_start = off + 5;
+        int rec_end = rec_start + rec_len;
+        if (rec_end > len) break;
+        if (rec_type == 22U) {
+            int h = rec_start;
+            while (h + 4 <= rec_end) {
+                uint8_t htype = buf[h];
+                uint32_t hlen = ((uint32_t)buf[h + 1] << 16) |
+                                ((uint32_t)buf[h + 2] << 8) |
+                                (uint32_t)buf[h + 3];
+                int body = h + 4;
+                int hend = body + (int)hlen;
+                if (hend > rec_end) break;
+                if (htype == 2U && body + 38 <= hend) {
+                    int sid_len = buf[body + 34];
+                    int cpos = body + 35 + sid_len;
+                    out->msg_off = h;
+                    out->msg_len = (int)hlen + 4;
+                    out->version = (uint16_t)(((uint16_t)buf[body] << 8) | buf[body + 1]);
+                    if (cpos + 2 <= hend)
+                        out->cipher = (uint16_t)(((uint16_t)buf[cpos] << 8) | buf[cpos + 1]);
+                    if (cpos + 5 <= hend) {
+                        int ext_len = (int)(((uint16_t)buf[cpos + 3] << 8) | buf[cpos + 4]);
+                        int ext = cpos + 5;
+                        int ext_end = ext + ext_len;
+                        if (ext_end > hend) ext_end = hend;
+                        while (ext + 4 <= ext_end) {
+                            uint16_t etype = (uint16_t)(((uint16_t)buf[ext] << 8) | buf[ext + 1]);
+                            int elen = (int)(((uint16_t)buf[ext + 2] << 8) | buf[ext + 3]);
+                            int ebody = ext + 4;
+                            int enext = ebody + elen;
+                            if (enext > ext_end) break;
+                            if (etype == 43U && elen >= 2)
+                                out->version = (uint16_t)(((uint16_t)buf[ebody] << 8) | buf[ebody + 1]);
+                            if (etype == 51U && elen >= 4) {
+                                int klen = (int)(((uint16_t)buf[ebody + 2] << 8) | buf[ebody + 3]);
+                                int i;
+                                out->key_share_group = (uint16_t)(((uint16_t)buf[ebody] << 8) | buf[ebody + 1]);
+                                out->key_share_len = klen;
+                                if (klen > 32) klen = 32;
+                                if (ebody + 4 + klen <= enext) {
+                                    for (i = 0; i < klen; i++)
+                                        out->key_share[i] = buf[ebody + 4 + i];
+                                }
+                            }
+                            ext = enext;
+                        }
+                    }
+                    return 0;
+                }
+                h = hend;
+            }
+        }
+        off = rec_end;
+    }
+    return -1;
+}
+
+static int safari_tls13_first_encrypted_record(const uint8_t *buf, int len,
+                                               const safari_tls13_server_hello_t *sh,
+                                               int *rec_off, int *rec_len) {
+    int off = 0;
+    if (!buf || !sh || !rec_off || !rec_len || sh->msg_len <= 0) return -1;
+    while (off + 5 <= len) {
+        uint8_t rec_type = buf[off];
+        uint16_t len16 = (uint16_t)(((uint16_t)buf[off + 3] << 8) | buf[off + 4]);
+        int end = off + 5 + len16;
+        if (end > len) break;
+        if (rec_type == 23U && off > sh->msg_off) {
+            *rec_off = off;
+            *rec_len = (int)len16;
+            return 0;
+        }
+        off = end;
+    }
+    return -1;
+}
+
+static void safari_tls13_append_decrypt_note(const safari_tls13_probe_state_t *state,
+                                             const uint8_t *buf, int len,
+                                             char *out, int *pos, int max) {
+    static uint8_t plain[SAFARI_RESPONSE_MAX];
+    safari_tls13_server_hello_t sh;
+    uint8_t shared[32];
+    uint8_t zeros[32] = { 0 };
+    uint8_t empty_hash[32];
+    uint8_t early_secret[32];
+    uint8_t derived_secret[32];
+    uint8_t handshake_secret[32];
+    uint8_t transcript_hash[32];
+    uint8_t server_secret[32];
+    uint8_t key[32];
+    uint8_t iv[12];
+    uint8_t nonce[12];
+    safari_sha256_ctx_t transcript;
+    int rec_off;
+    int rec_len;
+    int cipher_len;
+    int plain_len;
+    int inner_len;
+    int i;
+    int nonzero = 0;
+    if (!state || !state->ready || !buf || len <= 0 || !out || !pos) return;
+    if (safari_tls13_parse_server_hello(buf, len, &sh) != 0) return;
+    if (sh.version != 0x0304U || sh.cipher != 0x1303U ||
+        sh.key_share_group != 0x001DU || sh.key_share_len != 32)
+        return;
+    if (safari_tls13_first_encrypted_record(buf, len, &sh, &rec_off, &rec_len) != 0) {
+        safari_append(out, pos, max, "TLS 1.3 keys can be derived after the encrypted handshake record arrives.\n");
+        return;
+    }
+    if (rec_len <= 16 || rec_off + 5 + rec_len > len) return;
+    safari_x25519_scalarmult(shared, state->private_key, sh.key_share);
+    for (i = 0; i < 32; i++) {
+        if (shared[i]) nonzero = 1;
+    }
+    if (!nonzero) {
+        safari_append(out, pos, max, "TLS 1.3 X25519 shared secret was all zero; aborting decrypt.\n");
+        return;
+    }
+    safari_sha256_hash("", 0, empty_hash);
+    safari_hkdf_extract(zeros, sizeof(zeros), zeros, sizeof(zeros), early_secret);
+    if (safari_tls13_hkdf_expand_label(early_secret, "derived", empty_hash, 32,
+                                       derived_secret, 32) != 0)
+        return;
+    safari_hkdf_extract(derived_secret, 32, shared, 32, handshake_secret);
+    safari_sha256_init(&transcript);
+    safari_sha256_update(&transcript, state->client_hello, state->client_hello_len);
+    safari_sha256_update(&transcript, buf + sh.msg_off, sh.msg_len);
+    safari_sha256_final(&transcript, transcript_hash);
+    if (safari_tls13_hkdf_expand_label(handshake_secret, "s hs traffic",
+                                       transcript_hash, 32, server_secret, 32) != 0)
+        return;
+    if (safari_tls13_hkdf_expand_label(server_secret, "key", 0, 0, key, 32) != 0)
+        return;
+    if (safari_tls13_hkdf_expand_label(server_secret, "iv", 0, 0, iv, 12) != 0)
+        return;
+    for (i = 0; i < 12; i++) nonce[i] = iv[i];
+    cipher_len = rec_len - 16;
+    plain_len = safari_chacha20_poly1305_decrypt(key, nonce,
+                                                 buf + rec_off, 5,
+                                                 buf + rec_off + 5, cipher_len,
+                                                 buf + rec_off + 5 + cipher_len,
+                                                 plain);
+    if (plain_len <= 0) {
+        safari_append(out, pos, max, "TLS 1.3 encrypted handshake record was present but AEAD verify failed.\n");
+        return;
+    }
+    inner_len = plain_len;
+    while (inner_len > 0 && plain[inner_len - 1] == 0) inner_len--;
+    if (inner_len <= 0) return;
+    safari_append(out, pos, max, "TLS 1.3 encrypted handshake decrypted: ");
+    if (plain[inner_len - 1] == 22U) {
+        int hp = 0;
+        int wrote = 0;
+        int content_len = inner_len - 1;
+        while (hp + 4 <= content_len) {
+            uint8_t htype = plain[hp];
+            uint32_t hlen = ((uint32_t)plain[hp + 1] << 16) |
+                            ((uint32_t)plain[hp + 2] << 8) |
+                            (uint32_t)plain[hp + 3];
+            int hend = hp + 4 + (int)hlen;
+            if (hend > content_len) break;
+            if (wrote) safari_append(out, pos, max, ", ");
+            safari_append(out, pos, max, safari_tls13_handshake_name(htype));
+            wrote = 1;
+            hp = hend;
+        }
+        if (!wrote) safari_append(out, pos, max, "handshake fragment");
+    } else {
+        safari_append(out, pos, max, "inner content type ");
+        safari_append_uint(out, pos, max, plain[inner_len - 1]);
+    }
+    safari_append(out, pos, max, "\n");
+}
+
 static void safari_describe_tls_probe(const safari_request_t *req, const uint8_t *buf, int len,
+                                      const safari_tls13_probe_state_t *tls_state,
                                       char *out, int max) {
     int pos = 0;
     int off = 0;
@@ -2430,6 +2706,7 @@ static void safari_describe_tls_probe(const safari_request_t *req, const uint8_t
                 safari_append_hex16(out, &pos, max, key_share_group);
         }
         safari_append(out, &pos, max, "\n");
+        safari_tls13_append_decrypt_note(tls_state, buf, len, out, &pos, max);
     } else {
         safari_append(out, &pos, max, "No ServerHello was decoded from the first TLS response.\n");
     }
@@ -2570,7 +2847,8 @@ static int safari_fetch_raw_http(const safari_request_t *req, const char *method
 }
 
 static int safari_fetch_tls_probe(const safari_request_t *req, uint8_t *response, int max,
-                                  char *err, int err_max) {
+                                  char *err, int err_max,
+                                  safari_tls13_probe_state_t *tls_state) {
     uint8_t hello[512];
     uint8_t chunk[NET_TCP_PAYLOAD_MAX];
     uint32_t ifindex = 0;
@@ -2588,7 +2866,7 @@ static int safari_fetch_tls_probe(const safari_request_t *req, uint8_t *response
     int sent = 0;
     int total = 0;
     if (!req || !response || max <= 0) return -1;
-    hello_len = safari_make_tls_client_hello(req, hello, sizeof(hello));
+    hello_len = safari_make_tls_client_hello(req, hello, sizeof(hello), tls_state);
     if (hello_len <= 0) {
         safari_copy(err, err_max, "TLS ClientHello build failed");
         return -1;
@@ -2671,10 +2949,7 @@ static int safari_fetch_tls_probe(const safari_request_t *req, uint8_t *response
                                     NET_TCP_ACK, 0, 0);
             }
         }
-        if (total >= 5 && response[0] == 22U) {
-            uint16_t rec_len = (uint16_t)(((uint16_t)response[3] << 8) | response[4]);
-            if (total >= (int)rec_len + 5) break;
-        }
+        if (total >= 5 && safari_tls_probe_has_followup_record(response, total)) break;
         if (n == 0 && (rflags & NET_TCP_FIN) && rseq != expected_seq) {
             (void)net_tcp_send4(ifindex, req->ipv4, src_port, req->port, seq, expected_seq,
                                 NET_TCP_ACK, 0, 0);
@@ -3391,6 +3666,7 @@ static void safari_load_url_internal(const char *url, const char *method,
     if (str_eq(req.scheme, "https")) {
         char http_alt[SAFARI_URL_MAX];
         char tls_err[SAFARI_STATUS_MAX];
+        safari_tls13_probe_state_t tls_state;
         int tls_n;
         int ap = 0;
         safari_reset_page_view();
@@ -3398,10 +3674,13 @@ static void safari_load_url_internal(const char *url, const char *method,
         g_safari_page_status_code = 0;
         safari_copy(g_safari_page_url, SAFARI_URL_MAX, normalized);
         tls_err[0] = 0;
-        tls_n = safari_fetch_tls_probe(&req, (uint8_t *)response, SAFARI_RESPONSE_MAX, tls_err, sizeof(tls_err));
+        tls_state.ready = 0;
+        tls_state.client_hello_len = 0;
+        tls_n = safari_fetch_tls_probe(&req, (uint8_t *)response, SAFARI_RESPONSE_MAX,
+                                       tls_err, sizeof(tls_err), &tls_state);
         if (tls_n > 0) {
             safari_copy(g_safari_page_title, SAFARI_TITLE_MAX, "TLS Handshake");
-            safari_describe_tls_probe(&req, (const uint8_t *)response, tls_n,
+            safari_describe_tls_probe(&req, (const uint8_t *)response, tls_n, &tls_state,
                                       g_safari_page_text, SAFARI_PAGE_TEXT_MAX);
             safari_copy(g_safari_page_status, SAFARI_STATUS_MAX, "TLS handshake reached server");
         } else {
