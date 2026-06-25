@@ -5226,7 +5226,13 @@ static int safari_tag_attr(const char *tag_start, const char *tag_end, const cha
 }
 
 static int safari_anchor_href(const char *tag_start, const char *tag_end, char *out, int max) {
-    return safari_tag_attr(tag_start, tag_end, "href", out, max);
+    if (safari_tag_attr(tag_start, tag_end, "href", out, max) == 0)
+        return 0;
+    if (safari_tag_has_attr(tag_start, tag_end, "href")) {
+        if (out && max > 0) out[0] = 0;
+        return 0;
+    }
+    return -1;
 }
 
 static void safari_anchor_text(const char *start, const char *end, char *out, int max) {
@@ -5271,11 +5277,16 @@ static void safari_anchor_text(const char *start, const char *end, char *out, in
     out[pos] = 0;
 }
 
+static void safari_request_current_url(const safari_request_t *req, char *out, int max);
+
 static void safari_add_link(const safari_request_t *req, const char *href, const char *label) {
     char resolved[SAFARI_URL_MAX];
     int idx;
-    if (!href || !href[0] || g_safari_link_count >= SAFARI_MAX_LINKS) return;
-    safari_resolve_location(req, href, resolved, sizeof(resolved));
+    if (!href || g_safari_link_count >= SAFARI_MAX_LINKS) return;
+    if (href[0])
+        safari_resolve_location(req, href, resolved, sizeof(resolved));
+    else
+        safari_request_current_url(req, resolved, sizeof(resolved));
     if (!resolved[0]) return;
     idx = g_safari_link_count++;
     safari_copy(g_safari_link_urls[idx], SAFARI_URL_MAX, resolved);
