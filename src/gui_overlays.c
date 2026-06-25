@@ -1662,7 +1662,7 @@ const char *g_menubar_titles[N_MENUS] = {
 /* Items per menu — "---" = separator, NULL = end */
 const char *g_menu_items[N_MENUS][MAX_MENU_ITEMS] = {
     { "About MyOS", "---", "Settings...", "Mission Control", "Stage Manager", "---", "Lock Screen", "---", "Restart...", "Shut Down...", NULL },
-    { "New Window", "Close Window", "---", "Get Info", "---", "Print...", "Share...", "iPhone Mirroring", "Universal Control", "Game Center", "Continuity Camera", "Screen Recording", NULL },
+    { "New Window", "Close Window", "---", "Get Info", "---", "Print...", "Share...", NULL },
     { NULL },
     { "Finder", "Terminal", "Calculator", "Clock", "TextEdit", NULL },
     { NULL },
