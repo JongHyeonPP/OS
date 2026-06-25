@@ -20,6 +20,8 @@
 #include <stddef.h>
 #include "gui_internal.h"
 
+static void safari_html_decode_inline(char *s);
+
 /* Integer cos/sin: angle in degrees [0,359], returns scaled by 100 */
 int vga_cos_approx(int deg) {
     /* 90-step table scaled *100 */
@@ -558,6 +560,55 @@ static void safari_make_search_url(const char *query, char *out, int max) {
     safari_url_encode_component(query, encoded, sizeof(encoded));
     safari_append(out, &pos, max, "http://frogfind.com/?q=");
     safari_append(out, &pos, max, encoded);
+}
+
+static void safari_normalize_path_segments(const char *path, char *out, int max) {
+    const char *suffix = 0;
+    int pos = 0;
+    int i = 0;
+    if (!out || max <= 0) return;
+    out[0] = 0;
+    if (!path || !path[0]) {
+        safari_copy(out, max, "/");
+        return;
+    }
+    while (path[i] && path[i] != '?' && path[i] != '#') i++;
+    if (path[i]) suffix = path + i;
+    i = 0;
+    out[pos++] = '/';
+    out[pos] = 0;
+    while (path[i] && path + i != suffix) {
+        const char *start;
+        int len = 0;
+        while (path[i] == '/') i++;
+        start = path + i;
+        while (path[i] && path + i != suffix && path[i] != '/') {
+            i++;
+            len++;
+        }
+        if (len == 0 || (len == 1 && start[0] == '.')) {
+            continue;
+        }
+        if (len == 2 && start[0] == '.' && start[1] == '.') {
+            if (pos > 1) {
+                if (out[pos - 1] == '/') pos--;
+                while (pos > 1 && out[pos - 1] != '/') pos--;
+                out[pos] = 0;
+            }
+            continue;
+        }
+        if (pos > 1 && out[pos - 1] != '/' && pos + 1 < max)
+            out[pos++] = '/';
+        while (len-- > 0 && pos + 1 < max)
+            out[pos++] = *start++;
+        out[pos] = 0;
+    }
+    if (pos == 0) {
+        out[pos++] = '/';
+        out[pos] = 0;
+    }
+    if (suffix)
+        safari_append(out, &pos, max, suffix);
 }
 
 static void safari_append_host_header(char *dst, int *pos, int max, const safari_request_t *req) {
@@ -1504,24 +1555,32 @@ static void safari_resolve_location(const safari_request_t *req, const char *loc
         safari_append_uint(out, &pos, max, req->port);
     }
     if (p[0] == '/') {
-        safari_append(out, &pos, max, p);
+        char normalized_path[192];
+        safari_normalize_path_segments(p, normalized_path, sizeof(normalized_path));
+        safari_append(out, &pos, max, normalized_path);
     } else {
         char dir[192];
+        char combined[192];
+        char normalized_path[192];
         int i;
         int last_slash = 0;
         int dpos = 0;
+        int cpos = 0;
         const char *base = req->path[0] ? req->path : "/";
         if (p[0] == '?' || p[0] == '#') {
             safari_append(out, &pos, max, base);
             safari_append(out, &pos, max, p);
             return;
         }
-        for (i = 0; base[i]; i++) if (base[i] == '/') last_slash = i;
+        for (i = 0; base[i] && base[i] != '?' && base[i] != '#'; i++) if (base[i] == '/') last_slash = i;
         for (i = 0; i <= last_slash && base[i] && dpos + 1 < (int)sizeof(dir); i++) dir[dpos++] = base[i];
         if (dpos == 0) dir[dpos++] = '/';
         dir[dpos] = 0;
-        safari_append(out, &pos, max, dir);
-        safari_append(out, &pos, max, p);
+        combined[0] = 0;
+        safari_append(combined, &cpos, sizeof(combined), dir);
+        safari_append(combined, &cpos, sizeof(combined), p);
+        safari_normalize_path_segments(combined, normalized_path, sizeof(normalized_path));
+        safari_append(out, &pos, max, normalized_path);
     }
 }
 
@@ -1541,6 +1600,62 @@ static int safari_hex_value(char ch) {
     if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
     if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
     return -1;
+}
+
+static int safari_html_entity_char(const char *p, char *out_ch, int *consumed) {
+    uint32_t code = 0;
+    int i = 0;
+    int base = 10;
+    if (!p || !out_ch || !consumed) return 0;
+    if (safari_starts_with_ci(p, "amp;")) { *out_ch = '&'; *consumed = 4; return 1; }
+    if (safari_starts_with_ci(p, "lt;")) { *out_ch = '<'; *consumed = 3; return 1; }
+    if (safari_starts_with_ci(p, "gt;")) { *out_ch = '>'; *consumed = 3; return 1; }
+    if (safari_starts_with_ci(p, "nbsp;")) { *out_ch = ' '; *consumed = 5; return 1; }
+    if (safari_starts_with_ci(p, "quot;")) { *out_ch = '"'; *consumed = 5; return 1; }
+    if (safari_starts_with_ci(p, "apos;")) { *out_ch = '\''; *consumed = 5; return 1; }
+    if (p[0] != '#') return 0;
+    i = 1;
+    if (p[i] == 'x' || p[i] == 'X') {
+        base = 16;
+        i++;
+    }
+    if (safari_hex_value(p[i]) < 0) return 0;
+    while (p[i] && p[i] != ';' && i < 10) {
+        int digit = base == 16 ? safari_hex_value(p[i]) :
+                    ((p[i] >= '0' && p[i] <= '9') ? p[i] - '0' : -1);
+        if (digit < 0 || digit >= base) return 0;
+        code = code * (uint32_t)base + (uint32_t)digit;
+        i++;
+    }
+    if (p[i] != ';') return 0;
+    if (code == 8216U || code == 8217U) code = '\'';
+    else if (code == 8220U || code == 8221U) code = '"';
+    else if (code == 8211U || code == 8212U) code = '-';
+    else if (code == 8230U) code = '.';
+    if (code == 160U) code = ' ';
+    if (code < 32U || code > 126U) return 0;
+    *out_ch = (char)code;
+    *consumed = i + 1;
+    return 1;
+}
+
+static void safari_html_decode_inline(char *s) {
+    int r = 0;
+    int w = 0;
+    if (!s) return;
+    while (s[r]) {
+        if (s[r] == '&') {
+            char decoded = 0;
+            int consumed = 0;
+            if (safari_html_entity_char(s + r + 1, &decoded, &consumed)) {
+                s[w++] = decoded;
+                r += consumed + 1;
+                continue;
+            }
+        }
+        s[w++] = s[r++];
+    }
+    s[w] = 0;
 }
 
 static int safari_decode_chunked_body(const char *body, char *out, int max) {
@@ -1596,6 +1711,7 @@ static void safari_extract_title(const char *body, char *out, int max) {
                 out[pos++] = ch;
             }
             out[pos] = 0;
+            safari_html_decode_inline(out);
             return;
         }
         p++;
@@ -1653,10 +1769,12 @@ static void safari_text_from_body(const char *body, char *out, int max) {
             continue;
         }
         if (ch == '&') {
-            if (safari_starts_with_ci(p, "amp;")) { ch = '&'; p += 4; }
-            else if (safari_starts_with_ci(p, "lt;")) { ch = '<'; p += 3; }
-            else if (safari_starts_with_ci(p, "gt;")) { ch = '>'; p += 3; }
-            else if (safari_starts_with_ci(p, "nbsp;")) { ch = ' '; p += 5; }
+            char decoded = 0;
+            int consumed = 0;
+            if (safari_html_entity_char(p, &decoded, &consumed)) {
+                ch = decoded;
+                p += consumed;
+            }
         }
         if (ch == '\r') continue;
         if (ch == '\n') {
@@ -1758,6 +1876,7 @@ static int safari_tag_attr(const char *tag_start, const char *tag_end, const cha
                 out[i++] = *p++;
             }
             out[i] = 0;
+            safari_html_decode_inline(out);
             return out[0] ? 0 : -1;
         }
         p++;
@@ -1780,10 +1899,12 @@ static void safari_anchor_text(const char *start, const char *end, char *out, in
         if (ch == '<') { in_tag = 1; continue; }
         if (in_tag) { if (ch == '>') in_tag = 0; continue; }
         if (ch == '&') {
-            if (safari_starts_with_ci(p, "amp;")) { ch = '&'; p += 4; }
-            else if (safari_starts_with_ci(p, "lt;")) { ch = '<'; p += 3; }
-            else if (safari_starts_with_ci(p, "gt;")) { ch = '>'; p += 3; }
-            else if (safari_starts_with_ci(p, "nbsp;")) { ch = ' '; p += 5; }
+            char decoded = 0;
+            int consumed = 0;
+            if (safari_html_entity_char(p, &decoded, &consumed)) {
+                ch = decoded;
+                p += consumed;
+            }
         }
         if (ch == '\r' || ch == '\n' || ch == '\t') ch = ' ';
         if ((unsigned char)ch >= 32 && (unsigned char)ch < 127) out[pos++] = ch;
