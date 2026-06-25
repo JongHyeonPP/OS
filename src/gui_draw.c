@@ -857,10 +857,36 @@ void lock_screen_draw(void) {
     }
     /* Lock screen notification cards */
     {
+        char cal_msg[80];
+        int cal_pos = 0;
+        datetime_t now_dt;
+        int best = -1;
+        int best_delta = 1000;
+        int best_day = 0;
+        int ei;
         static const char *ls_apps[]={"Messages","Calendar","Mail"};
-        static const char *ls_msgs[]={"Jane Kim: Are you free for lunch?","Team Standup - starting soon","GitHub: PR was approved"};
+        const char *ls_msgs[]={"Jane Kim: Are you free for lunch?",cal_msg,"GitHub: PR was approved"};
         static const uint32_t ls_age_s[]={120,3600,900};
         static const uint32_t ls_cols[]={RGB(52,199,89),RGB(255,59,48),RGB(0,140,255)};
+        cal_msg[0] = 0;
+        get_current_datetime(&now_dt);
+        for (ei = 0; ei < g_cal_evt_n; ei++) {
+            int day = g_cal_evt_day[ei];
+            int delta = day - now_dt.day;
+            if (day <= 0 || !g_cal_evt_txt[ei][0] || delta < 0) continue;
+            if (delta < best_delta) {
+                best = ei;
+                best_delta = delta;
+                best_day = day;
+            }
+        }
+        if (best >= 0) {
+            append_str(cal_msg, &cal_pos, g_cal_evt_txt[best]);
+            append_str(cal_msg, &cal_pos, best_delta == 0 ? " today" : " day ");
+            if (best_delta != 0) append_int(cal_msg, &cal_pos, best_day);
+        } else {
+            append_str(cal_msg, &cal_pos, "No upcoming calendar events");
+        }
         int notif_y = VGA_HEIGHT/2 + 120;
         int ni2, total_n = 3 + (g_nc_count > 0 ? (g_nc_count < 2 ? g_nc_count : 2) : 0);
         if (total_n > 4) total_n = 4;
