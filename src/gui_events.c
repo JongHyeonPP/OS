@@ -1095,6 +1095,13 @@ void gui_run(void) {
                       dirty=1; goto end_left_press;
                   }
                 }
+                { int ch=w->h-TITLEBAR_H-19;
+                  int rc_y=cy3+ch-38;
+                  if (mx>=w->x+w->w-56 && mx<w->x+w->w-12 && my>=rc_y+6 && my<rc_y+26) {
+                      g_maps_route_started ^= 1;
+                      toast_show("Maps",g_maps_route_started?"Route started":"Route stopped",RGB(0,122,255));
+                      dirty=1; goto end_left_press;
+                  } }
             }
             /* FaceTime accept / decline / end call buttons */
             for (i=0; i<g_num_windows; i++) {
@@ -1224,6 +1231,14 @@ void gui_run(void) {
                       }
                   }
                 }
+                /* Add Reminder button */
+                { int add_y = w->y + w->h - 24;
+                  if (mx >= w->x + rm_sb_w + 6 && mx < w->x + w->w - 8 &&
+                      my >= add_y - 2 && my < add_y + 20) {
+                      if (g_reminders_extra_items < 8) g_reminders_extra_items++;
+                      toast_show("Reminders","Reminder added",RGB(255,149,0));
+                      dirty=1; goto end_left_press;
+                  } }
                 break;
             }
             /* Photo Booth: filter tabs + capture button */
@@ -1275,12 +1290,22 @@ void gui_run(void) {
                   if (cov) break;
                 }
                 int ct_top2 = w->y + TITLEBAR_H + 1;
+                if (mx>=w->x+8 && mx<w->x+w->w-8 && my>=ct_top2+28 && my<ct_top2+44) {
+                    g_contacts_search_focused=1; dirty=1; goto end_left_press;
+                } else if (g_contacts_search_focused) {
+                    g_contacts_search_focused=0; dirty=1;
+                }
                 int list_w2 = w->w * 2 / 5;
                 int det_x2 = w->x + 1 + list_w2;
                 int det_w2 = w->w - 1 - list_w2;
                 int ab_y_ct = ct_top2 + 132;
                 int ab_w_ct = (det_w2 - 8) / 4;
                 int ca;
+                if (mx>=w->x+8 && mx<w->x+52 && my>=ct_top2+4 && my<ct_top2+24) {
+                    if (g_contacts_added < 99) g_contacts_added++;
+                    toast_show("Contacts","Contact added",RGB(0,122,255));
+                    dirty=1; goto end_left_press;
+                }
                 for (ca = 0; ca < 4; ca++) {
                     int abx_ct = det_x2 + 2 + ca * ab_w_ct;
                     if (mx>=abx_ct && mx<abx_ct+ab_w_ct-2 && my>=ab_y_ct && my<ab_y_ct+24) {
@@ -1323,6 +1348,12 @@ void gui_run(void) {
                   if (cov2) break;
                 }
                 int sb_w2 = 130; if (sb_w2 > w->w/2) sb_w2=w->w/2;
+                if (mx>=w->x+6 && mx<w->x+6+sb_w2-10 &&
+                    my>=w->y+TITLEBAR_H+6 && my<w->y+TITLEBAR_H+24) {
+                    g_ms_search_focused=1; g_ms_focused=0; dirty=1; goto end_left_press;
+                } else if (g_ms_search_focused) {
+                    g_ms_search_focused=0; dirty=1;
+                }
                 /* Sidebar conversation click */
                 if (mx >= w->x+1 && mx < w->x+sb_w2 && my >= w->y+TITLEBAR_H+27) {
                     int ci2 = (my - (w->y+TITLEBAR_H+27)) / 33;
@@ -1494,6 +1525,499 @@ void gui_run(void) {
                     if (mx>=w->x+w->w-78 && mx<w->x+w->w-6 && my>=cy_mn+2 && my<cy_mn+20) {
                         g_math_notes_created++;
                         toast_show("Math Notes","New note created",RGB(255,149,0));
+                        dirty=1; goto end_left_press;
+                    }
+                }
+                break;
+            }
+            /* Migration Assistant, Passwords, and Books actions */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title) continue;
+                if (i != top_win_idx) continue;
+                if (str_eq(w->title,"Migration Assistant")) {
+                    int step_y_ma = w->y + TITLEBAR_H + 64;
+                    int src_y_ma = step_y_ma + 30;
+                    int so_ma;
+                    for (so_ma=0; so_ma<3; so_ma++) {
+                        int ox_ma = w->x + 6 + so_ma * (w->w - 18) / 3;
+                        int ow_ma = (w->w - 18) / 3 - 2;
+                        if (mx>=ox_ma && mx<ox_ma+ow_ma && my>=src_y_ma && my<src_y_ma+28) {
+                            g_migration_source = so_ma;
+                            toast_show("Migration Assistant","Source selected",RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    { int btn_y_ma = w->y + w->h - 40;
+                      if (mx>=w->x+w->w-88 && mx<w->x+w->w-8 && my>=btn_y_ma && my<btn_y_ma+22) {
+                          if (g_migration_step < 3) g_migration_step++;
+                          toast_show("Migration Assistant",g_migration_step>=3?"Ready to migrate":"Next step",RGB(0,122,255));
+                          dirty=1; goto end_left_press;
+                      }
+                      if (mx>=w->x+8 && mx<w->x+58 && my>=btn_y_ma && my<btn_y_ma+22) {
+                          if (g_migration_step > 0) g_migration_step--;
+                          toast_show("Migration Assistant","Back",RGB(0,122,255));
+                          dirty=1; goto end_left_press;
+                      }
+                    }
+                } else if (str_eq(w->title,"Passwords")) {
+                    int sb_w_pw = 100;
+                    int sch_y_pw = w->y + TITLEBAR_H + 28;
+                    int sit_y_pw = sch_y_pw + 22;
+                    if (mx>=w->x+4 && mx<w->x+sb_w_pw-2 && my>=sch_y_pw && my<sch_y_pw+16) {
+                        g_passwords_search_focused=1; dirty=1; goto end_left_press;
+                    } else if (g_passwords_search_focused) {
+                        g_passwords_search_focused=0; dirty=1;
+                    }
+                    int cat_pw;
+                    for (cat_pw=0; cat_pw<4; cat_pw++) {
+                        int cy_pw = sit_y_pw + cat_pw * 20;
+                        if (mx>=w->x+2 && mx<w->x+sb_w_pw && my>=cy_pw && my<cy_pw+18) {
+                            g_passwords_sel = cat_pw;
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    { int hdr_y_pw = w->y + TITLEBAR_H + 2;
+                      int entry_y_pw = hdr_y_pw + 28;
+                      int pe_pw;
+                      for (pe_pw=0; pe_pw<8; pe_pw++) {
+                          int ey_pw = entry_y_pw + pe_pw * 22;
+                          if (mx>=w->x+sb_w_pw+2 && mx<w->x+w->w-2 && my>=ey_pw && my<ey_pw+20) {
+                              g_passwords_entry = pe_pw;
+                              dirty=1; goto end_left_press;
+                          }
+                      }
+                    }
+                    { int bot_y_pw = w->y + w->h - 24;
+                      if (mx>=w->x+w->w-44 && mx<w->x+w->w-8 && my>=bot_y_pw+4 && my<bot_y_pw+20) {
+                          g_passwords_added++;
+                          toast_show("Passwords","Password added",RGB(0,122,255));
+                          dirty=1; goto end_left_press;
+                      }
+                    }
+                } else if (str_eq(w->title,"Books")) {
+                    int tab_y_bk = w->y + TITLEBAR_H + 26;
+                    int tab_w_bk = (w->w - 8) / 3;
+                    int cont_y_bk = tab_y_bk + 24;
+                    int tab_bk;
+                    if (tab_w_bk < 1) tab_w_bk = 1;
+                    if (my>=tab_y_bk && my<tab_y_bk+20 && mx>=w->x+4 && mx<w->x+w->w-4) {
+                        tab_bk = (mx - (w->x + 4)) / tab_w_bk;
+                        if (tab_bk < 0) tab_bk = 0;
+                        if (tab_bk > 2) tab_bk = 2;
+                        g_books_tab = tab_bk;
+                        dirty=1; goto end_left_press;
+                    }
+                    if (mx>=w->x+8 && mx<w->x+w->w-8 && my>=cont_y_bk+12 && my<cont_y_bk+78) {
+                        g_books_reading ^= 1;
+                        toast_show("Books",g_books_reading?"Reading":"Paused",RGB(255,149,0));
+                        dirty=1; goto end_left_press;
+                    }
+                    { int bi_bk;
+                      for (bi_bk=0; bi_bk<6; bi_bk++) {
+                          int bx_bk = w->x + 8 + (bi_bk % 3) * ((w->w - 16) / 3);
+                          int by_bk = cont_y_bk + 90 + (bi_bk / 3) * 70;
+                          int bw_bk = (w->w - 16) / 3 - 4;
+                          if (mx>=bx_bk && mx<bx_bk+bw_bk && my>=by_bk && my<by_bk+56) {
+                              g_books_selected = bi_bk;
+                              g_books_tab = 1;
+                              dirty=1; goto end_left_press;
+                          }
+                      }
+                    }
+                }
+                break;
+            }
+            /* App Store tab/search/download actions */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"App Store")) continue;
+                if (i != top_win_idx) continue;
+                { int cy_as = w->y + TITLEBAR_H + 1;
+                  int tab_y_as = cy_as;
+                  int tab_w_as = (w->w - 2) / 4;
+                  int sb_y_as = tab_y_as + 32;
+                  static const char *tab_names_as[] = {"Today","Games","Apps","Arcade"};
+                  if (tab_w_as < 1) tab_w_as = 1;
+                  if (my >= tab_y_as && my < tab_y_as + 26 &&
+                      mx >= w->x + 1 && mx < w->x + w->w - 1) {
+                      int tab_as = (mx - (w->x + 1)) / tab_w_as;
+                      if (tab_as < 0) tab_as = 0;
+                      if (tab_as > 3) tab_as = 3;
+                      g_appstore_tab = tab_as;
+                      g_appstore_search_focused = 0;
+                      toast_show("App Store",tab_names_as[tab_as],RGB(0,122,255));
+                      dirty=1; goto end_left_press;
+                  }
+                  if (mx >= w->x + 8 && mx < w->x + w->w - 8 &&
+                      my >= sb_y_as && my < sb_y_as + 20) {
+                      g_appstore_search_focused = 1;
+                      toast_show("App Store","Search active",RGB(0,122,255));
+                      dirty=1; goto end_left_press;
+                  }
+                  if (g_appstore_search_focused) {
+                      g_appstore_search_focused = 0;
+                      dirty = 1;
+                  }
+                  { static const char *feat_names_as[] = {
+                        "Darkroom","Bear","Fantastical","1Password","Things 3","Pixelmator"
+                    };
+                    int card_y_as = tab_y_as + 160;
+                    int feat_cols_as = (w->w > 320) ? 3 : 2;
+                    int faw_as = (w->w - 8) / feat_cols_as - 4;
+                    int fah_as = 62;
+                    int fi_as;
+                    for (fi_as=0; fi_as<6; fi_as++) {
+                        int fc_as = fi_as % feat_cols_as;
+                        int fr_as = fi_as / feat_cols_as;
+                        int fax_as = w->x + 4 + fc_as * (faw_as + 4);
+                        int fay_as = card_y_as + fr_as * (fah_as + 4);
+                        int bw_as = 46;
+                        int bx_as = fax_as + faw_as - bw_as - 5;
+                        int by_as = fay_as + fah_as - 21;
+                        if (fay_as + fah_as > w->y + w->h - 19 - 6) break;
+                        if (mx >= bx_as && mx < bx_as + bw_as &&
+                            my >= by_as && my < by_as + 15) {
+                            int already_as = (g_appstore_downloads >> fi_as) & 1;
+                            g_appstore_downloads |= (1 << fi_as);
+                            toast_show("App Store",already_as ? "Opening app" : feat_names_as[fi_as],RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                  } }
+                break;
+            }
+            /* Apple TV navigation and playback actions */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Apple TV")) continue;
+                if (i != top_win_idx) continue;
+                { int cy_tv = w->y + TITLEBAR_H;
+                  int nav_w_tv = (w->w - 16) / 5;
+                  static const char *nav_names_tv[] = {"Watch Now","Movies","TV Shows","Sports","Kids"};
+                  if (nav_w_tv < 1) nav_w_tv = 1;
+                  if (my >= cy_tv && my < cy_tv + 20 &&
+                      mx >= w->x + 8 && mx < w->x + w->w - 8) {
+                      int nav_tv = (mx - (w->x + 8)) / nav_w_tv;
+                      if (nav_tv < 0) nav_tv = 0;
+                      if (nav_tv > 4) nav_tv = 4;
+                      g_atv_sel = nav_tv;
+                      toast_show("Apple TV",nav_names_tv[nav_tv],RGB(255,255,255));
+                      dirty=1; goto end_left_press;
+                  }
+                  { int hx_tv = w->x + 4;
+                    int hy_tv = cy_tv + 26;
+                    if (mx >= hx_tv + 8 && mx < hx_tv + 60 &&
+                        my >= hy_tv + 38 && my < hy_tv + 54) {
+                        g_atv_playing ^= 1;
+                        toast_show("Apple TV",g_atv_playing ? "Playing" : "Paused",RGB(255,255,255));
+                        dirty=1; goto end_left_press;
+                    }
+                  }
+                  { int tab_w_tv = (w->w - 8) / 4;
+                    int tab_y_tv = w->y + w->h - 20;
+                    if (tab_w_tv < 1) tab_w_tv = 1;
+                    if (my >= tab_y_tv && my < tab_y_tv + 18 &&
+                        mx >= w->x + 4 && mx < w->x + w->w - 4) {
+                        int btab_tv = (mx - (w->x + 4)) / tab_w_tv;
+                        if (btab_tv < 0) btab_tv = 0;
+                        if (btab_tv > 3) btab_tv = 3;
+                        g_atv_bottom_tab = btab_tv;
+                        dirty=1; goto end_left_press;
+                    }
+                  } }
+                break;
+            }
+            /* Additional application CTA actions */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title) continue;
+                if (i != top_win_idx) continue;
+                if (str_eq(w->title,"Motion")) {
+                    int cy_mo = w->y + TITLEBAR_H;
+                    if (mx>=w->x+w->w-78 && mx<w->x+w->w-4 && my>=cy_mo+4 && my<cy_mo+22) {
+                        g_motion_playing ^= 1;
+                        toast_show("Motion",g_motion_playing?"Playback started":"Playback paused",RGB(30,200,220));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Feedback Assistant")) {
+                    int by_fa = w->y + w->h - 24;
+                    if (mx>=w->x+w->w-96 && mx<w->x+w->w-10 && my>=by_fa && my<by_fa+16) {
+                        g_feedback_submissions++;
+                        toast_show("Feedback Assistant","Report submitted",RGB(0,122,255));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"CleanMyMac X")) {
+                    int bx_cm = w->x + (w->w - 90) / 2;
+                    int by_cm = w->y + TITLEBAR_H + 112;
+                    if (mx>=bx_cm && mx<bx_cm+90 && my>=by_cm && my<by_cm+22) {
+                        g_cleanmymac_scan_count++;
+                        toast_show("CleanMyMac X","Scan complete",RGB(0,200,120));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Keynote")) {
+                    int cy_kn = w->y + TITLEBAR_H;
+                    int bi_kn;
+                    for (bi_kn=0; bi_kn<5; bi_kn++) {
+                        int bx_kn = w->x + 6 + bi_kn * 54;
+                        if (mx>=bx_kn && mx<bx_kn+52 && my>=cy_kn+4 && my<cy_kn+22) {
+                            g_keynote_mode = bi_kn;
+                            if (bi_kn == 0) {
+                                g_keynote_editing = 0;
+                                toast_show("Keynote","Slideshow started",RGB(52,199,89));
+                            } else if (bi_kn == 2) {
+                                if (g_keynote_slide_count < 99) g_keynote_slide_count++;
+                                g_keynote_editing = 1;
+                                toast_show("Keynote","Slide added",RGB(255,149,0));
+                            } else {
+                                toast_show("Keynote",bi_kn==1?"Slides view":(bi_kn==3?"Format inspector":"Insert menu"),RGB(255,149,0));
+                            }
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    { int kn_sl_w=70;
+                      int kn_content_y=w->y+TITLEBAR_H+28;
+                      int kn_content_h=w->h-TITLEBAR_H-2-28;
+                      int cv_x=w->x+kn_sl_w+1;
+                      int cv_w=w->w-kn_sl_w-2;
+                      int cv_h=kn_content_h;
+                      int sl_pad=12;
+                      int sl_x=cv_x+sl_pad;
+                      int sl_y=kn_content_y+sl_pad;
+                      int sl_w=cv_w-sl_pad*2;
+                      int sl_h=cv_h-sl_pad*2;
+                      if (mx>=sl_x && mx<sl_x+sl_w && my>=sl_y && my<sl_y+sl_h) {
+                          g_keynote_editing = 1;
+                          if (g_keynote_mode == 0) g_keynote_mode = 3;
+                          toast_show("Keynote","Editing slide",RGB(255,149,0));
+                          dirty=1; goto end_left_press;
+                      } }
+                } else if (str_eq(w->title,"iMovie")) {
+                    int cy_im = w->y + TITLEBAR_H;
+                    int bi_im;
+                    for (bi_im=0; bi_im<3; bi_im++) {
+                        int bx_im = w->x + 6 + bi_im * 70;
+                        if (mx>=bx_im && mx<bx_im+66 && my>=cy_im+3 && my<cy_im+21) {
+                            g_imovie_tab = bi_im;
+                            if (bi_im == 0) {
+                                if (g_imovie_import_count < 99) g_imovie_import_count++;
+                                toast_show("iMovie","Media imported",RGB(40,140,220));
+                            } else {
+                                toast_show("iMovie",bi_im==1?"Projects selected":"Theatre selected",RGB(40,140,220));
+                            }
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    if (mx>=w->x+w->w-72 && mx<w->x+w->w-8 && my>=cy_im+4 && my<cy_im+24) {
+                        g_imovie_share_count++;
+                        g_share_visible = 1;
+                        gui_record_share_action("Sharing movie",RGB(40,140,220));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Xcode")) {
+                    int cy_xc = w->y + TITLEBAR_H;
+                    if (mx>=w->x+6 && mx<w->x+34 && my>=cy_xc+4 && my<cy_xc+22) {
+                        g_xcode_running = 1;
+                        g_xcode_run_count++;
+                        toast_show("Xcode","Run started",RGB(52,199,89));
+                        dirty=1; goto end_left_press;
+                    }
+                    if (mx>=w->x+36 && mx<w->x+70 && my>=cy_xc+4 && my<cy_xc+22) {
+                        if (g_xcode_running) {
+                            g_xcode_running = 0;
+                            toast_show("Xcode","Run stopped",RGB(255,59,48));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Podcasts")) {
+                    int ep_y=w->y+TITLEBAR_H+32;
+                    int ctl_y=ep_y+64;
+                    int cx_pc=w->x+w->w/2;
+                    if (mx>=cx_pc-60 && mx<cx_pc-28 && my>=ctl_y-2 && my<ctl_y+18) {
+                        if (g_podcasts_episode < 999) g_podcasts_episode++;
+                        toast_show("Podcasts","Previous episode",RGB(147,44,246));
+                        dirty=1; goto end_left_press;
+                    }
+                    if ((mx-cx_pc)*(mx-cx_pc)+(my-(ctl_y+8))*(my-(ctl_y+8)) <= 14*14) {
+                        g_podcasts_playing ^= 1;
+                        toast_show("Podcasts",g_podcasts_playing?"Playing":"Paused",RGB(147,44,246));
+                        dirty=1; goto end_left_press;
+                    }
+                    if (mx>=cx_pc+28 && mx<cx_pc+64 && my>=ctl_y-2 && my<ctl_y+18) {
+                        if (g_podcasts_episode > 1) g_podcasts_episode--;
+                        toast_show("Podcasts","Next episode",RGB(147,44,246));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Freeform")) {
+                    int tool_w=(w->w-12)/5;
+                    int ti_ff;
+                    for (ti_ff=0; ti_ff<5; ti_ff++) {
+                        int tx=w->x+6+ti_ff*tool_w;
+                        if (mx>=tx && mx<tx+tool_w-2 && my>=w->y+TITLEBAR_H+30 && my<w->y+TITLEBAR_H+46) {
+                            g_freeform_tool=ti_ff;
+                            toast_show("Freeform","Tool selected",RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    if (mx>=w->x+4 && mx<w->x+w->w-4 && my>=w->y+TITLEBAR_H+50 && my<w->y+w->h-22) {
+                        if (g_freeform_added_items < 99) g_freeform_added_items++;
+                        toast_show("Freeform","Content added",RGB(0,122,255));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Shortcuts")) {
+                    int si_sc;
+                    for (si_sc=0; si_sc<3; si_sc++) {
+                        int sx=w->x+4+si_sc*(w->w-8)/3;
+                        if (mx>=sx && mx<sx+(w->w-8)/3-2 && my>=w->y+TITLEBAR_H+27 && my<w->y+TITLEBAR_H+41) {
+                            g_shortcuts_tab=si_sc;
+                            toast_show("Shortcuts",si_sc==0?"My Shortcuts":(si_sc==1?"Gallery":"Automation"),RGB(255,149,0));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    { int card_w=(w->w-18)/2, card_h=50, sc_i;
+                      for (sc_i=0; sc_i<6; sc_i++) {
+                          int cx=w->x+6+(sc_i%2)*(card_w+4);
+                          int cy=w->y+TITLEBAR_H+48+(sc_i/2)*(card_h+4);
+                          if (mx>=cx && mx<cx+card_w && my>=cy && my<cy+card_h) {
+                              g_shortcuts_run_count++;
+                              if (sc_i == 3) g_qn_visible = 1;
+                              else if (sc_i == 2) g_pref_dnd ^= 1;
+                              toast_show("Shortcuts","Shortcut run",RGB(255,149,0));
+                              dirty=1; goto end_left_press;
+                          }
+                      } }
+                } else if (str_eq(w->title,"Voice Memos")) {
+                    int wave_y=w->y+TITLEBAR_H+36;
+                    int rec_y=wave_y+86;
+                    int cx_vm=w->x+w->w/2;
+                    int cy_vm=rec_y+16;
+                    if ((mx-cx_vm)*(mx-cx_vm)+(my-cy_vm)*(my-cy_vm) <= 22*22) {
+                        if (!g_voice_memos_recording) {
+                            g_voice_memos_recording=1;
+                            g_voice_memos_start_tick=timer_ticks();
+                            toast_show("Voice Memos","Recording started",RGB(255,59,48));
+                        } else {
+                            g_voice_memos_recording=0;
+                            g_voice_memos_saved++;
+                            toast_show("Voice Memos","Recording saved",RGB(255,149,0));
+                        }
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Numbers")) {
+                    int cy_nb=w->y+TITLEBAR_H;
+                    int ti_nb;
+                    for (ti_nb=0; ti_nb<4; ti_nb++) {
+                        int tx=w->x+8+ti_nb*50;
+                        if (mx>=tx && mx<tx+42 && my>=cy_nb+4 && my<cy_nb+20) {
+                            g_numbers_tool=ti_nb;
+                            toast_show("Numbers","Tool selected",RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    { int sum_x=w->x+w->w-50;
+                      if (mx>=sum_x && mx<sum_x+42 && my>=cy_nb+4 && my<cy_nb+20) {
+                          g_numbers_sel_row=4; g_numbers_sel_col=4; g_numbers_tool=0;
+                          toast_show("Numbers","Sum selected",RGB(52,199,89));
+                          dirty=1; goto end_left_press;
+                      } }
+                    { int tb_h=24;
+                      int fb_y=w->y+TITLEBAR_H+tb_h+2;
+                      int grid_y=fb_y+20;
+                      int row_hdr_w=28;
+                      int col_hdr_h=18;
+                      int col_w=(w->w-row_hdr_w-2)/5;
+                      int row_h=18;
+                      if (col_w < 1) col_w = 1;
+                      if (mx>=w->x+row_hdr_w+2 && mx<w->x+row_hdr_w+2+col_w*5 &&
+                          my>=grid_y+col_hdr_h && my<grid_y+col_hdr_h+row_h*5) {
+                          g_numbers_sel_col=(mx-(w->x+row_hdr_w+2))/col_w;
+                          g_numbers_sel_row=(my-(grid_y+col_hdr_h))/row_h;
+                          if (g_numbers_sel_col<0) g_numbers_sel_col=0;
+                          if (g_numbers_sel_col>4) g_numbers_sel_col=4;
+                          if (g_numbers_sel_row<0) g_numbers_sel_row=0;
+                          if (g_numbers_sel_row>4) g_numbers_sel_row=4;
+                          toast_show("Numbers","Cell selected",RGB(0,122,255));
+                          dirty=1; goto end_left_press;
+                      } }
+                } else if (str_eq(w->title,"GarageBand")) {
+                    int cy_gb=w->y+TITLEBAR_H;
+                    int bi_gb;
+                    for (bi_gb=0; bi_gb<5; bi_gb++) {
+                        int bx=w->x+6+bi_gb*36;
+                        if (mx>=bx && mx<bx+30 && my>=cy_gb+4 && my<cy_gb+24) {
+                            if (bi_gb==1) {
+                                g_garageband_playing ^= 1;
+                                toast_show("GarageBand",g_garageband_playing?"Playing":"Paused",RGB(220,20,60));
+                            } else if (bi_gb==3) {
+                                if (g_garageband_recording) g_garageband_take_count++;
+                                g_garageband_playing=0; g_garageband_recording=0;
+                                toast_show("GarageBand","Stopped",RGB(220,20,60));
+                            } else if (bi_gb==4) {
+                                g_garageband_recording ^= 1;
+                                g_garageband_playing = g_garageband_recording;
+                                if (!g_garageband_recording) g_garageband_take_count++;
+                                toast_show("GarageBand",g_garageband_recording?"Recording":"Take saved",RGB(220,20,60));
+                            } else {
+                                toast_show("GarageBand",bi_gb==0?"Rewind":"Forward",RGB(220,20,60));
+                            }
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Automator")) {
+                    int cy_at=w->y+TITLEBAR_H;
+                    static const char *labels_at[]={"Run","Stop","Record","Variables"};
+                    int bx_at=w->x+6;
+                    int bi_at;
+                    for (bi_at=0; bi_at<4; bi_at++) {
+                        int bw_at=str_len(labels_at[bi_at])*8+8;
+                        if (mx>=bx_at && mx<bx_at+bw_at && my>=cy_at+4 && my<cy_at+18) {
+                            if (bi_at==0) g_automator_mode=1;
+                            else if (bi_at==1) g_automator_mode=0;
+                            else if (bi_at==2) g_automator_recording ^= 1;
+                            else g_automator_mode=3;
+                            toast_show("Automator",labels_at[bi_at],RGB(238,95,0));
+                            dirty=1; goto end_left_press;
+                        }
+                        bx_at += bw_at+6;
+                    }
+                } else if (str_eq(w->title,"Script Editor")) {
+                    int cy_se=w->y+TITLEBAR_H;
+                    if (mx>=w->x+4 && mx<w->x+36 && my>=cy_se+5 && my<cy_se+19) {
+                        g_script_running=1;
+                        g_script_run_count++;
+                        toast_show("Script Editor","Script running",RGB(0,122,255));
+                        dirty=1; goto end_left_press;
+                    }
+                    if (mx>=w->x+40 && mx<w->x+72 && my>=cy_se+5 && my<cy_se+19) {
+                        g_script_running=0;
+                        toast_show("Script Editor","Script stopped",RGB(255,59,48));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Disk Utility")) {
+                    int dsb_w=100;
+                    int ci_du=w->x+dsb_w+8;
+                    int cy_du=w->y+TITLEBAR_H+28;
+                    int btn_w=(w->w-dsb_w-24)/2;
+                    int ai_du;
+                    static const char *du_actions[]={"First Aid","Partition","Erase","Mount"};
+                    if (btn_w < 74) btn_w = 74;
+                    for (ai_du=0; ai_du<4; ai_du++) {
+                        int ax=ci_du+(ai_du%2)*(btn_w+4);
+                        int ay=cy_du+96+(ai_du/2)*24;
+                        if (mx>=ax && mx<ax+btn_w && my>=ay && my<ay+20) {
+                            g_disk_utility_action=ai_du;
+                            toast_show("Disk Utility",du_actions[ai_du],RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"About This Mac")) {
+                    int btn_w=140, btn_h=20;
+                    int btn_x=w->x+w->w/2-btn_w/2;
+                    int cy_ab=w->y+TITLEBAR_H+1+96+10+6*17+14+16;
+                    if (mx>=btn_x && mx<btn_x+btn_w && my>=cy_ab && my<cy_ab+btn_h) {
+                        g_about_update_checks++;
+                        g_update_visible=1;
+                        toast_show("Software Update","Checking for updates",RGB(0,122,255));
                         dirty=1; goto end_left_press;
                     }
                 }
@@ -1952,14 +2476,106 @@ void gui_run(void) {
                     if (di == 5 || di == 11 || di == 15) ix2 += 8;
                 }
             }
+            /* News article selection */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"News")) continue;
+                if (i != top_win_idx) continue;
+                { int feat_y_nw = w->y + TITLEBAR_H + 28;
+                  int ai_nw;
+                  for (ai_nw=0; ai_nw<5; ai_nw++) {
+                      int ay_nw = feat_y_nw + 76 + ai_nw * 34;
+                      if (ay_nw + 34 > w->y + w->h - 22) break;
+                      if (mx>=w->x+4 && mx<w->x+w->w-4 && my>=ay_nw && my<ay_nw+32) {
+                          g_news_selected = ai_nw;
+                          toast_show("News","Article selected",RGB(255,59,48));
+                          dirty=1; goto end_left_press;
+                      }
+                  }
+                }
+                break;
+            }
+            /* Find My, Time Machine, and AirDrop window actions */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title) continue;
+                if (i != top_win_idx) continue;
+                if (str_eq(w->title,"Find My")) {
+                    int fm_h_ev = w->h - TITLEBAR_H - 18;
+                    int fd_ev;
+                    static const int frx_ev[] = {50,60,70};
+                    static const int fry_ev[] = {40,60,30};
+                    if (mx>=w->x+4 && mx<w->x+w->w-4 &&
+                        my>=w->y+TITLEBAR_H+3 && my<w->y+TITLEBAR_H+23) {
+                        g_findmy_search_focused = 1;
+                        dirty=1; goto end_left_press;
+                    }
+                    if (g_findmy_search_focused) {
+                        g_findmy_search_focused = 0;
+                        dirty = 1;
+                    }
+                    for (fd_ev=0; fd_ev<3; fd_ev++) {
+                        int fx_ev = w->x + 1 + frx_ev[fd_ev] * (w->w - 2) / 100;
+                        int fy_ev = w->y + TITLEBAR_H + 1 + fry_ev[fd_ev] * fm_h_ev / 100;
+                        int dx_ev = mx - fx_ev;
+                        int dy_ev = my - fy_ev;
+                        if (dx_ev*dx_ev + dy_ev*dy_ev <= 18*18) {
+                            g_findmy_selected = fd_ev;
+                            toast_show("Find My","Device selected",RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    { int bp_y_ev = w->y + TITLEBAR_H + fm_h_ev - 44;
+                      for (fd_ev=0; fd_ev<3; fd_ev++) {
+                          int dx3_ev = w->x + 8 + fd_ev * ((w->w - 16) / 3);
+                          int bw_ev = (w->w - 16) / 3;
+                          if (mx>=dx3_ev && mx<dx3_ev+bw_ev && my>=bp_y_ev && my<bp_y_ev+44) {
+                              g_findmy_selected = fd_ev;
+                              dirty=1; goto end_left_press;
+                          }
+                      }
+                    }
+                } else if (str_eq(w->title,"Time Machine")) {
+                    int cy_tm_ev = w->y + TITLEBAR_H + 1;
+                    int ch_tm_ev = w->h - TITLEBAR_H - 19;
+                    int bc_y_ev = cy_tm_ev + ch_tm_ev - 24;
+                    if (mx>=w->x+8 && mx<w->x+68 && my>=bc_y_ev+3 && my<bc_y_ev+19) {
+                        g_tm_cancelled++;
+                        toast_show("Time Machine","Cancelled",RGB(120,120,128));
+                        dirty=1; goto end_left_press;
+                    }
+                    if (mx>=w->x+w->w-72 && mx<w->x+w->w-8 && my>=bc_y_ev+3 && my<bc_y_ev+19) {
+                        g_tm_restored++;
+                        g_tm_snapshot_count++;
+                        g_tm_last_snapshot_tick = timer_ticks();
+                        toast_show("Time Machine","Snapshot restored",RGB(0,122,255));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"AirDrop")) {
+                    int btn_y_ad = w->y + TITLEBAR_H + 182;
+                    int btn1w_ad = (w->w - 20) / 2;
+                    int btn2x_ad = w->x + w->w / 2 + 2;
+                    if (mx>=w->x+8 && mx<w->x+8+btn1w_ad && my>=btn_y_ad && my<btn_y_ad+16) {
+                        g_airdrop_mode = 0;
+                        toast_show("AirDrop","Contacts Only",RGB(0,122,255));
+                        dirty=1; goto end_left_press;
+                    }
+                    if (mx>=btn2x_ad && mx<btn2x_ad+btn1w_ad && my>=btn_y_ad && my<btn_y_ad+16) {
+                        g_airdrop_mode = 1;
+                        toast_show("AirDrop","Everyone",RGB(0,122,255));
+                        dirty=1; goto end_left_press;
+                    }
+                }
+                break;
+            }
             /* Wallet: local Apple Pay authorization */
             for (i = 0; i < g_num_windows; i++) {
                 gui_window_t *w = &g_windows[i];
                 if (!w->visible || !w->title || !str_eq(w->title,"Wallet")) continue;
                 if (i != top_win_idx) continue;
                 { int btn_y_wl = w->y + TITLEBAR_H + 28 + 3*12 + 70;
-                  int btn_x_wl = w->x + (w->w - 120) / 2;
-                  if (mx>=btn_x_wl && mx<btn_x_wl+120 && my>=btn_y_wl && my<btn_y_wl+28) {
+                  int btn_x_wl = w->x + (w->w - 150) / 2;
+                  if (mx>=btn_x_wl && mx<btn_x_wl+150 && my>=btn_y_wl && my<btn_y_wl+28) {
                       g_wallet_pay_count++;
                       toast_show("Wallet","Face ID payment authorized",RGB(52,199,89));
                       dirty=1; goto end_left_press;
@@ -1972,6 +2588,11 @@ void gui_run(void) {
                 if (!w->visible || !w->title || !str_eq(w->title,"Mail")) continue;
                 if (i != top_win_idx) continue;
                 int cy_ml = w->y+TITLEBAR_H+1;
+                if (!g_mail_compose && mx>=w->x+w->w-76&&mx<w->x+w->w-4&&my>=cy_ml+4&&my<cy_ml+22) {
+                    g_mail_search_focused=1; dirty=1; goto end_left_press;
+                } else if (!g_mail_compose && g_mail_search_focused) {
+                    g_mail_search_focused=0; dirty=1;
+                }
                 /* New button (compose) at x+4..x+32, cy_ml+4..cy_ml+22 */
                 if (!g_mail_compose && mx>=w->x+4&&mx<w->x+32&&my>=cy_ml+4&&my<cy_ml+22) {
                     g_mail_compose=1; g_mail_focused_field=1;
@@ -2139,6 +2760,18 @@ void gui_run(void) {
                 if (my >= tby2 && my < tby2+16) {
                     int ti2 = (mx - w->x - 1) / tbw2;
                     if (ti2 >= 0 && ti2 < 4) { g_clock_tab = ti2; dirty=1; goto end_left_press; }
+                }
+                /* Alarm add action */
+                if (g_clock_tab == 1) {
+                    int content_y = w->y + TITLEBAR_H + 17;
+                    int content_h = w->h - TITLEBAR_H - 17 - 18;
+                    int add_y = content_y + 136 + (g_clock_extra_alarms > 0 ? 32 : 0);
+                    if (add_y < content_y + content_h - 12 &&
+                        mx>=w->x+8 && mx<w->x+110 && my>=add_y-2 && my<add_y+14) {
+                        if (g_clock_extra_alarms < 99) g_clock_extra_alarms++;
+                        toast_show("Clock","Alarm added",RGB(0,122,255));
+                        dirty=1; goto end_left_press;
+                    }
                 }
                 /* Timer start/stop */
                 if (g_clock_tab == 2) {

@@ -157,10 +157,11 @@ int draw_apps_group3(int idx) {
             int my2 = step_y + ms*38;
             if (my2+30 > wy+wh-50) break;
             /* Circle with number */
-            gui_draw_circle(wx+16, my2+8, 9, ms==0 ? ma_acc : ma_sep);
-            char snum[2]; snum[0]='1'+ms; snum[1]=0;
-            vga_draw_string_trans(wx+12, my2+4, snum, ms==0 ? RGB(255,255,255) : ma_sub);
-            vga_draw_string_trans(wx+28, my2+2,  ma_steps[ms],  ms==0 ? ma_txt : ma_sub);
+            { int step_done = (ms <= g_migration_step);
+              gui_draw_circle(wx+16, my2+8, 9, step_done ? ma_acc : ma_sep);
+              char snum[2]; snum[0]='1'+ms; snum[1]=0;
+              vga_draw_string_trans(wx+12, my2+4, snum, step_done ? RGB(255,255,255) : ma_sub);
+              vga_draw_string_trans(wx+28, my2+2,  ma_steps[ms],  step_done ? ma_txt : ma_sub); }
             vga_draw_string_trans(wx+28, my2+14, ma_descs[ms],  ma_sub);
             vga_draw_hline(wx+8, my2+30, ww-16, ma_sep);
         }
@@ -172,7 +173,7 @@ int draw_apps_group3(int idx) {
             for (so=0; so<3; so++) {
                 int ox = wx+6+so*(ww-18)/3;
                 int ow = (ww-18)/3-2;
-                int is_sel = (so==0);
+                int is_sel = (so==g_migration_source);
                 vga_fill_rect(ox, src_y, ow, 28, is_sel ? ma_acc : (g_pref_darkmode?RGB(44,44,48):RGB(230,230,235)));
                 gui_draw_rounded_rect_outline(ox, src_y, ow, 28, 3, is_sel ? ma_acc : ma_sep);
                 int sl2 = (int)(str_len(src_opts[so])*8);
@@ -185,7 +186,8 @@ int draw_apps_group3(int idx) {
         int btn_w = 80, btn_x = wx+ww-btn_w-8;
         vga_fill_rect(btn_x, btn_y, btn_w, 22, ma_acc);
         gui_draw_rounded_rect_outline(btn_x, btn_y, btn_w, 22, 4, ma_acc);
-        { int bl=str_len("Continue")*8; vga_draw_string_trans(btn_x+(btn_w-bl)/2, btn_y+7, "Continue", RGB(255,255,255)); }
+        { const char *next_label = g_migration_step >= 3 ? "Done" : "Continue";
+          int bl=str_len(next_label)*8; vga_draw_string_trans(btn_x+(btn_w-bl)/2, btn_y+7, next_label, RGB(255,255,255)); }
         /* Back button */
         int back_x = wx+8;
         vga_fill_rect(back_x, btn_y, 50, 22, g_pref_darkmode?RGB(55,55,60):RGB(220,220,225));
@@ -304,8 +306,10 @@ int draw_apps_group3(int idx) {
         /* Search bar in sidebar */
         int sch_y = wy+TITLEBAR_H+28;
         vga_fill_rect(wx+4, sch_y, sb_w-6, 16, g_pref_darkmode?RGB(44,44,48):RGB(255,255,255));
-        vga_draw_rect_outline(wx+4, sch_y, sb_w-6, 16, pw_sep);
-        vga_draw_string_trans(wx+8, sch_y+4, "Search", pw_sub);
+        vga_draw_rect_outline(wx+4, sch_y, sb_w-6, 16,
+            g_passwords_search_focused ? RGB(0,122,255) : pw_sep);
+        vga_draw_string_trans(wx+8, sch_y+4,
+            g_passwords_search_focused ? "Search*" : "Search", pw_sub);
         /* Sidebar categories */
         int sit_y = sch_y + 22;
         {
@@ -358,7 +362,13 @@ int draw_apps_group3(int idx) {
         /* Bottom bar */
         int bot_y2 = wy+wh-24;
         vga_draw_hline(wx+1, bot_y2, ww-2, pw_sep);
-        vga_draw_string_trans(wx+8, bot_y2+8, "12 passwords", pw_sub);
+        if (g_passwords_added > 0)
+            vga_draw_string_trans(main_x, bot_y2-14, "New password saved", RGB(52,199,89));
+        { char pw_total[24]; int ptp = 0;
+          pw_total[0] = 0;
+          apps3_append_uint(pw_total, &ptp, sizeof(pw_total), (uint32_t)(12 + g_passwords_added));
+          apps3_append_text(pw_total, &ptp, sizeof(pw_total), " passwords");
+          vga_draw_string_trans(wx+8, bot_y2+8, pw_total, pw_sub); }
         vga_fill_rect(wx+ww-44, bot_y2+4, 36, 16, pw_acc);
         gui_draw_rounded_rect_outline(wx+ww-44, bot_y2+4, 36, 16, 3, pw_acc);
         vga_draw_string_trans(wx+ww-36, bot_y2+8, "+ Add", RGB(255,255,255));
@@ -388,10 +398,10 @@ int draw_apps_group3(int idx) {
             int ti;
             for (ti=0; ti<4; ti++) {
                 int tx2=wx+8+ti*50;
-                uint32_t tbg2 = (ti==0)?nb_acc:(g_pref_darkmode?RGB(55,55,60):RGB(210,210,215));
+                uint32_t tbg2 = (ti==g_numbers_tool)?nb_acc:(g_pref_darkmode?RGB(55,55,60):RGB(210,210,215));
                 gui_draw_rounded_rect(tx2, wy+TITLEBAR_H+4, 42, 16, 3, tbg2);
                 int tl3=str_len(nb_tools[ti])*8;
-                vga_draw_string_trans(tx2+(42-tl3)/2, wy+TITLEBAR_H+8, nb_tools[ti], ti==0?RGB(255,255,255):nb_txt);
+                vga_draw_string_trans(tx2+(42-tl3)/2, wy+TITLEBAR_H+8, nb_tools[ti], ti==g_numbers_tool?RGB(255,255,255):nb_txt);
             }
             /* Sum formula button */
             int sum_x = wx+ww-50;
@@ -401,10 +411,14 @@ int draw_apps_group3(int idx) {
         /* Formula bar */
         int fb_y = wy+TITLEBAR_H+tb_h+2;
         vga_fill_rect(wx+1, fb_y, 32, 18, nb_hd);
-        vga_draw_string_trans(wx+4, fb_y+5, "A1", nb_sub);
+        { char cell_ref[4];
+          cell_ref[0] = (char)('A' + g_numbers_sel_col);
+          cell_ref[1] = (char)('1' + g_numbers_sel_row);
+          cell_ref[2] = 0;
+          vga_draw_string_trans(wx+4, fb_y+5, cell_ref, nb_sub); }
         vga_draw_vline(wx+32, fb_y, 18, nb_sep);
         vga_fill_rect(wx+33, fb_y, ww-35, 18, g_pref_darkmode?RGB(36,36,40):RGB(252,252,254));
-        vga_draw_string_trans(wx+36, fb_y+5, "Product", nb_txt);
+        vga_draw_string_trans(wx+36, fb_y+5, g_numbers_tool==1?"Chart from selection":(g_numbers_tool==2?"Text cell":"Product"), nb_txt);
         vga_draw_hline(wx+1, fb_y+19, ww-2, nb_sep);
         /* Grid */
         int grid_y = fb_y+20;
@@ -569,10 +583,12 @@ int draw_apps_group3(int idx) {
             int bi;
             for (bi=0; bi<5; bi++) {
                 int bx2=wx+6+bi*54;
-                if (bx2+46 > wx+ww-6) break;
-                gui_draw_rounded_rect(bx2, wy+TITLEBAR_H+4, 46, 18, 3, bi==0?kn_btn_cols[bi]:(g_pref_darkmode?RGB(55,55,60):RGB(215,215,220)));
+                int active = (bi == g_keynote_mode);
+                if (bx2+52 > wx+ww-6) break;
+                gui_draw_rounded_rect(bx2, wy+TITLEBAR_H+4, 52, 18, 3,
+                    active?kn_btn_cols[bi]:(g_pref_darkmode?RGB(55,55,60):RGB(215,215,220)));
                 int tl2=str_len(kn_btns[bi])*8;
-                vga_draw_string_trans(bx2+(46-tl2)/2, wy+TITLEBAR_H+9, kn_btns[bi], bi==0?RGB(255,255,255):kn_txt);
+                vga_draw_string_trans(bx2+(52-tl2)/2, wy+TITLEBAR_H+9, kn_btns[bi], active?RGB(255,255,255):kn_txt);
             }
         }
         /* Left slide panel */
@@ -581,7 +597,18 @@ int draw_apps_group3(int idx) {
         int kn_content_h = wh-TITLEBAR_H-2-28;
         vga_fill_rect(wx+1, kn_content_y, kn_sl_w, kn_content_h, g_pref_darkmode?RGB(36,36,40):RGB(230,230,234));
         vga_draw_vline(wx+kn_sl_w, kn_content_y, kn_content_h, kn_sep);
-        vga_draw_string_trans(wx+8, kn_content_y+12, "Slide 1", kn_sub);
+        { int si_kn;
+          int shown_kn = g_keynote_slide_count;
+          if (shown_kn < 1) shown_kn = 1;
+          if (shown_kn > 5) shown_kn = 5;
+          for (si_kn=0; si_kn<shown_kn; si_kn++) {
+              char slide_label[16];
+              int sp = 0;
+              slide_label[0] = 0;
+              apps3_append_text(slide_label, &sp, sizeof(slide_label), "Slide ");
+              apps3_append_uint(slide_label, &sp, sizeof(slide_label), (uint32_t)(si_kn + 1));
+              vga_draw_string_trans(wx+8, kn_content_y+12+si_kn*14, slide_label, si_kn==0?RGB(255,149,0):kn_sub);
+          } }
         /* Main slide canvas */
         int cv_x = wx+kn_sl_w+1;
         int cv_w = ww-kn_sl_w-2;
@@ -596,9 +623,16 @@ int draw_apps_group3(int idx) {
         int sl_h = cv_h - sl_pad*2;
         vga_fill_rect_alpha(sl_x+3, sl_y+3, sl_w, sl_h, RGB(0,0,0), 80);
         vga_fill_rect(sl_x, sl_y, sl_w, sl_h, g_pref_darkmode?RGB(40,40,46):RGB(230,230,235));
-        vga_draw_string_trans(sl_x+(sl_w-160)/2, sl_y+sl_h/2-8, "Untitled Presentation", kn_sub);
-        vga_draw_string_trans(sl_x+(sl_w-136)/2, sl_y+sl_h/2+8, "Start editing", kn_sub);
-        vga_draw_string_trans(cv_x+2, kn_content_y+cv_h-12, "1 slide", kn_sub);
+        { const char *main_label = g_keynote_editing ? "Editing Presentation" : "Untitled Presentation";
+          const char *sub_label = g_keynote_editing ? "Slide content selected" : "Start editing";
+          vga_draw_string_trans(sl_x+(sl_w-str_len(main_label)*8)/2, sl_y+sl_h/2-8, main_label, kn_sub);
+          vga_draw_string_trans(sl_x+(sl_w-str_len(sub_label)*8)/2, sl_y+sl_h/2+8, sub_label, kn_sub); }
+        { char slide_count[24];
+          int scp = 0;
+          slide_count[0] = 0;
+          apps3_append_uint(slide_count, &scp, sizeof(slide_count), (uint32_t)g_keynote_slide_count);
+          apps3_append_text(slide_count, &scp, sizeof(slide_count), g_keynote_slide_count==1?" slide":" slides");
+          vga_draw_string_trans(cv_x+2, kn_content_y+cv_h-12, slide_count, kn_sub); }
         return 1;
     }
 
@@ -748,7 +782,9 @@ int draw_apps_group3(int idx) {
           int bi;
           for (bi=0;bi<5;bi++) {
               int bx=wx+6+bi*36;
-              gui_draw_rounded_rect(bx, wy+TITLEBAR_H+4, 30, 20, 4, tc[bi]);
+              uint32_t btn_col = tc[bi];
+              if ((bi==1 && g_garageband_playing) || (bi==4 && g_garageband_recording)) btn_col = gb_acc;
+              gui_draw_rounded_rect(bx, wy+TITLEBAR_H+4, 30, 20, 4, btn_col);
               vga_draw_string_trans(bx+4, wy+TITLEBAR_H+9, tb[bi], RGB(220,220,220));
           }
         }
@@ -758,7 +794,9 @@ int draw_apps_group3(int idx) {
         vga_draw_string_trans(wx+250, wy+TITLEBAR_H+5, "C Maj", gb_txt);
         vga_draw_string_trans(wx+290, wy+TITLEBAR_H+5, "4/4", gb_sub);
         /* Playhead position */
-        vga_draw_string_trans(wx+ww-80, wy+TITLEBAR_H+5, "1 1 1 1", RGB(100,200,100));
+        vga_draw_string_trans(wx+ww-96, wy+TITLEBAR_H+5,
+                              g_garageband_recording?"Recording":(g_garageband_playing?"Playing":"Stopped"),
+                              g_garageband_recording?gb_acc:RGB(100,200,100));
         /* Left instrument panel */
         int lp_w = 60;
         int track_area_y = wy+TITLEBAR_H+30;
@@ -792,7 +830,7 @@ int draw_apps_group3(int idx) {
           }
         }
         /* Playhead line */
-        int ph_x = tl_x + tl_w/6;
+        int ph_x = tl_x + (g_garageband_playing ? (int)((timer_ticks()/40U) % (uint32_t)(tl_w>1?tl_w:1)) : tl_w/6);
         vga_draw_vline(ph_x, track_area_y, track_area_h, RGB(255,200,0));
         vga_fill_rect(ph_x-4, track_area_y, 9, 14, RGB(255,200,0));
         /* MIDI/audio regions on tracks */
@@ -823,7 +861,16 @@ int draw_apps_group3(int idx) {
         int sc_y=track_area_y+track_area_h-sc_h;
         vga_fill_rect(wx+1, sc_y, ww-2, sc_h, RGB(35,35,40));
         vga_draw_hline(wx+1, sc_y, ww-2, gb_sep);
-        vga_draw_string_trans(wx+8,  sc_y+8, "Piano: Concert Grand", gb_txt);
+        if (g_garageband_take_count > 0) {
+            char take_line[28];
+            int tp = 0;
+            take_line[0] = 0;
+            apps3_append_text(take_line, &tp, sizeof(take_line), "Piano take ");
+            apps3_append_uint(take_line, &tp, sizeof(take_line), (uint32_t)g_garageband_take_count);
+            vga_draw_string_trans(wx+8, sc_y+8, take_line, gb_acc);
+        } else {
+            vga_draw_string_trans(wx+8,  sc_y+8, "Piano: Concert Grand", gb_txt);
+        }
         vga_draw_string_trans(wx+ww-80, sc_y+8, "Vol:", gb_sub);
         vga_fill_rect(wx+ww-60, sc_y+11, 50, 8, RGB(50,50,60));
         vga_fill_rect(wx+ww-60, sc_y+11, 40, 8, gb_acc);
@@ -849,10 +896,11 @@ int draw_apps_group3(int idx) {
           int bi;
           for (bi=0;bi<3;bi++) {
               int bx=wx+6+bi*70;
-              gui_draw_rounded_rect(bx, wy+TITLEBAR_H+3, 62, 18, 3, bi==1?im_acc:RGB(55,55,60));
-              vga_draw_string_trans(bx+6, wy+TITLEBAR_H+8, btns2[bi], bi==1?RGB(255,255,255):im_txt);
+              int active = (bi == g_imovie_tab);
+              gui_draw_rounded_rect(bx, wy+TITLEBAR_H+3, 66, 18, 3, active?im_acc:RGB(55,55,60));
+              vga_draw_string_trans(bx+(66-str_len(btns2[bi])*8)/2, wy+TITLEBAR_H+8, btns2[bi], active?RGB(255,255,255):im_txt);
           }
-          vga_draw_string_trans(wx+ww-64, wy+TITLEBAR_H+8, "Share", im_sub);
+          vga_draw_string_trans(wx+ww-64, wy+TITLEBAR_H+8, "Share", g_imovie_share_count>0?im_acc:im_sub);
         }
         int content_y = wy+TITLEBAR_H+26;
         int content_h = wh-TITLEBAR_H-2-26;
@@ -861,6 +909,14 @@ int draw_apps_group3(int idx) {
         vga_fill_rect(wx+1, content_y, mb_w, content_h, RGB(32,32,36));
         vga_draw_vline(wx+mb_w, content_y, content_h, im_sep);
         vga_draw_string_trans(wx+8, content_y+6, "MEDIA", im_sub);
+        if (g_imovie_import_count > 0) {
+            char import_line[24];
+            int ip = 0;
+            import_line[0] = 0;
+            apps3_append_text(import_line, &ip, sizeof(import_line), "Imported ");
+            apps3_append_uint(import_line, &ip, sizeof(import_line), (uint32_t)g_imovie_import_count);
+            vga_draw_string_trans(wx+58, content_y+6, import_line, im_acc);
+        }
         /* Video thumbnails */
         { int vi2;
           static const uint32_t vtc[] = {RGB(40,80,160),RGB(60,120,40),RGB(160,60,40),RGB(80,40,160)};
@@ -931,7 +987,9 @@ int draw_apps_group3(int idx) {
               int cp = 0;
               apps3_format_timecode(990, clip_tc, sizeof(clip_tc));
               clip_label[0] = 0;
-              apps3_append_text(clip_label, &cp, sizeof(clip_label), "Clip 1 - ");
+              apps3_append_text(clip_label, &cp, sizeof(clip_label), "Clip ");
+              apps3_append_uint(clip_label, &cp, sizeof(clip_label), (uint32_t)(1 + g_imovie_import_count));
+              apps3_append_text(clip_label, &cp, sizeof(clip_label), " - ");
               apps3_append_text(clip_label, &cp, sizeof(clip_label), clip_tc);
               vga_draw_string_trans(pv_x+8, tl_y+20, clip_label, im_txt); }
             /* Playhead */
@@ -958,15 +1016,18 @@ int draw_apps_group3(int idx) {
         vga_fill_rect(wx+1, wy+TITLEBAR_H+1, ww-2, 26, xc_tb);
         vga_draw_hline(wx+1, wy+TITLEBAR_H+27, ww-2, xc_sep);
         /* Run + Stop + scheme selector */
-        gui_draw_rounded_rect(wx+6, wy+TITLEBAR_H+4, 28, 18, 4, RGB(52,199,89));
-        vga_draw_string_trans(wx+11, wy+TITLEBAR_H+9, "Run", RGB(255,255,255));
-        gui_draw_rounded_rect(wx+36, wy+TITLEBAR_H+4, 30, 18, 4, RGB(55,55,60));
-        vga_draw_string_trans(wx+40, wy+TITLEBAR_H+9, "Stop", xc_txt);
+        gui_draw_rounded_rect(wx+6, wy+TITLEBAR_H+4, 28, 18, 4, g_xcode_running?RGB(30,120,255):RGB(52,199,89));
+        vga_draw_string_trans(wx+9, wy+TITLEBAR_H+9, "Run", RGB(255,255,255));
+        gui_draw_rounded_rect(wx+36, wy+TITLEBAR_H+4, 34, 18, 4, g_xcode_running?RGB(255,59,48):RGB(55,55,60));
+        vga_draw_string_trans(wx+37, wy+TITLEBAR_H+9, "Stop", g_xcode_running?RGB(255,255,255):xc_txt);
         /* Scheme: MyOS > iPhone runtime */
         vga_draw_string_trans(wx+80, wy+TITLEBAR_H+9, "MyOS | iPad", xc_sub);
         /* Build status */
-        vga_draw_string_trans(wx+ww/2-30, wy+TITLEBAR_H+9, "Build Succeeded", RGB(52,199,89));
-        vga_draw_string_trans(wx+ww-70, wy+TITLEBAR_H+9, "Indexing...", xc_sub);
+        { const char *xc_status = g_xcode_running ? "Running MyOS" : (g_xcode_run_count>0 ? "Stopped" : "Build Succeeded");
+          vga_draw_string_trans(wx+(ww-str_len(xc_status)*8)/2, wy+TITLEBAR_H+9, xc_status,
+                                g_xcode_running?RGB(30,120,255):RGB(52,199,89)); }
+        { const char *xc_tail = g_xcode_running ? "Debugging" : "Indexing...";
+          vga_draw_string_trans(wx+ww-8-str_len(xc_tail)*8, wy+TITLEBAR_H+9, xc_tail, xc_sub); }
         /* Three-panel layout */
         int content_y = wy+TITLEBAR_H+28;
         int content_h = wh-TITLEBAR_H-2-28;
@@ -1159,12 +1220,16 @@ int draw_apps_group3(int idx) {
         { static const char *tbtn[]={"Run","Stop","Record","Variables"};
           int bi, bx=wx+6;
           for (bi=0;bi<4;bi++){
+              int active = ((bi==0 && g_automator_mode==1) ||
+                            (bi==2 && g_automator_recording) || (bi==3 && g_automator_mode==3));
               gui_draw_rounded_rect(bx, content_y+4, str_len(tbtn[bi])*8+8, 14, 3,
-                  bi==0?at_acc:g_pref_darkmode?RGB(55,55,62):RGB(200,200,208));
-              vga_draw_string_trans(bx+4, content_y+7, tbtn[bi], bi==0?RGB(255,255,255):at_txt);
+                  active?at_acc:g_pref_darkmode?RGB(55,55,62):RGB(200,200,208));
+              vga_draw_string_trans(bx+4, content_y+7, tbtn[bi], active?RGB(255,255,255):at_txt);
               bx += str_len(tbtn[bi])*8+14;
           }
-          vga_draw_string_trans(wx+ww-80, content_y+7, "Workflow", at_sub);
+          vga_draw_string_trans(wx+ww-104, content_y+7,
+                                g_automator_recording?"Recording":(g_automator_mode==1?"Running":(g_automator_mode==3?"Variables":"Workflow")),
+                                g_automator_recording?at_acc:at_sub);
         }
         /* Left panel: Action Library */
         int lib_w = ww/3;
@@ -1207,6 +1272,10 @@ int draw_apps_group3(int idx) {
               }
               sy2 += 42;
           }
+        }
+        if (g_automator_mode == 1 || g_automator_recording) {
+            vga_draw_string_trans(wf_x+4, content_y+content_h-16,
+                                  g_automator_recording?"Recording workflow input":"Workflow running", at_acc);
         }
         return 1;
     }
@@ -2114,7 +2183,9 @@ int draw_apps_group3(int idx) {
             int btn_w = 140, btn_h = 20;
             int btn_x = wx + ww/2 - btn_w/2;
             gui_draw_rounded_rect(btn_x, cy, btn_w, btn_h, 6, RGB(0,122,255));
-            vga_draw_string_trans(btn_x + btn_w/2 - 44, cy+6, "Software Update", RGB(255,255,255));
+            { const char *update_label = g_about_update_checks > 0 ? "Updates Open" : "Software Update";
+              int ul = str_len(update_label) * 8;
+              vga_draw_string_trans(btn_x + (btn_w - ul) / 2, cy+6, update_label, RGB(255,255,255)); }
         }
 
         return 1;

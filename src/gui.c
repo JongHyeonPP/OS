@@ -121,6 +121,8 @@ int g_kbshort_page = 0;
 int g_timemachine_visible = 0;
 int g_tm_snapshot_count = 0;
 uint32_t g_tm_last_snapshot_tick = 0;
+int g_tm_restored = 0;
+int g_tm_cancelled = 0;
 
 /* Digital Color Meter */
 int g_colormeter_visible = 0;
@@ -191,6 +193,7 @@ int g_screen_shared = 0;  /* orange dot = screen being shared */
 int g_airdrop_visible  = 0;
 int g_airdrop_sending  = 0;  /* 0=idle 1=scanning 2=sending */
 int g_airdrop_progress = 0;
+int g_airdrop_mode = 0;      /* 0=Contacts Only, 1=Everyone */
 /* Music lyrics */
 /* Lock screen overlay */
 
@@ -1132,6 +1135,18 @@ int g_reminders_done = 0x01; /* item 0 checked by default */
 int g_reminders_sel_list = 0; /* selected list in sidebar */
 int g_reminders_extra_lists = 0;
 int g_reminders_extra_items = 0;
+int g_appstore_tab = 0;
+int g_appstore_downloads = 0;
+int g_appstore_search_focused = 0;
+int g_migration_source = 0;
+int g_migration_step = 0;
+int g_books_tab = 0;
+int g_books_reading = 0;
+int g_books_selected = 0;
+int g_findmy_selected = 0;
+int g_findmy_search_focused = 0;
+int g_news_selected = 0;
+int g_contacts_search_focused = 0;
 
 /* Music: show equalizer (always on) */
 int g_music_eq_visible = 1;
@@ -1145,6 +1160,8 @@ int g_screen_time_tab = 0; /* 0=App Usage, 1=Downtime */
 /* Passwords state */
 int g_passwords_sel = 0; /* selected sidebar category */
 int g_passwords_entry = 0; /* selected password entry */
+int g_passwords_added = 0;
+int g_passwords_search_focused = 0;
 
 /* Numbers state */
 int g_numbers_sel_row = 0;
@@ -1597,6 +1614,7 @@ int  g_ms_sel        = 0;          /* selected conversation 0-5 */
 char g_ms_input[80]  = {0};        /* current input text */
 int  g_ms_input_len  = 0;
 int  g_ms_focused    = 0;          /* 1 = input box focused */
+int  g_ms_search_focused = 0;
 char g_ms_sent[MS_MAXSENT][72];   /* sent messages (all convs combined) */
 int  g_ms_sent_conv[MS_MAXSENT];  /* which conv each sent msg belongs to */
 int  g_ms_sent_n    = 0;
@@ -1741,6 +1759,7 @@ char g_mail_body[256]     = {0};
 int  g_mail_body_len      = 0;
 int  g_mail_sel_msg       = 0;
 int  g_mail_sent_count    = 0;
+int  g_mail_search_focused = 0;
 char g_mail_last_sent_subject[64] = {0};
 
 /* Maps interactive state */
@@ -1786,6 +1805,8 @@ int g_preview_markup = 0;
 
 /* ====== Apple TV ====== */
 int g_atv_sel = 0;
+int g_atv_bottom_tab = 0;
+int g_atv_playing = 0;
 
 /* ====== Wallet ====== */
 int g_wallet_pay_count = 0;
@@ -1797,6 +1818,39 @@ int g_screen_recording_active = 0;
 int g_screen_recording_count = 0;
 int g_translate_favorites = 0;
 int g_math_notes_created = 0;
+int g_feedback_submissions = 0;
+int g_cleanmymac_scan_count = 0;
+int g_keynote_mode = 0;
+int g_keynote_slide_count = 1;
+int g_keynote_editing = 0;
+int g_imovie_tab = 1;
+int g_imovie_import_count = 0;
+int g_imovie_share_count = 0;
+int g_xcode_running = 0;
+int g_xcode_run_count = 0;
+int g_clock_extra_alarms = 0;
+int g_motion_playing = 0;
+int g_podcasts_playing = 0;
+int g_podcasts_episode = 247;
+int g_freeform_tool = 0;
+int g_freeform_added_items = 0;
+int g_shortcuts_tab = 0;
+int g_shortcuts_run_count = 0;
+int g_voice_memos_recording = 0;
+uint32_t g_voice_memos_start_tick = 0;
+int g_voice_memos_saved = 0;
+int g_garageband_playing = 0;
+int g_garageband_recording = 0;
+int g_garageband_take_count = 0;
+int g_automator_mode = 0;
+int g_automator_recording = 0;
+int g_script_running = 0;
+int g_script_run_count = 0;
+int g_numbers_tool = 0;
+int g_disk_utility_action = -1;
+int g_about_update_checks = 0;
+int g_contacts_added = 0;
+int g_maps_route_started = 0;
 
 /* ====== Stage Manager side strip ====== */
 

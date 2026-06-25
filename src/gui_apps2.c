@@ -202,7 +202,8 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(wx+8,  cy0+8, "New", RGB(255,255,255));
         vga_draw_string_trans(wx+36, cy0+7, "[<]", ml_sub);   /* reply */
         vga_draw_string_trans(wx+64, cy0+7, "[X]", ml_sub);   /* delete */
-        vga_draw_string_trans(wx+ww-70, cy0+7, "[Search]", ml_sub);
+        vga_draw_string_trans(wx+ww-70, cy0+7, g_mail_search_focused ? "[Search*]" : "[Search]",
+            g_mail_search_focused ? RGB(0,122,255) : ml_sub);
         cy0 += 26;
 
         /* Sidebar + message list + preview pane */
@@ -462,6 +463,7 @@ int draw_apps_group2(int idx) {
             int ay = feat_y+76+ai2*34;
             if (ay+34 > wy+wh-22) break;
             uint32_t cat_c = (ai2==0)?RGB(52,199,89):(ai2==1)?RGB(255,59,48):(ai2==2)?RGB(0,122,255):(ai2==3)?RGB(255,149,0):RGB(147,44,246);
+            if (ai2 == g_news_selected) vga_fill_rect_alpha(wx+4, ay, ww-8, 32, nw_acc, 45);
             gui_draw_rounded_rect(wx+8, ay+2, (int)str_len(arts[ai2].cat)*7+4, 12, 3, cat_c);
             vga_draw_string_trans(wx+10, ay+4, arts[ai2].cat, RGB(255,255,255));
             vga_draw_string_trans(wx+8, ay+16, arts[ai2].hed, nw_txt);
@@ -498,11 +500,11 @@ int draw_apps_group2(int idx) {
         /* Search bar */
         { int sx=wx+6, sy=wy+TITLEBAR_H+5, sw=sb_w-10, sh=18;
           vga_fill_rect(sx, sy, sw, sh, g_pref_darkmode?RGB(44,44,52):RGB(212,212,220));
-          gui_draw_rounded_rect_outline(sx, sy, sw, sh, 5, ms_sep);
+          gui_draw_rounded_rect_outline(sx, sy, sw, sh, 5, g_ms_search_focused ? RGB(0,122,255) : ms_sep);
           gui_draw_circle(sx+10, sy+9, 4, ms_sub);
           gui_draw_circle(sx+10, sy+9, 2, g_pref_darkmode?RGB(44,44,52):RGB(212,212,220));
           vga_draw_line(sx+13, sy+12, sx+16, sy+15, ms_sub);
-          vga_draw_string_trans(sx+20, sy+5, "Search", ms_sub);
+          vga_draw_string_trans(sx+20, sy+5, g_ms_search_focused ? "Search focused" : "Search", ms_sub);
         }
         /* Conversations */
         static const struct {
@@ -754,7 +756,7 @@ int draw_apps_group2(int idx) {
         int ti;
         for (ti=0; ti<3; ti++) {
             int tx = wx+4+ti*(ww-8)/3;
-            if (ti==0) {
+            if (ti==g_books_tab) {
                 gui_draw_rounded_rect(tx, tab_y+2, (ww-8)/3-2, 16, 4, bk_acc);
                 vga_draw_string_trans(tx+4, tab_y+6, tabs[ti], RGB(255,255,255));
             } else {
@@ -764,7 +766,8 @@ int draw_apps_group2(int idx) {
         vga_draw_hline(wx+1, tab_y+20, ww-2, bk_sep);
         /* "Continue Reading" book */
         int cont_y = tab_y+24;
-        vga_draw_string_trans(wx+8, cont_y, "CONTINUE READING", bk_sub);
+        vga_draw_string_trans(wx+8, cont_y,
+            g_books_tab==0 ? "CONTINUE READING" : (g_books_tab==1 ? "MY LIBRARY" : "BOOK STORE"), bk_sub);
         /* Book cover */
         vga_fill_rect(wx+8, cont_y+12, 44, 60, RGB(60,40,100));
         vga_fill_rect(wx+10, cont_y+14, 40, 56, RGB(80,55,130));
@@ -776,7 +779,7 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(wx+58, cont_y+24, "Programmer", bk_txt);
         vga_draw_string_trans(wx+58, cont_y+36, "David Thomas", bk_sub);
         /* Progress bar */
-        { int book_pct = 40 + (int)((timer_ticks() / 10000U) % 55U);
+        { int book_pct = g_books_reading ? 40 + (int)((timer_ticks() / 10000U) % 55U) : 42;
           char pctbuf[24];
           int ppos;
         vga_fill_rect(wx+58, cont_y+50, ww-68, 6, bk_sep);
@@ -785,7 +788,8 @@ int draw_apps_group2(int idx) {
         ppos = (int)str_len(pctbuf);
         apps2_append_text(pctbuf, &ppos, sizeof(pctbuf), " complete");
         vga_draw_string_trans(wx+58, cont_y+58, pctbuf, bk_sub); }
-        vga_draw_hline(wx+4, cont_y+74, ww-8, bk_sep);
+        vga_draw_string_trans(wx+58, cont_y+70, g_books_reading ? "Reading now" : "Tap to continue", g_books_reading ? bk_acc : bk_sub);
+        vga_draw_hline(wx+4, cont_y+82, ww-8, bk_sep);
         /* Library books grid */
         vga_draw_string_trans(wx+8, cont_y+78, "MY LIBRARY", bk_sub);
         static const uint32_t cover_cols[] = { RGB(180,60,60), RGB(60,100,180), RGB(50,140,60), RGB(140,80,180), RGB(180,120,40), RGB(40,140,160) };
@@ -796,6 +800,8 @@ int draw_apps_group2(int idx) {
             int by = cont_y+90 + (bi2/3)*70;
             if (by+70 > wy+wh-22) break;
             vga_fill_rect(bx, by, (ww-16)/3-4, 56, cover_cols[bi2]);
+            if (bi2 == g_books_selected)
+                gui_draw_rounded_rect_outline(bx-1, by-1, (ww-16)/3-2, 58, 4, bk_acc);
             vga_draw_string_trans(bx+2, by+22, bk_titles[bi2], RGB(255,255,255));
         }
         return 1;
@@ -828,11 +834,16 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(wx+22, ep_y+20, "POD", RGB(255,255,255));
         vga_draw_string_trans(wx+22, ep_y+32, "CAST", RGB(220,200,255));
         vga_draw_string_trans(wx+68, ep_y+6,  "Tech News Daily", RGB(255,255,255));
-        vga_draw_string_trans(wx+68, ep_y+18, "Episode 247", RGB(220,200,255));
+        { char ep_line[24];
+          int ep = 0;
+          ep_line[0] = 0;
+          apps2_append_text(ep_line, &ep, sizeof(ep_line), "Episode ");
+          apps2_append_uint(ep_line, &ep, sizeof(ep_line), (uint32_t)g_podcasts_episode);
+          vga_draw_string_trans(wx+68, ep_y+18, ep_line, RGB(220,200,255)); }
         vga_draw_string_trans(wx+68, ep_y+30, "AI in 2026: What's next?", RGB(200,180,240));
         vga_draw_string_trans(wx+68, ep_y+42, "43 min", pc_sub);
         /* Progress bar */
-        uint32_t t_pc = timer_ticks();
+        uint32_t t_pc = g_podcasts_playing ? timer_ticks() : 0;
         int pc_dur = 2580; /* 43 min in seconds */
         int pc_pos = (int)((t_pc/1000) % (uint32_t)pc_dur);
         int pb_w = ww-32, pb_x = wx+12;
@@ -843,8 +854,9 @@ int draw_apps_group2(int idx) {
         /* Prev */
         vga_draw_string_trans(wx+ww/2-48, ctl_y+2, "<<", pc_sub);
         /* Play/Pause */
-        gui_draw_circle(wx+ww/2, ctl_y+8, 12, pc_acc);
-        vga_draw_string_trans(wx+ww/2-4, ctl_y+4, ">", RGB(255,255,255));
+        gui_draw_circle(wx+ww/2, ctl_y+8, 12, g_podcasts_playing?RGB(52,199,89):pc_acc);
+        vga_draw_string_trans(wx+ww/2-(g_podcasts_playing?8:4), ctl_y+4,
+                              g_podcasts_playing?"||":">", RGB(255,255,255));
         /* Next */
         vga_draw_string_trans(wx+ww/2+36, ctl_y+2, ">>", pc_sub);
         /* Playback speed */
@@ -891,7 +903,8 @@ int draw_apps_group2(int idx) {
         int ti6;
         for (ti6=0; ti6<5; ti6++) {
             int tx=wx+6+ti6*(ww-12)/5;
-            if(ti6==0) { gui_draw_rounded_rect(tx, wy+TITLEBAR_H+30, (ww-12)/5-2, 16, 4, ff_acc); vga_draw_string_trans(tx+2, wy+TITLEBAR_H+34, tools[ti6], RGB(255,255,255)); }
+            int active = (ti6 == g_freeform_tool);
+            if(active) { gui_draw_rounded_rect(tx, wy+TITLEBAR_H+30, (ww-12)/5-2, 16, 4, ff_acc); vga_draw_string_trans(tx+2, wy+TITLEBAR_H+34, tools[ti6], RGB(255,255,255)); }
             else { gui_draw_rounded_rect_outline(tx, wy+TITLEBAR_H+30, (ww-12)/5-2, 16, 4, ff_sep); vga_draw_string_trans(tx+2, wy+TITLEBAR_H+34, tools[ti6], ff_sub); }
         }
         vga_draw_hline(wx+1, wy+TITLEBAR_H+48, ww-2, ff_sep);
@@ -938,6 +951,18 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(wx+93, cv_y+185, "Start", ff_sub);
         vga_draw_string_trans(wx+143, cv_y+185, "Auth", ff_sub);
         vga_draw_string_trans(wx+193, cv_y+185, "App", ff_sub);
+        if (g_freeform_added_items > 0) {
+            char add_line[24];
+            int fp = 0;
+            int extra_x = wx + ww - 118;
+            int extra_y = cv_y + 88;
+            add_line[0] = 0;
+            apps2_append_text(add_line, &fp, sizeof(add_line), "Added ");
+            apps2_append_uint(add_line, &fp, sizeof(add_line), (uint32_t)g_freeform_added_items);
+            gui_draw_rounded_rect(extra_x, extra_y, 88, 44, 6, RGB(255,245,150));
+            vga_draw_string_trans(extra_x+6, extra_y+10, add_line, RGB(80,60,0));
+            vga_draw_string_trans(extra_x+6, extra_y+24, tools[g_freeform_tool], RGB(80,60,0));
+        }
         /* Text annotation */
         if (wh > 300) {
             vga_draw_string_trans(wx+20, cv_y+wh-TITLEBAR_H-80, "Canvas - Click to add content", ff_sub);
@@ -1013,15 +1038,28 @@ int draw_apps_group2(int idx) {
         /* Action buttons */
         static const char *actions[] = { "First Aid", "Partition", "Erase", "Mount" };
         int ai3;
-        for (ai3=0; ai3<4; ai3++) {
-            int ax=ci6+ai3*((ww-dsb_w-16)/4);
-            gui_draw_rounded_rect(ax, cy6+96, (ww-dsb_w-16)/4-2, 20, 4, g_pref_darkmode?RGB(50,50,55):RGB(215,215,220));
-            vga_draw_rect_outline(ax, cy6+96, (ww-dsb_w-16)/4-2, 20, du_sep);
-            vga_draw_string_trans(ax+2, cy6+102, actions[ai3], du_txt);
+        { int btn_w = (ww-dsb_w-24)/2;
+          if (btn_w < 74) btn_w = 74;
+          for (ai3=0; ai3<4; ai3++) {
+              int ax=ci6+(ai3%2)*(btn_w+4);
+              int ay=cy6+96+(ai3/2)*24;
+              uint32_t abg = (ai3==g_disk_utility_action) ? RGB(0,122,255) : (g_pref_darkmode?RGB(50,50,55):RGB(215,215,220));
+              uint32_t atx = (ai3==g_disk_utility_action) ? RGB(255,255,255) : du_txt;
+              gui_draw_rounded_rect(ax, ay, btn_w, 20, 4, abg);
+              vga_draw_rect_outline(ax, ay, btn_w, 20, du_sep);
+              vga_draw_string_trans(ax+(btn_w-str_len(actions[ai3])*8)/2, ay+6, actions[ai3], atx);
+          } }
+        if (g_disk_utility_action >= 0 && g_disk_utility_action < 4) {
+            char action_line[36];
+            int ap = 0;
+            action_line[0] = 0;
+            apps2_append_text(action_line, &ap, sizeof(action_line), "Last action: ");
+            apps2_append_text(action_line, &ap, sizeof(action_line), actions[g_disk_utility_action]);
+            vga_draw_string_trans(ci6, cy6+146, action_line, RGB(0,122,255));
         }
         /* S.M.A.R.T. status */
-        vga_draw_string_trans(ci6, cy6+124, "S.M.A.R.T. Status: Verified", du_sub);
-        gui_draw_circle(ci6+ww-dsb_w-24, cy6+129, 6, RGB(52,199,89));
+        vga_draw_string_trans(ci6, cy6+164, "S.M.A.R.T. Status: Verified", du_sub);
+        gui_draw_circle(ci6+ww-dsb_w-24, cy6+169, 6, RGB(52,199,89));
         return 1;
     }
 
@@ -1045,7 +1083,7 @@ int draw_apps_group2(int idx) {
         int si2;
         for (si2=0; si2<3; si2++) {
             int sx=wx+4+si2*(ww-8)/3;
-            if(si2==0) { gui_draw_rounded_rect(sx, wy+TITLEBAR_H+27, (ww-8)/3-2, 14, 4, sc_acc); vga_draw_string_trans(sx+2, wy+TITLEBAR_H+30, scats[si2], RGB(255,255,255)); }
+            if(si2==g_shortcuts_tab) { gui_draw_rounded_rect(sx, wy+TITLEBAR_H+27, (ww-8)/3-2, 14, 4, sc_acc); vga_draw_string_trans(sx+2, wy+TITLEBAR_H+30, scats[si2], RGB(255,255,255)); }
             else { vga_draw_string_trans(sx+2, wy+TITLEBAR_H+30, scats[si2], sc_sub); }
         }
         vga_draw_hline(wx+1, wy+TITLEBAR_H+43, ww-2, sc_sep);
@@ -1072,6 +1110,14 @@ int draw_apps_group2(int idx) {
             vga_draw_string_trans(cx2+6, cy2+30, scuts[sci2].name, RGB(255,255,255));
             vga_draw_string_trans(cx2+6, cy2+40, scuts[sci2].desc, RGB(220,220,230));
         }
+        if (g_shortcuts_run_count > 0) {
+            char run_line[24];
+            int rp = 0;
+            run_line[0] = 0;
+            apps2_append_text(run_line, &rp, sizeof(run_line), "Runs: ");
+            apps2_append_uint(run_line, &rp, sizeof(run_line), (uint32_t)g_shortcuts_run_count);
+            vga_draw_string_trans(wx+8, wy+wh-16, run_line, sc_acc);
+        }
         return 1;
     }
 
@@ -1092,14 +1138,14 @@ int draw_apps_group2(int idx) {
         vga_draw_hline(wx+1, wy+TITLEBAR_H+23, ww-2, vm_sep);
         { int tl=str_len("Voice Memos")*8; vga_draw_string_trans(wx+(ww-tl)/2, wy+TITLEBAR_H+7, "Voice Memos", vm_txt); }
         /* Waveform visualization */
-        uint32_t t_vm = timer_ticks();
+        uint32_t t_vm = g_voice_memos_recording ? timer_ticks() : g_voice_memos_start_tick;
         int wave_y = wy+TITLEBAR_H+36;
         static const int8_t waveform[32] = {
             4,8,12,20,28,36,32,24,14,8,6,10,18,30,40,38,28,18,10,6,4,8,14,22,32,38,34,24,16,10,6,4
         };
         int wi;
         for (wi=0; wi<32; wi++) {
-            int bar_h = waveform[wi] + (int)((t_vm/100 + wi*5) % 16) - 8;
+            int bar_h = waveform[wi] + (int)(((g_voice_memos_recording?t_vm:0)/100 + wi*5) % 16) - 8;
             if (bar_h < 2) bar_h = 2;
             int bx = wx+8+wi*(ww-16)/32;
             int bw2 = (ww-16)/32 - 1;
@@ -1109,13 +1155,17 @@ int draw_apps_group2(int idx) {
         }
         /* Record button */
         int rec_y = wave_y+86;
-        gui_draw_circle(wx+ww/2, rec_y+16, 18, RGB(255,59,48));
-        gui_draw_circle(wx+ww/2, rec_y+16, 12, RGB(200,0,0));
-        /* Mic icon */
-        vga_fill_rect(wx+ww/2-3, rec_y+8, 6, 12, RGB(255,255,255));
-        gui_draw_circle(wx+ww/2, rec_y+8, 3, RGB(255,255,255));
+        gui_draw_circle(wx+ww/2, rec_y+16, 18, g_voice_memos_recording?RGB(255,149,0):RGB(255,59,48));
+        gui_draw_circle(wx+ww/2, rec_y+16, 12, g_voice_memos_recording?RGB(180,90,0):RGB(200,0,0));
+        if (g_voice_memos_recording) {
+            vga_fill_rect(wx+ww/2-6, rec_y+10, 12, 12, RGB(255,255,255));
+        } else {
+            /* Mic icon */
+            vga_fill_rect(wx+ww/2-3, rec_y+8, 6, 12, RGB(255,255,255));
+            gui_draw_circle(wx+ww/2, rec_y+8, 3, RGB(255,255,255));
+        }
         /* Duration */
-        uint32_t dur_s = (t_vm/1000)%60;
+        uint32_t dur_s = g_voice_memos_recording ? ((timer_ticks() - g_voice_memos_start_tick)/1000)%60 : 0;
         char dur_str[8];
         dur_str[0]='0'; dur_str[1]=':';
         dur_str[2]='0'+dur_s/10; dur_str[3]='0'+dur_s%10;
@@ -1131,8 +1181,19 @@ int draw_apps_group2(int idx) {
             { "Brainstorm",      "3:20" },
         };
         int nm2=4, mi2;
+        if (g_voice_memos_saved > 0) {
+            char saved_line[24];
+            int sp = 0;
+            saved_line[0] = 0;
+            apps2_append_text(saved_line, &sp, sizeof(saved_line), "New Recording #");
+            apps2_append_uint(saved_line, &sp, sizeof(saved_line), (uint32_t)g_voice_memos_saved);
+            gui_draw_circle(wx+16, rec_y+80, 8, RGB(255,149,0));
+            vga_draw_string_trans(wx+30, rec_y+74, saved_line, vm_txt);
+            vga_draw_string_trans(wx+ww-32, rec_y+74, "0:00", vm_sub);
+            vga_draw_hline(wx+4, rec_y+90, ww-8, vm_sep);
+        }
         for (mi2=0; mi2<nm2; mi2++) {
-            int my3=rec_y+68+mi2*24;
+            int my3=rec_y+68+(mi2+(g_voice_memos_saved>0?1:0))*24;
             if(my3+24>wy+wh-22) break;
             gui_draw_circle(wx+16, my3+12, 8, RGB(255,59,48));
             vga_draw_string_trans(wx+30, my3+6, memos[mi2].name, vm_txt);
@@ -1172,15 +1233,18 @@ int draw_apps_group2(int idx) {
             /* Pulse ring */
             uint32_t t_fm=timer_ticks();
             int phase=(int)(t_fm/300)%3;
-            if(fd==phase) gui_draw_circle(fx3, fy3, 14, fdevs[fd].col);
+            if(fd==phase || fd==g_findmy_selected) gui_draw_circle(fx3, fy3, 14, fdevs[fd].col);
+            if(fd==g_findmy_selected) gui_draw_circle_outline(fx3, fy3, 18, RGB(255,255,255));
             gui_draw_circle(fx3, fy3, 8, fdevs[fd].col);
             gui_draw_circle(fx3, fy3, 4, RGB(255,255,255));
             vga_draw_string_trans(fx3+10, fy3-4, fdevs[fd].name, RGB(255,255,255));
         }
         /* Search bar */
         vga_fill_rect(wx+4, wy+TITLEBAR_H+3, ww-8, 20, RGB(255,255,255));
-        gui_draw_rounded_rect_outline(wx+4, wy+TITLEBAR_H+3, ww-8, 20, 5, RGB(180,180,180));
-        vga_draw_string_trans(wx+10, wy+TITLEBAR_H+9, "Search people and devices...", RGB(150,150,150));
+        gui_draw_rounded_rect_outline(wx+4, wy+TITLEBAR_H+3, ww-8, 20, 5,
+            g_findmy_search_focused ? RGB(0,122,255) : RGB(180,180,180));
+        vga_draw_string_trans(wx+10, wy+TITLEBAR_H+9,
+            g_findmy_search_focused ? "Search focused" : "Search people and devices...", RGB(150,150,150));
         /* Bottom panel */
         int bp_y = wy+TITLEBAR_H+fm_h-44;
         vga_fill_rect_alpha(wx+1, bp_y, ww-2, 44, RGB(20,20,24), 200);
@@ -1189,7 +1253,10 @@ int draw_apps_group2(int idx) {
         for (fd2=0; fd2<3; fd2++) {
             int dx3=wx+8+fd2*((ww-16)/3);
             gui_draw_circle(dx3+8, bp_y+28, 7, fdevs[fd2].col);
-            vga_draw_string_trans(dx3+18, bp_y+24, fdevs[fd2].name, RGB(200,200,210));
+            if (fd2 == g_findmy_selected)
+                vga_draw_string_trans(dx3+18, bp_y+12, "Selected", RGB(255,255,255));
+            vga_draw_string_trans(dx3+18, bp_y+24, fdevs[fd2].name,
+                fd2 == g_findmy_selected ? RGB(255,255,255) : RGB(200,200,210));
         }
         return 1;
     }
@@ -1230,8 +1297,9 @@ int draw_apps_group2(int idx) {
         }
         /* Apple Pay button */
         int btn_y = wy+TITLEBAR_H+28+nc2*12+70;
-        gui_draw_rounded_rect(wx+(ww-120)/2, btn_y, 120, 28, 8, RGB(0,0,0));
-        vga_draw_string_trans(wx+(ww-80)/2, btn_y+10, "Pay with Face ID", RGB(255,255,255));
+        gui_draw_rounded_rect(wx+(ww-150)/2, btn_y, 150, 28, 8, RGB(0,0,0));
+        { int wl = str_len("Pay with Face ID") * 8;
+          vga_draw_string_trans(wx+(ww-wl)/2, btn_y+10, "Pay with Face ID", RGB(255,255,255)); }
         /* Recent transactions */
         vga_draw_hline(wx+4, btn_y+34, ww-8, wl_sep);
         vga_draw_string_trans(wx+8, btn_y+38, "RECENT TRANSACTIONS", wl_sub);
@@ -1351,12 +1419,22 @@ int draw_apps_group2(int idx) {
         vga_draw_hline(wx+1, ct_top+24, ww-2, ct_bd);
         vga_draw_string_trans(wx+8, ct_top+8, "+", ct_sel);
         vga_draw_string_trans(wx+20, ct_top+8, "Add", ct_sub);
+        if (g_contacts_added > 0) {
+            char added_line[20];
+            int ap = 0;
+            added_line[0] = 0;
+            apps2_append_text(added_line, &ap, sizeof(added_line), "Added ");
+            apps2_append_uint(added_line, &ap, sizeof(added_line), (uint32_t)g_contacts_added);
+            vga_draw_string_trans(wx+56, ct_top+8, added_line, ct_sel);
+        }
         vga_draw_string_trans(wx+ww-56, ct_top+8, "Groups", ct_sub);
         /* Search bar below toolbar */
         int sb_y2 = ct_top+26;
         vga_fill_rect(wx+8, sb_y2+2, ww-16, 16, g_pref_darkmode?RGB(44,44,50):RGB(238,238,242));
-        gui_draw_rounded_rect_outline(wx+8, sb_y2+2, ww-16, 16, 4, ct_bd);
-        vga_draw_string_trans(wx+16, sb_y2+6, "Search", ct_sub);
+        gui_draw_rounded_rect_outline(wx+8, sb_y2+2, ww-16, 16, 4,
+            g_contacts_search_focused ? RGB(0,122,255) : ct_bd);
+        vga_draw_string_trans(wx+16, sb_y2+6,
+            g_contacts_search_focused ? "Search focused" : "Search", ct_sub);
         /* Two-pane layout */
         int list_w = ww*2/5;
         int det_x  = wx+1+list_w;
@@ -1702,14 +1780,17 @@ int draw_apps_group2(int idx) {
         /* Cancel button */
         vga_fill_rect(wx+8, bc_y+3, 60, 16, RGB(70,70,75));
         gui_draw_rounded_rect_outline(wx+8, bc_y+3, 60, 16, 4, RGB(120,120,128));
-        vga_draw_string_trans(wx+20, bc_y+7, "Cancel", RGB(200,200,210));
+        vga_draw_string_trans(wx+20, bc_y+7, g_tm_cancelled ? "Closed" : "Cancel", RGB(200,200,210));
         /* Restore button */
-        vga_fill_rect(wx+ww-72, bc_y+3, 64, 16, RGB(0,122,255));
-        gui_draw_rounded_rect_outline(wx+ww-72, bc_y+3, 64, 16, 4, RGB(0,160,255));
-        vga_draw_string_trans(wx+ww-60, bc_y+7, "Restore", RGB(255,255,255));
+        vga_fill_rect(wx+ww-72, bc_y+3, 64, 16, g_tm_restored ? RGB(52,199,89) : RGB(0,122,255));
+        gui_draw_rounded_rect_outline(wx+ww-72, bc_y+3, 64, 16, 4, g_tm_restored ? RGB(52,199,89) : RGB(0,160,255));
+        { const char *restore_label = g_tm_restored ? "Done" : "Restore";
+          int rl = str_len(restore_label) * 8;
+          vga_draw_string_trans(wx+ww-72+(64-rl)/2, bc_y+7, restore_label, RGB(255,255,255)); }
         /* Title */
-        { int tl=str_len("Time Machine")*8;
-          vga_draw_string_trans(wx+(ww-tl)/2, bc_y+7, "Time Machine", RGB(200,200,220)); }
+        { const char *tm_title = g_tm_restored ? "Snapshot Restored" : "Time Machine";
+          int tl=str_len(tm_title)*8;
+          vga_draw_string_trans(wx+(ww-tl)/2, bc_y+7, tm_title, RGB(200,200,220)); }
         return 1;
     }
 
@@ -1759,9 +1840,9 @@ int draw_apps_group2(int idx) {
         gui_draw_circle_outline(d2x, d2y, 10, ad_sep);
         vga_draw_string_trans(d2x-8, d2y+14, "MacBook", ad_sub);
         /* Status text */
-        { const char *st = "Searching for nearby devices...";
+        { const char *st = g_airdrop_mode ? "Discoverable to everyone" : "Searching for nearby devices...";
           int sl = str_len(st)*8;
-          if (sl > ww-16) st = "Searching...";
+          if (sl > ww-16) st = g_airdrop_mode ? "Everyone" : "Searching...";
           sl = str_len(st)*8;
           vga_draw_string_trans(wx+(ww-sl)/2, wy+TITLEBAR_H+148, st, ad_sub);
         }
@@ -1770,16 +1851,18 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(wx+10, wy+TITLEBAR_H+168, "Allow to be discovered:", ad_sub);
         /* Contacts Only button */
         int btn1x=wx+8, btn1y=wy+TITLEBAR_H+182, btn1w=(ww-20)/2;
-        vga_fill_rect(btn1x, btn1y, btn1w, 16, ad_acc);
-        gui_draw_rounded_rect_outline(btn1x, btn1y, btn1w, 16, 3, ad_acc);
+        vga_fill_rect(btn1x, btn1y, btn1w, 16, g_airdrop_mode ? ad_sep : ad_acc);
+        gui_draw_rounded_rect_outline(btn1x, btn1y, btn1w, 16, 3, g_airdrop_mode ? ad_sep : ad_acc);
         { int bl=str_len("Contacts Only")*8;
-          vga_draw_string_trans(btn1x+(btn1w-bl)/2, btn1y+4, "Contacts Only", RGB(255,255,255)); }
+          vga_draw_string_trans(btn1x+(btn1w-bl)/2, btn1y+4, "Contacts Only",
+              g_airdrop_mode ? ad_txt : RGB(255,255,255)); }
         /* Everyone button */
         int btn2x=wx+ww/2+2, btn2w=btn1w;
-        vga_fill_rect_alpha(btn2x, btn1y, btn2w, 16, ad_sep, 200);
-        gui_draw_rounded_rect_outline(btn2x, btn1y, btn2w, 16, 3, ad_sep);
+        vga_fill_rect_alpha(btn2x, btn1y, btn2w, 16, g_airdrop_mode ? ad_acc : ad_sep, 200);
+        gui_draw_rounded_rect_outline(btn2x, btn1y, btn2w, 16, 3, g_airdrop_mode ? ad_acc : ad_sep);
         { int bl=str_len("Everyone")*8;
-          vga_draw_string_trans(btn2x+(btn2w-bl)/2, btn1y+4, "Everyone", ad_txt); }
+          vga_draw_string_trans(btn2x+(btn2w-bl)/2, btn1y+4, "Everyone",
+              g_airdrop_mode ? RGB(255,255,255) : ad_txt); }
         return 1;
     }
 
@@ -2122,12 +2205,12 @@ int draw_apps_group2(int idx) {
         vga_fill_rect(wx+1, wy+TITLEBAR_H+1, ww-2, 24, se_tb);
         vga_draw_hline(wx+1, wy+TITLEBAR_H+25, ww-2, se_sep);
         /* Run/Stop buttons */
-        vga_fill_rect(wx+4,  wy+TITLEBAR_H+5, 32, 14, RGB(52,199,89));
+        vga_fill_rect(wx+4,  wy+TITLEBAR_H+5, 32, 14, g_script_running?RGB(0,122,255):RGB(52,199,89));
         gui_draw_rounded_rect_outline(wx+4, wy+TITLEBAR_H+5, 32, 14, 3, RGB(30,160,60));
         vga_draw_string_trans(wx+6,  wy+TITLEBAR_H+8, "Run", RGB(255,255,255));
-        vga_fill_rect(wx+40, wy+TITLEBAR_H+5, 32, 14, RGB(255,59,48));
+        vga_fill_rect(wx+40, wy+TITLEBAR_H+5, 32, 14, g_script_running?RGB(255,59,48):RGB(120,120,128));
         gui_draw_rounded_rect_outline(wx+40, wy+TITLEBAR_H+5, 32, 14, 3, RGB(200,30,20));
-        vga_draw_string_trans(wx+42, wy+TITLEBAR_H+8, "Stop", RGB(255,255,255));
+        vga_draw_string_trans(wx+40, wy+TITLEBAR_H+8, "Stop", RGB(255,255,255));
         /* Script name */
         vga_draw_string_trans(wx+80, wy+TITLEBAR_H+8, "Untitled Script.scpt", se_txt);
         /* Gutter */
@@ -2181,7 +2264,16 @@ int draw_apps_group2(int idx) {
         vga_draw_hline(wx+1, res_y, ww-2, se_sep);
         vga_fill_rect(wx+1, res_y+1, ww-2, 36, se_gutter);
         vga_draw_string_trans(wx+4, res_y+4, "Result:", se_cmt);
-        vga_draw_string_trans(wx+52, res_y+4, "42", se_acc);
+        if (g_script_running) {
+            vga_draw_string_trans(wx+52, res_y+4, "Running...", se_acc);
+        } else {
+            char run_line[24];
+            int rp = 0;
+            run_line[0] = 0;
+            apps2_append_text(run_line, &rp, sizeof(run_line), "42  runs:");
+            apps2_append_uint(run_line, &rp, sizeof(run_line), (uint32_t)g_script_run_count);
+            vga_draw_string_trans(wx+52, res_y+4, run_line, se_acc);
+        }
         /* Status bar */
         vga_fill_rect(wx+1, wy+wh-20, ww-2, 18, se_tb);
         vga_draw_hline(wx+1, wy+wh-20, ww-2, se_sep);

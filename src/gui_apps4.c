@@ -139,7 +139,8 @@ int draw_apps_group4(int idx) {
                   ti7==0?RGB(10,10,14):mo_sub);
               tx7 += str_len(tools[ti7])*8+12;
           }
-          vga_draw_string_trans(wx+ww-60, content_y+8, "|>  Play", mo_sub);
+          { const char *play_label = g_motion_playing ? "|| Pause" : "|> Play";
+            vga_draw_string_trans(wx+ww-72, content_y+8, play_label, g_motion_playing?mo_acc:mo_sub); }
         }
         /* Left panel: layers */
         int mo_lw=80;
@@ -172,7 +173,7 @@ int draw_apps_group4(int idx) {
         }
         /* Animated particle effect */
         { int pi7;
-          uint32_t t7=timer_ticks();
+          uint32_t t7=g_motion_playing ? timer_ticks() : 0;
           int particle_w = cv_w > 40 ? cv_w - 40 : 1;
           int particle_h = cv_h > 20 ? cv_h - 20 : 1;
           for (pi7=0;pi7<12;pi7++){
@@ -206,13 +207,15 @@ int draw_apps_group4(int idx) {
               } else if (pi8 == 1 || pi8 == 3) {
                   runtime_format_percent(100, prop_value, sizeof(prop_value));
               } else {
-                  apps4_append_uint(prop_value, &pp, sizeof(prop_value), (uint32_t)((timer_ticks() / 100U) % 360U));
+                  apps4_append_uint(prop_value, &pp, sizeof(prop_value), (uint32_t)((g_motion_playing ? timer_ticks() : 0U) / 100U % 360U));
                   apps4_append_text(prop_value, &pp, sizeof(prop_value), " deg");
               }
               vga_draw_string_trans(ri7+4, py8, prop_labels[pi8], mo_sub);
               vga_draw_string_trans(ri7+4, py8+10, prop_value, mo_txt);
               py8 += 22;
           }
+          vga_draw_string_trans(ri7+4, py8, "Playback", mo_sub);
+          vga_draw_string_trans(ri7+4, py8+10, g_motion_playing?"Playing":"Paused", g_motion_playing?mo_acc:mo_txt);
         }
         return 1;
     }
@@ -1425,9 +1428,21 @@ int draw_apps_group4(int idx) {
         vga_draw_rect_outline(wx+10,cy+98,ww-20,50,g_pref_darkmode?RGB(60,60,68):RGB(200,200,210));
         vga_draw_string_trans(wx+14,cy+102,"1. Open System Settings",fa_txt);
         vga_draw_string_trans(wx+14,cy+114,"2. Toggle Dark Mode",fa_txt);
+        if (g_feedback_submissions > 0) {
+            char fa_count[16];
+            char fa_line[40];
+            int fp = 0;
+            runtime_format_uint((uint32_t)g_feedback_submissions, fa_count, sizeof(fa_count));
+            fa_line[0] = 0;
+            apps4_append_text(fa_line, &fp, sizeof(fa_line), "Submitted reports: ");
+            apps4_append_text(fa_line, &fp, sizeof(fa_line), fa_count);
+            vga_draw_string_trans(wx+10, cy+154, fa_line, RGB(52,199,89));
+        }
         /* Submit button */
-        gui_draw_rounded_rect(wx+ww-80,cy+wh-TITLEBAR_H-24,70,16,5,fa_acc);
-        vga_draw_string_trans(wx+ww-66,cy+wh-TITLEBAR_H-19,"Submit",RGB(255,255,255));
+        gui_draw_rounded_rect(wx+ww-96,cy+wh-TITLEBAR_H-24,86,16,5,
+                              g_feedback_submissions>0?RGB(52,199,89):fa_acc);
+        vga_draw_string_trans(wx+ww-88,cy+wh-TITLEBAR_H-19,
+                              g_feedback_submissions>0?"Submitted":"Submit",RGB(255,255,255));
         return 1;
     }
 
@@ -1948,8 +1963,19 @@ int draw_apps_group4(int idx) {
           vga_draw_string_trans(hrx-8, hry-4, hpct, cm_acc); }
         vga_draw_string_trans(hrx-20, hry+10, "Healthy", cm_txt);
         /* Scan button */
-        gui_draw_rounded_rect(wx+(ww-72)/2, wy+TITLEBAR_H+112, 72, 22, 8, cm_acc);
-        vga_draw_string_trans(wx+(ww-32)/2, wy+TITLEBAR_H+118, "Scan", RGB(10,20,10));
+        gui_draw_rounded_rect(wx+(ww-90)/2, wy+TITLEBAR_H+112, 90, 22, 8, cm_acc);
+        vga_draw_string_trans(wx+(ww-72)/2, wy+TITLEBAR_H+118,
+                              g_cleanmymac_scan_count>0?"Scan Again":"Scan", RGB(10,20,10));
+        if (g_cleanmymac_scan_count > 0) {
+            char cm_scans[24];
+            char cm_num[12];
+            int cp2 = 0;
+            runtime_format_uint((uint32_t)g_cleanmymac_scan_count, cm_num, sizeof(cm_num));
+            cm_scans[0] = 0;
+            apps4_append_text(cm_scans, &cp2, sizeof(cm_scans), "Scans: ");
+            apps4_append_text(cm_scans, &cp2, sizeof(cm_scans), cm_num);
+            vga_draw_string_trans(wx+8, wy+TITLEBAR_H+128, cm_scans, cm_acc);
+        }
         /* Stats */
         vga_draw_hline(wx+2, wy+TITLEBAR_H+140, ww-4, RGB(28,44,28));
         static const char *cm_cats[]={"Junk Files","Old Files","Large Files","Mail Attachments"};
@@ -2862,7 +2888,11 @@ int draw_apps_group4(int idx) {
         /* rm_cy matches event handler: wy+TITLEBAR_H+8 */
         int rm_cy2 = wy+TITLEBAR_H+8;
         vga_draw_string_trans(mx2, rm_cy2+4, "Today", rt);
-        vga_draw_string_trans(mx2+52, rm_cy2+4, "3 reminders", rs);
+        { char rem_count[24]; int rcp=0;
+          rem_count[0]=0;
+          apps4_append_uint(rem_count, &rcp, sizeof(rem_count), (uint32_t)(3 + g_reminders_extra_items));
+          apps4_append_text(rem_count, &rcp, sizeof(rem_count), " reminders");
+          vga_draw_string_trans(mx2+52, rm_cy2+4, rem_count, rs); }
         vga_draw_hline(mx2, rm_cy2+18, mw2, rg);
 
         /* 3 interactive reminder items at positions matching event handler */
@@ -2931,11 +2961,28 @@ int draw_apps_group4(int idx) {
             vga_draw_hline(mx2, iy3+30, mw2, rg);
         }
 
+        /* User-added pending items */
+        { int extra_i;
+          for (extra_i=0; extra_i<g_reminders_extra_items && extra_i<4; extra_i++) {
+              int iy3x = rm_cy2+30+3*34+extra_i*24;
+              char added_label[24];
+              int alp = 0;
+              if (iy3x+20 > wy+wh-44) break;
+              added_label[0] = 0;
+              apps4_append_text(added_label, &alp, sizeof(added_label), "New reminder ");
+              apps4_append_uint(added_label, &alp, sizeof(added_label), (uint32_t)(extra_i + 1));
+              gui_draw_circle(wx+sb_w2+8+9, iy3x+8, 8, rg);
+              gui_draw_circle(wx+sb_w2+8+9, iy3x+8, 6, rb);
+              vga_draw_string_trans(wx+sb_w2+22, iy3x+4, added_label, rt);
+              vga_draw_hline(mx2, iy3x+20, mw2, rg);
+          }
+        }
+
         /* Two static items (done) */
         { static const char *done_items[]={"Call mom","Update meeting notes"};
           int ddi;
           for (ddi=0; ddi<2; ddi++) {
-              int iy3d = rm_cy2+30+3*34+ddi*24;
+              int iy3d = rm_cy2+30+3*34+(g_reminders_extra_items<4?g_reminders_extra_items:4)*24+ddi*24;
               if (iy3d+20 > wy+wh-20) break;
               gui_draw_circle(wx+sb_w2+8+9, iy3d+8, 8, RGB(0,122,255));
               vga_fill_rect(wx+sb_w2+8+4, iy3d+7, 10, 2, RGB(255,255,255));
@@ -3438,8 +3485,10 @@ int draw_apps_group4(int idx) {
           vga_draw_string_trans(hx+8, hy+hh-28, "FEATURED", RGB(255,255,255));
           vga_draw_string_trans(hx+8, hy+hh-16, "Top 10 Tonight", RGB(200,200,200));
           /* Play button */
-          vga_fill_rect_alpha(hx+8, hy+hh-42, 44, 16, RGB(255,255,255), 220);
-          vga_draw_string_trans(hx+14, hy+hh-38, "Play", RGB(0,0,0));
+          vga_fill_rect_alpha(hx+8, hy+hh-42, 52, 16, RGB(255,255,255), 220);
+          vga_draw_string_trans(hx+14, hy+hh-38, g_atv_playing ? "Pause" : "Play", RGB(0,0,0));
+          if (g_atv_playing)
+              vga_draw_string_trans(hx+64, hy+hh-38, "Now Playing", RGB(255,255,255));
         }
         /* Content rows */
         { static const char *rowt[]={"Continue Watching","Top Picks for You","New Releases"};
@@ -3469,7 +3518,7 @@ int draw_apps_group4(int idx) {
           int ti2; for(ti2=0;ti2<4;ti2++) {
               int tx=wx+4+ti2*((ww-8)/4);
               vga_draw_string_trans(tx+((ww-8)/4-str_len(tabs[ti2])*8)/2, wy+wh-16, tabs[ti2],
-                  ti2==0?RGB(255,255,255):RGB(120,120,125));
+                  ti2==g_atv_bottom_tab?RGB(255,255,255):RGB(120,120,125));
           }
         }
         return 1;

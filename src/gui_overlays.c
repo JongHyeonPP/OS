@@ -1868,8 +1868,10 @@ void dropdown_action(int menu_idx, int item_idx) {
                 gui_window_t *w = &g_windows[g_num_windows];
                 if (active_title && str_eq(active_title, "Terminal")) {
                     w->x=100; w->y=100; w->w=290; w->h=220; w->title="Terminal";
+                } else if (active_title) {
+                    w->x=250; w->y=120; w->w=320; w->h=240; w->title=active_title;
                 } else {
-                    w->x=250; w->y=120; w->w=240; w->h=180; w->title="Info";
+                    w->x=250; w->y=120; w->w=320; w->h=240; w->title="MyOS Finder";
                 }
                 w->visible=1; w->focused=0; w->dragging=0; w->maximized=0;
                 w->space=g_current_space;

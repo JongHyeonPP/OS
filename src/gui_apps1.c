@@ -1795,7 +1795,23 @@ int draw_apps_group1(int idx) {
                 gui_draw_rounded_rect(tx2, ay+5, 36, 18, 9, tbg);
                 gui_draw_circle(alarms[ai].on ? tx2+22 : tx2+4, ay+9, 8, RGB(255,255,255));
             }
-            vga_draw_string_trans(wbx+8, content_y+136, "+ Add Alarm", RGB(0,122,255));
+            { int add_y = content_y + 136;
+              if (g_clock_extra_alarms > 0) {
+                  char alarm_line[24];
+                  int ap = 0;
+                  alarm_line[0] = 0;
+                  apps1_append_text(alarm_line, &ap, sizeof(alarm_line), "New alarm #");
+                  apps1_append_uint(alarm_line, &ap, sizeof(alarm_line), (uint32_t)g_clock_extra_alarms);
+                  vga_fill_rect_alpha(wbx+4, add_y, wbw-8, 28, al_bg, 200);
+                  vga_draw_rect_outline(wbx+4, add_y, wbw-8, 28, al_bd);
+                  vga_draw_string_trans(wbx+12, add_y+10, alarm_line, al_txt);
+                  gui_draw_rounded_rect(wbx+wbw-50, add_y+5, 36, 18, 9, RGB(52,199,89));
+                  gui_draw_circle(wbx+wbw-28, add_y+9, 8, RGB(255,255,255));
+                  add_y += 32;
+              }
+              if (add_y < content_y + content_h - 12)
+                  vga_draw_string_trans(wbx+8, add_y, "+ Add Alarm", RGB(0,122,255));
+            }
             return 1;
         }
 
@@ -2137,9 +2153,11 @@ int draw_apps_group1(int idx) {
           vga_draw_vline(wx+16, rc_y+14, 5, g_pref_darkmode?RGB(100,100,108):RGB(160,160,165));
           vga_fill_rect(wx+14, rc_y+19, 6, 6, RGB(255,59,48));
           vga_draw_string_trans(wx+24, rc_y+6, "Gyeongbokgung Palace", g_pref_darkmode?RGB(210,210,218):RGB(30,30,35));
-          vga_draw_string_trans(wx+24, rc_y+18, "12 min  *  3.2 km  *  Drive", g_pref_darkmode?RGB(130,130,138):RGB(100,100,108));
-          gui_draw_rounded_rect(wx+ww-56, rc_y+6, 44, 20, 5, RGB(0,122,255));
-          vga_draw_string_trans(wx+ww-48, rc_y+10, "Start", RGB(255,255,255));
+          vga_draw_string_trans(wx+24, rc_y+18,
+                                g_maps_route_started?"Navigating  *  3.2 km":"12 min  *  3.2 km  *  Drive",
+                                g_pref_darkmode?RGB(130,130,138):RGB(100,100,108));
+          gui_draw_rounded_rect(wx+ww-56, rc_y+6, 44, 20, 5, g_maps_route_started?RGB(255,59,48):RGB(0,122,255));
+          vga_draw_string_trans(wx+ww-48, rc_y+10, g_maps_route_started?"Stop":"Start", RGB(255,255,255));
         }
 
         /* Scale bar (zoom-aware) */
@@ -2503,7 +2521,7 @@ int draw_apps_group1(int idx) {
         int tab_w = (ww-2)/4, ti;
         for (ti=0; ti<4; ti++) {
             int tx = wx+1 + ti*tab_w;
-            int is_act = (ti == 0); /* "Today" active */
+            int is_act = (ti == g_appstore_tab);
             if (is_act) {
                 vga_draw_hline(tx, tab_y+22, tab_w, RGB(0,122,255));
                 vga_draw_hline(tx, tab_y+23, tab_w, RGB(0,122,255));
@@ -2517,11 +2535,13 @@ int draw_apps_group1(int idx) {
         /* Search bar */
         int sb_y = cy + 4;
         vga_fill_rect(wx+8, sb_y, ww-16, 20, g_pref_darkmode?RGB(44,44,50):RGB(235,235,240));
-        gui_draw_rounded_rect_outline(wx+8, sb_y, ww-16, 20, 5, as_sep);
+        gui_draw_rounded_rect_outline(wx+8, sb_y, ww-16, 20, 5,
+            g_appstore_search_focused ? RGB(0,122,255) : as_sep);
         gui_draw_circle(wx+20, sb_y+10, 5, as_sub);
         gui_draw_circle(wx+20, sb_y+10, 3, g_pref_darkmode?RGB(44,44,50):RGB(235,235,240));
         vga_draw_line(wx+24, sb_y+14, wx+28, sb_y+18, as_sub);
-        vga_draw_string_trans(wx+30, sb_y+6, "Search games, apps, stories...", as_sub);
+        vga_draw_string_trans(wx+30, sb_y+6,
+            g_appstore_search_focused ? "Search focused" : "Search games, apps, stories...", as_sub);
         cy = sb_y + 26;
 
         /* APP OF THE DAY hero card */
@@ -2541,9 +2561,14 @@ int draw_apps_group1(int idx) {
             gui_draw_rounded_rect(wx+ww-64, cy+10, 52, 52, 12, RGB(255,149,0));
             vga_fill_rect_alpha(wx+ww-64, cy+10, 52, 18, RGB(255,255,255), 45);
             vga_draw_string_trans(wx+ww-50, cy+30, "N", RGB(255,255,255));
-            vga_draw_string_trans(wx+12, cy+22, "Notchmeister", RGB(255,255,255));
-            vga_draw_string_trans(wx+12, cy+36, "Transform your notch into", RGB(200,220,255));
-            vga_draw_string_trans(wx+12, cy+48, "a living animated wallpaper", RGB(200,220,255));
+            { static const char *hero_title[]={"Notchmeister","Game Studio","Productivity Pack","Arcade Run"};
+              static const char *hero_line1[]={"Transform your notch into","New releases and charts","Tools for focused work","Unlimited games today"};
+              static const char *hero_line2[]={"a living animated wallpaper","picked for players","ready for your desktop","with no downloads"};
+              int htab = g_appstore_tab;
+              if (htab < 0 || htab > 3) htab = 0;
+              vga_draw_string_trans(wx+12, cy+22, hero_title[htab], RGB(255,255,255));
+              vga_draw_string_trans(wx+12, cy+36, hero_line1[htab], RGB(200,220,255));
+              vga_draw_string_trans(wx+12, cy+48, hero_line2[htab], RGB(200,220,255)); }
             /* Stars */
             vga_draw_string_trans(wx+12, cy+64, "***** 4.9 *  FREE", RGB(180,220,255));
             cy += hero_h + 8;
@@ -2588,9 +2613,17 @@ int draw_apps_group1(int idx) {
             /* Stars */
             { int si3; for(si3=0;si3<feat_apps[fi].rating&&si3<5;si3++)
                   vga_draw_char_trans(fax+48+si3*8, fay+34, '*', RGB(255,180,0)); }
-            /* Price label */
-            { int plen = str_len(feat_apps[fi].price) * 8;
-              vga_draw_string_trans(fax+faw-plen-6, fay+fah-19, feat_apps[fi].price, as_sub); }
+            /* Download/open button */
+            { int installed = (g_appstore_downloads >> fi) & 1;
+              const char *label = installed ? "OPEN" : feat_apps[fi].price;
+              int bw = 46;
+              int bx = fax + faw - bw - 5;
+              int by = fay + fah - 21;
+              uint32_t bcol = installed ? RGB(52,199,89) : (g_pref_darkmode?RGB(54,54,62):RGB(232,232,238));
+              uint32_t tcol = installed ? RGB(255,255,255) : RGB(0,122,255);
+              int plen = str_len(label) * 8;
+              gui_draw_rounded_rect(bx, by, bw, 15, 7, bcol);
+              vga_draw_string_trans(bx + (bw - plen) / 2, by + 4, label, tcol); }
         }
         return 1;
     }
