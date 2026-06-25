@@ -2104,7 +2104,17 @@ int draw_apps_group2(int idx) {
           apps2_append_text(ver, &vp, sizeof(ver), sys.version);
           apps2_append_text(ver, &vp, sizeof(ver), ")");
           vga_draw_string_trans(wx+54, wy+TITLEBAR_H+20, ver, si_lbl); }
-        vga_draw_string_trans(wx+54, wy+TITLEBAR_H+32, "Copyright 2026 MyOS Project", si_lbl);
+        { datetime_t dt;
+          char yearbuf[8];
+          char copy[40];
+          int cp = 0;
+          get_current_datetime(&dt);
+          int_to_str(dt.year, yearbuf);
+          copy[0] = 0;
+          apps2_append_text(copy, &cp, sizeof(copy), "Copyright ");
+          apps2_append_text(copy, &cp, sizeof(copy), yearbuf);
+          apps2_append_text(copy, &cp, sizeof(copy), " MyOS Project");
+          vga_draw_string_trans(wx+54, wy+TITLEBAR_H+32, copy, si_lbl); }
         /* Specs table */
         int sy = wy+TITLEBAR_H+1+hh+8;
         {

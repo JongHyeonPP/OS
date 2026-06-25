@@ -1740,7 +1740,16 @@ int draw_apps_group1(int idx) {
         };
         vga_draw_hline(wx+16, cy+188, ww-32, RGB(210,210,215));
         {
-            const char *copy = "(C) 2026 MyOS Project";
+            datetime_t dt;
+            char yearbuf[8];
+            char copy[32];
+            int cp = 0;
+            get_current_datetime(&dt);
+            int_to_str(dt.year, yearbuf);
+            copy[0] = 0;
+            apps1_append_text(copy, &cp, sizeof(copy), "(C) ");
+            apps1_append_text(copy, &cp, sizeof(copy), yearbuf);
+            apps1_append_text(copy, &cp, sizeof(copy), " MyOS Project");
             vga_draw_string_trans(wx+(ww-str_len(copy)*8)/2, cy+196, copy, RGB(140,140,150));
         }
         return 1;
