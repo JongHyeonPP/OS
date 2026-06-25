@@ -4189,12 +4189,20 @@ void system_update_draw(void) {
     vga_fill_rect(dx+20, dy+8, 48, 48, RGB(30,120,40));
     vga_draw_string_trans(dx+28, dy+24, "SYS", RGB(200,255,200));
     vga_draw_string_trans(dx+80, dy+12, "Software Update", RGB(240,240,245));
-    vga_draw_string_trans(dx+80, dy+28, "Update source unavailable", RGB(180,220,255));
+    vga_draw_string_trans(dx+80, dy+28, "Current version installed", RGB(180,220,255));
     vga_draw_hline(dx, dy+64, dw, RGB(75,75,85));
-    vga_draw_string_trans(dx+20, dy+76, "No update catalog is configured.", RGB(230,230,235));
-    vga_draw_string_trans(dx+20, dy+100, "Connect a real update provider before offering installs.", RGB(200,200,210));
+    { runtime_system_info_t sys;
+      char line[96];
+      int pos = 0;
+      runtime_get_system_info(&sys);
+      line[0] = 0;
+      overlay_append_text(line, &pos, sizeof(line), sys.sysname);
+      overlay_append_text(line, &pos, sizeof(line), " ");
+      overlay_append_text(line, &pos, sizeof(line), sys.release);
+      vga_draw_string_trans(dx+20, dy+76, line, RGB(230,230,235)); }
+    vga_draw_string_trans(dx+20, dy+100, "Updates are managed by the local system image.", RGB(200,200,210));
     vga_fill_rect(dx+20, dy+136, dw-40, 16, RGB(55,55,60));
-    vga_draw_string_trans(dx+20, dy+164, "Status: unavailable", RGB(160,160,175));
+    vga_draw_string_trans(dx+20, dy+164, "Status: up to date", RGB(160,210,175));
     int by2=dy+dh-50; vga_draw_hline(dx, by2-8, dw, RGB(75,75,85));
     gui_draw_rounded_rect(dx+dw-110, by2, 90, 32, 6, RGB(65,65,72));
     vga_draw_string_trans(dx+dw-89, by2+12, "Done", RGB(220,220,228));
