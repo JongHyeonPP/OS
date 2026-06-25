@@ -1604,6 +1604,26 @@ void gui_run(void) {
                     }
                 } else if (str_eq(w->title,"Final Cut Pro")) {
                     int cy_fc = w->y + TITLEBAR_H;
+                    int ci_fc;
+                    for (ci_fc=0; ci_fc<4; ci_fc++) {
+                        int cx_fc=w->x+6+ci_fc*24;
+                        if (mx>=cx_fc && mx<cx_fc+20 && my>=cy_fc+5 && my<cy_fc+21) {
+                            g_finalcut_transport=ci_fc;
+                            toast_show("Final Cut Pro","Transport selected",RGB(220,40,40));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    { int browser_w=w->w*28/100;
+                      int panel_y=cy_fc+27;
+                      int li_fc;
+                      for (li_fc=0; li_fc<4; li_fc++) {
+                          int ly_fc=panel_y+18+li_fc*20;
+                          if (mx>=w->x+2 && mx<w->x+browser_w && my>=ly_fc && my<ly_fc+18) {
+                              g_finalcut_library=li_fc;
+                              toast_show("Final Cut Pro","Library selected",RGB(220,40,40));
+                              dirty=1; goto end_left_press;
+                          }
+                      } }
                     if (mx>=w->x+w->w-78 && mx<w->x+w->w-8 && my>=cy_fc+5 && my<cy_fc+25) {
                         g_share_visible = 1;
                         gui_record_share_action("Sharing timeline",RGB(120,120,130));
@@ -1988,6 +2008,36 @@ void gui_run(void) {
                         toast_show("CleanMyMac X","Scan complete",RGB(0,200,120));
                         dirty=1; goto end_left_press;
                     }
+                } else if (str_eq(w->title,"Pages")) {
+                    int cy_pg = w->y + TITLEBAR_H;
+                    int bi_pg;
+                    for (bi_pg=0; bi_pg<3; bi_pg++) {
+                        int fbx=w->x+6+bi_pg*22;
+                        if (mx>=fbx && mx<fbx+18 && my>=cy_pg+4 && my<cy_pg+20) {
+                            if (bi_pg==0) g_pages_bold ^= 1;
+                            else if (bi_pg==1) g_pages_italic ^= 1;
+                            else g_pages_underline ^= 1;
+                            toast_show("Pages","Style toggled",RGB(255,149,0));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    if (mx>=w->x+106 && mx<w->x+120 && my>=cy_pg+5 && my<cy_pg+19) {
+                        g_pages_align=0; toast_show("Pages","Left aligned",RGB(255,149,0)); dirty=1; goto end_left_press;
+                    }
+                    if (mx>=w->x+122 && mx<w->x+136 && my>=cy_pg+5 && my<cy_pg+19) {
+                        g_pages_align=1; toast_show("Pages","Centered",RGB(255,149,0)); dirty=1; goto end_left_press;
+                    }
+                    { int ins_x=w->x+w->w-100;
+                      if (mx>=ins_x && mx<ins_x+44 && my>=cy_pg+4 && my<cy_pg+20) {
+                          if (g_pages_insert_count < 99) g_pages_insert_count++;
+                          toast_show("Pages","Object inserted",RGB(255,149,0));
+                          dirty=1; goto end_left_press;
+                      }
+                      if (mx>=ins_x+46 && mx<ins_x+90 && my>=cy_pg+4 && my<cy_pg+20) {
+                          g_pages_inspector ^= 1;
+                          toast_show("Pages",g_pages_inspector?"Format inspector":"Inspector hidden",RGB(255,149,0));
+                          dirty=1; goto end_left_press;
+                      } }
                 } else if (str_eq(w->title,"Keynote")) {
                     int cy_kn = w->y + TITLEBAR_H;
                     int bi_kn;
@@ -2219,6 +2269,27 @@ void gui_run(void) {
                         }
                         bx_at += bw_at+6;
                     }
+                    if (mx>=w->x+2 && mx<w->x+lib_w_at && my>=cy_at+56 && my<cy_at+56+6*20) {
+                        int cat_i=(my-(cy_at+56))/20;
+                        if (cat_i>=0 && cat_i<6) {
+                            g_automator_category=cat_i;
+                            g_automator_search_focused=0;
+                            toast_show("Automator","Category selected",RGB(238,95,0));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    { int wf_x=w->x+lib_w_at+4;
+                      int wf_w=w->w-lib_w_at-6;
+                      int step_y=cy_at+42;
+                      int si_at;
+                      for (si_at=0; si_at<4; si_at++) {
+                          int sy_at=step_y+si_at*42;
+                          if (mx>=wf_x && mx<wf_x+wf_w-4 && my>=sy_at && my<sy_at+34) {
+                              g_automator_step=si_at;
+                              toast_show("Automator","Step selected",RGB(238,95,0));
+                              dirty=1; goto end_left_press;
+                          }
+                      } }
                 } else if (str_eq(w->title,"Script Editor")) {
                     int cy_se=w->y+TITLEBAR_H;
                     if (mx>=w->x+4 && mx<w->x+36 && my>=cy_se+5 && my<cy_se+19) {

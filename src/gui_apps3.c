@@ -658,22 +658,23 @@ int draw_apps_group3(int idx) {
             int bi3;
             for (bi3=0; bi3<3; bi3++) {
                 int fbx=wx+6+bi3*22;
-                gui_draw_rounded_rect(fbx, wy+TITLEBAR_H+4, 18, 16, 3, bi3==0?pg_sel:(g_pref_darkmode?RGB(55,55,60):RGB(215,215,220)));
-                vga_draw_string_trans(fbx+5, wy+TITLEBAR_H+8, fmt_btns[bi3], bi3==0?RGB(255,255,255):pg_txt);
+                int active_fmt = (bi3==0 && g_pages_bold) || (bi3==1 && g_pages_italic) || (bi3==2 && g_pages_underline);
+                gui_draw_rounded_rect(fbx, wy+TITLEBAR_H+4, 18, 16, 3, active_fmt?pg_sel:(g_pref_darkmode?RGB(55,55,60):RGB(215,215,220)));
+                vga_draw_string_trans(fbx+5, wy+TITLEBAR_H+8, fmt_btns[bi3], active_fmt?RGB(255,255,255):pg_txt);
             }
             /* Font size */
             vga_draw_string_trans(wx+76, wy+TITLEBAR_H+8, "12pt", pg_sub);
             /* Align buttons */
-            vga_fill_rect(wx+106, wy+TITLEBAR_H+5, 14, 14, pg_sel);
-            vga_draw_string_trans(wx+108, wy+TITLEBAR_H+8, "L", RGB(255,255,255));
-            vga_fill_rect(wx+122, wy+TITLEBAR_H+5, 14, 14, g_pref_darkmode?RGB(55,55,60):RGB(215,215,220));
-            vga_draw_string_trans(wx+124, wy+TITLEBAR_H+8, "C", pg_txt);
+            vga_fill_rect(wx+106, wy+TITLEBAR_H+5, 14, 14, g_pages_align==0?pg_sel:(g_pref_darkmode?RGB(55,55,60):RGB(215,215,220)));
+            vga_draw_string_trans(wx+108, wy+TITLEBAR_H+8, "L", g_pages_align==0?RGB(255,255,255):pg_txt);
+            vga_fill_rect(wx+122, wy+TITLEBAR_H+5, 14, 14, g_pages_align==1?pg_sel:(g_pref_darkmode?RGB(55,55,60):RGB(215,215,220)));
+            vga_draw_string_trans(wx+124, wy+TITLEBAR_H+8, "C", g_pages_align==1?RGB(255,255,255):pg_txt);
             /* Insert, Format */
             int ins_x = wx+ww-100;
-            gui_draw_rounded_rect(ins_x, wy+TITLEBAR_H+4, 44, 16, 3, g_pref_darkmode?RGB(55,55,60):RGB(215,215,220));
-            vga_draw_string_trans(ins_x+8, wy+TITLEBAR_H+8, "Insert", pg_sub);
-            gui_draw_rounded_rect(ins_x+46, wy+TITLEBAR_H+4, 44, 16, 3, g_pref_darkmode?RGB(55,55,60):RGB(215,215,220));
-            vga_draw_string_trans(ins_x+50, wy+TITLEBAR_H+8, "Format", pg_sub);
+            gui_draw_rounded_rect(ins_x, wy+TITLEBAR_H+4, 44, 16, 3, g_pages_insert_count>0?pg_sel:(g_pref_darkmode?RGB(55,55,60):RGB(215,215,220)));
+            vga_draw_string_trans(ins_x+8, wy+TITLEBAR_H+8, "Insert", g_pages_insert_count>0?RGB(255,255,255):pg_sub);
+            gui_draw_rounded_rect(ins_x+46, wy+TITLEBAR_H+4, 44, 16, 3, g_pages_inspector?pg_sel:(g_pref_darkmode?RGB(55,55,60):RGB(215,215,220)));
+            vga_draw_string_trans(ins_x+50, wy+TITLEBAR_H+8, "Format", g_pages_inspector?RGB(255,255,255):pg_sub);
         }
         /* Ruler */
         int ruler_y = wy+TITLEBAR_H+26;
@@ -726,6 +727,15 @@ int draw_apps_group3(int idx) {
         vga_draw_string_trans(text_x, ty4+1, "This is a Pages document with formatted", pg_txt);
         ty4 += 12;
         vga_draw_string_trans(text_x, ty4+1, "text, images, and rich media content.", pg_txt);
+        ty4 += 12;
+        { char style_line[48]; int slp = 0;
+          style_line[0] = 0;
+          apps3_append_text(style_line, &slp, sizeof(style_line), g_pages_bold ? "B " : "");
+          apps3_append_text(style_line, &slp, sizeof(style_line), g_pages_italic ? "I " : "");
+          apps3_append_text(style_line, &slp, sizeof(style_line), g_pages_underline ? "U " : "");
+          apps3_append_text(style_line, &slp, sizeof(style_line), g_pages_align ? "Centered" : "Left aligned");
+          if (g_pages_insert_count > 0) { apps3_append_text(style_line, &slp, sizeof(style_line), " + insert"); }
+          vga_draw_string_trans(text_x, ty4, style_line, pg_sub); }
         ty4 += 16;
         /* Paragraph with different style */
         vga_draw_string_trans(text_x, ty4, "Section 1:", pg_txt);
@@ -1283,8 +1293,8 @@ int draw_apps_group3(int idx) {
           for (ci=0;ci<6;ci++){
               int cy2=content_y+56+ci*20;
               if (cy2+16>content_y+content_h-4) break;
-              if (ci==0) vga_fill_rect(wx+2, cy2, lib_w-2, 18, g_pref_darkmode?RGB(45,45,52):RGB(228,228,236));
-              vga_draw_string_trans(wx+8, cy2+5, cats[ci], ci==0?at_acc:at_txt);
+              if (ci==g_automator_category) vga_fill_rect(wx+2, cy2, lib_w-2, 18, g_pref_darkmode?RGB(45,45,52):RGB(228,228,236));
+              vga_draw_string_trans(wx+8, cy2+5, cats[ci], ci==g_automator_category?at_acc:at_txt);
           }
         }
         /* Right panel: Workflow canvas */
@@ -1298,7 +1308,7 @@ int draw_apps_group3(int idx) {
           for (si=0;si<4;si++){
               if (sy2+38>content_y+content_h-4) break;
               vga_fill_rect(wf_x, sy2, wf_w-4, 34, at_card);
-              vga_draw_rect_outline(wf_x, sy2, wf_w-4, 34, si==2?at_acc:at_sep);
+              vga_draw_rect_outline(wf_x, sy2, wf_w-4, 34, si==g_automator_step?at_acc:at_sep);
               gui_draw_rounded_rect(wf_x+4, sy2+7, 18, 18, 4, at_acc);
               vga_draw_string_trans(wf_x+8, sy2+12, step_cat[si], RGB(255,255,255));
               vga_draw_string_trans(wf_x+28, sy2+8,  steps[si], at_txt);
@@ -1955,15 +1965,16 @@ int draw_apps_group3(int idx) {
           static const char *tctrls[]={"<<","|>",">>","[]"};
           int ci5;
           for (ci5=0;ci5<4;ci5++){
-              gui_draw_rounded_rect(tx5, ty5, 20, 16, 3, fc_tl);
-              vga_draw_string_trans(tx5+4, ty5+4, tctrls[ci5], ci5==1?fc_acc:fc_txt);
+              int is_fc_ctrl = ci5 == g_finalcut_transport;
+              gui_draw_rounded_rect(tx5, ty5, 20, 16, 3, is_fc_ctrl?fc_acc:fc_tl);
+              vga_draw_string_trans(tx5+4, ty5+4, tctrls[ci5], is_fc_ctrl?RGB(255,255,255):fc_txt);
               tx5 += 24;
           }
           /* Timecode */
           vga_fill_rect(tx5+4, ty5, 80, 16, RGB(20,20,24));
           vga_draw_rect_outline(tx5+4, ty5, 80, 16, fc_sep);
           { char fc_tc[12];
-            apps3_format_timecode(120, fc_tc, sizeof(fc_tc));
+            apps3_format_timecode(120 + (uint32_t)(g_finalcut_transport * 15), fc_tc, sizeof(fc_tc));
             vga_draw_string_trans(tx5+8, ty5+4, fc_tc, fc_acc); }
           tx5 += 92;
           /* Audio meters */
@@ -1994,11 +2005,11 @@ int draw_apps_group3(int idx) {
           for (li5=0;li5<4;li5++){
               int ly5=panel_y+18+li5*20;
               if (ly5+16>panel_y+panel_h-4) break;
-              if (li5==0) vga_fill_rect(wx+2, ly5, browser_w-2, 18, RGB(44,44,52));
+              if (li5==g_finalcut_library) vga_fill_rect(wx+2, ly5, browser_w-2, 18, RGB(44,44,52));
               /* Folder icon */
-              vga_fill_rect(wx+6, ly5+4, 12, 10, li5==0?fc_acc:fc_sub);
-              vga_fill_rect(wx+6, ly5+2, 6, 4, li5==0?fc_acc:fc_sub);
-              vga_draw_string_trans(wx+22, ly5+5, libs[li5], li5==0?fc_txt:fc_sub);
+              vga_fill_rect(wx+6, ly5+4, 12, 10, li5==g_finalcut_library?fc_acc:fc_sub);
+              vga_fill_rect(wx+6, ly5+2, 6, 4, li5==g_finalcut_library?fc_acc:fc_sub);
+              vga_draw_string_trans(wx+22, ly5+5, libs[li5], li5==g_finalcut_library?fc_txt:fc_sub);
           }
         }
         /* Viewer (center) */
