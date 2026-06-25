@@ -1068,8 +1068,8 @@ void safari_go_forward(void) {
 static int safari_parse_url(const char *url, safari_request_t *req) {
     char normalized[SAFARI_URL_MAX];
     const char *p;
-    int i = 0;
     int path_pos = 0;
+    int host_len = 0;
     uint32_t ip = 0;
     if (!req) return -1;
     req->scheme[0] = 0;
@@ -1091,14 +1091,14 @@ static int safari_parse_url(const char *url, safari_request_t *req) {
     } else {
         return -1;
     }
-    while (p[i] && p[i] != '/' && p[i] != ':' && p[i] != '?' && p[i] != '#') {
-        if (i + 1 < (int)sizeof(req->host))
-            req->host[i] = (char)safari_char_lower((unsigned char)p[i]);
-        i++;
+    while (p[host_len] && p[host_len] != '/' && p[host_len] != ':' &&
+           p[host_len] != '?' && p[host_len] != '#') {
+        if (host_len + 1 >= (int)sizeof(req->host)) return -1;
+        req->host[host_len] = (char)safari_char_lower((unsigned char)p[host_len]);
+        host_len++;
     }
-    if (i >= (int)sizeof(req->host)) i = (int)sizeof(req->host) - 1;
-    req->host[i] = 0;
-    p += i;
+    req->host[host_len] = 0;
+    p += host_len;
     if (*p == ':') {
         uint32_t port = 0;
         int any = 0;
@@ -1432,6 +1432,11 @@ static int safari_fetch_raw_http(const safari_request_t *req, const char *method
     }
     for (tries = 0; tries < 64; tries++) {
         int n;
+        srcip = 0;
+        srcp = 0;
+        rseq = 0;
+        rack = 0;
+        rflags = 0;
         net_poll();
         n = net_tcp_recv4(src_port, chunk, sizeof(chunk) - 1, &srcip, &srcp, &rseq, &rack, &rflags);
         if (n < 0) break;
@@ -1439,6 +1444,9 @@ static int safari_fetch_raw_http(const safari_request_t *req, const char *method
             ack = rseq + 1U;
             break;
         }
+        if ((tries % 16) == 15)
+            (void)net_tcp_send4(ifindex, req->ipv4, src_port, req->port,
+                                seq, 0, NET_TCP_SYN, 0, 0);
     }
     if (ack == 0) {
         safari_copy(err, err_max, "TCP handshake timed out");
@@ -1464,10 +1472,20 @@ static int safari_fetch_raw_http(const safari_request_t *req, const char *method
     }
     for (tries = 0; tries < 220 && total + 1 < max; tries++) {
         int n;
+        srcip = 0;
+        srcp = 0;
+        rseq = 0;
+        rack = 0;
+        rflags = 0;
         net_poll();
         n = net_tcp_recv4(src_port, chunk, sizeof(chunk) - 1, &srcip, &srcp, &rseq, &rack, &rflags);
         if (n < 0) break;
+        if (n == 0 && srcip == 0 && srcp == 0 && rflags == 0) continue;
         if (srcip != req->ipv4 || srcp != req->port) continue;
+        if (rflags & NET_TCP_RST) {
+            safari_copy(err, err_max, "Connection reset by peer");
+            return -1;
+        }
         if (n > 0) {
             if (rseq != expected_seq) {
                 (void)net_tcp_send4(ifindex, req->ipv4, src_port, req->port, seq, expected_seq,
@@ -1703,8 +1721,15 @@ static int safari_decode_chunked_body(const char *body, char *out, int max) {
         while (*p && *p != '\n') p++;
         if (*p == '\n') p++;
         if (chunk_size == 0) break;
-        while (chunk_size-- && *p && pos + 1 < max) out[pos++] = *p++;
-        while (chunk_size && *p) { p++; chunk_size--; }
+        {
+            uint32_t remaining = chunk_size;
+            while (remaining > 0 && *p && pos + 1 < max) {
+                out[pos++] = *p++;
+                remaining--;
+            }
+            while (remaining > 0 && *p) { p++; remaining--; }
+            if (remaining > 0) return -1;
+        }
         if (p[0] == '\r' && p[1] == '\n') p += 2;
         else if (*p == '\n') p++;
     }
