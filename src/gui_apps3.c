@@ -1770,13 +1770,15 @@ int draw_apps_group3(int idx) {
             return 1;
         }
         if (active_tab == 1) {
-            /* Target host field */
-            vga_draw_string_trans(wx+6, pa_y+4, "Target Host:", nu_sub);
+            uint32_t target_ip = g_netutil_ping_target ? g_netutil_ping_target :
+                                 (gw_ip ? gw_ip : dns_ip);
+            char targetbuf[16];
+            if (!target_ip && net) target_ip = net->ipv4;
+            runtime_format_ipv4(target_ip, targetbuf, sizeof(targetbuf));
+            vga_draw_string_trans(wx+6, pa_y+4, "Target IPv4:", nu_sub);
             vga_fill_rect(wx+80, pa_y, ww-160, 16, nu_card);
             vga_draw_rect_outline(wx+80, pa_y, ww-160, 16, nu_sep);
-            { runtime_system_info_t sys;
-              runtime_get_system_info(&sys);
-              vga_draw_string_trans(wx+84, pa_y+4, sys.nodename, nu_txt); }
+            vga_draw_string_trans(wx+84, pa_y+4, target_ip ? targetbuf : "not configured", nu_txt);
             gui_draw_rounded_rect(wx+ww-76, pa_y, 68, 16, 3, nu_acc);
             vga_draw_string_trans(wx+ww-72, pa_y+4, "Ping Now", RGB(255,255,255));
             pa_y += 22;
@@ -1784,48 +1786,55 @@ int draw_apps_group3(int idx) {
               runbuf[0] = 0;
               apps3_append_text(runbuf, &rpos, sizeof(runbuf), "Runs: ");
               apps3_append_uint(runbuf, &rpos, sizeof(runbuf), (uint32_t)g_netutil_ping_count);
-              vga_draw_string_trans(wx+6, pa_y+2, "Ping Results (ms):", nu_txt);
+              vga_draw_string_trans(wx+6, pa_y+2, "Ping Results:", nu_txt);
               vga_draw_string_trans(wx+ww-76, pa_y+2, runbuf, nu_sub); }
             pa_y += 16;
             vga_fill_rect(wx+6, pa_y, ww-12, 80, nu_card);
             vga_draw_rect_outline(wx+6, pa_y, ww-12, 80, nu_sep);
-            { int gi;
-              for (gi=1;gi<4;gi++){
-                  vga_draw_hline(wx+6, pa_y+gi*20, ww-12, nu_sep);
-                  char gbuf2[4]; int_to_str(gi*25, gbuf2);
-                  vga_draw_string_trans(wx+ww-24, pa_y+gi*20-8, gbuf2, nu_sub);
-              }
-            }
-            { static const int pings[]={12,15,8,22,10,18,14,11,25,13,9,16,20,7,14};
-              int pi3, n=15;
-              for (pi3=0;pi3<n;pi3++){
-                  int sample = pings[pi3] + (g_netutil_ping_count ? (g_netutil_ping_count + pi3 * 3) % 7 : 0);
-                  int bar_x=wx+10+pi3*(ww-20)/n;
-                  int bar_h;
-                  if (sample > 25) sample = 25;
-                  bar_h=sample*70/25;
-                  if (bar_h<2) bar_h=2;
-                  vga_fill_rect(bar_x, pa_y+78-bar_h, (ww-20)/n-2, bar_h, nu_acc);
-              }
+            if (g_netutil_ping_count == 0) {
+                vga_draw_string_trans(wx+12, pa_y+12, "No ping sent yet.", nu_sub);
+                vga_draw_string_trans(wx+12, pa_y+30, "Click Ping Now to send an ICMP echo request.", nu_sub);
+            } else if (g_netutil_ping_ok > 0) {
+                char line[64], msline[32], ageline[32];
+                int lp = 0, mp = 0;
+                uint32_t age = (timer_ticks() - g_netutil_ping_last_tick) / 1000U;
+                line[0] = msline[0] = ageline[0] = 0;
+                apps3_append_text(line, &lp, sizeof(line), "Reply from ");
+                apps3_append_text(line, &lp, sizeof(line), targetbuf);
+                apps3_append_text(msline, &mp, sizeof(msline), "Time: ");
+                apps3_append_uint(msline, &mp, sizeof(msline), g_netutil_ping_last_ms);
+                apps3_append_text(msline, &mp, sizeof(msline), " ms");
+                runtime_format_relative_time(age, ageline, sizeof(ageline));
+                vga_draw_string_trans(wx+12, pa_y+12, line, nu_grn);
+                vga_draw_string_trans(wx+12, pa_y+30, msline, nu_txt);
+                vga_draw_string_trans(wx+12, pa_y+48, ageline, nu_sub);
+            } else {
+                vga_draw_string_trans(wx+12, pa_y+12, target_ip ? "No ICMP reply received." : "No ping target configured.", RGB(255,149,0));
+                vga_draw_string_trans(wx+12, pa_y+30, net && net->up ? "Route or host did not answer." : "Interface is down.", nu_sub);
             }
             pa_y += 86;
             vga_fill_rect(wx+6, pa_y, ww-12, 50, nu_card);
             vga_draw_rect_outline(wx+6, pa_y, ww-12, 50, nu_sep);
-            { uint32_t sent = net ? net->tx_packets + (uint32_t)g_netutil_ping_count : (uint32_t)g_netutil_ping_count;
-              uint32_t recv = net ? net->rx_packets + (uint32_t)g_netutil_ping_count : 0;
-              int loss = (sent > recv && sent > 0) ? (int)(((sent - recv) * 100U) / sent) : 0;
+            { net_stats_t stats;
+              uint32_t sent;
+              uint32_t recv;
+              int loss;
               char sentbuf[32], recvbuf[32], lossbuf[32], pct[8];
               int sp = 0, rp = 0, lp = 0;
+              net_stats(&stats);
+              sent = stats.icmp_echo_request;
+              recv = stats.icmp_echo_reply;
+              loss = (sent > recv && sent > 0) ? (int)(((sent - recv) * 100U) / sent) : 0;
               sentbuf[0] = recvbuf[0] = lossbuf[0] = 0;
               runtime_format_percent(loss, pct, sizeof(pct));
-              apps3_append_text(sentbuf, &sp, sizeof(sentbuf), "Packets Sent: ");
+              apps3_append_text(sentbuf, &sp, sizeof(sentbuf), "ICMP Sent: ");
               apps3_append_uint(sentbuf, &sp, sizeof(sentbuf), sent);
-              apps3_append_text(recvbuf, &rp, sizeof(recvbuf), "Packets Recv: ");
+              apps3_append_text(recvbuf, &rp, sizeof(recvbuf), "ICMP Replies: ");
               apps3_append_uint(recvbuf, &rp, sizeof(recvbuf), recv);
               apps3_append_text(lossbuf, &lp, sizeof(lossbuf), "Packet Loss: ");
               apps3_append_text(lossbuf, &lp, sizeof(lossbuf), pct);
               vga_draw_string_trans(wx+10, pa_y+4,  sentbuf, nu_txt);
-              vga_draw_string_trans(wx+10, pa_y+16, recvbuf, nu_grn);
+              vga_draw_string_trans(wx+10, pa_y+16, recvbuf, recv ? nu_grn : nu_sub);
               vga_draw_string_trans(wx+10, pa_y+28, lossbuf, loss ? RGB(255,149,0) : nu_grn);
               vga_draw_string_trans(wx+10, pa_y+40, net && net->name ? net->name : "No interface", nu_sub); }
             return 1;

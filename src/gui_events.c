@@ -1763,8 +1763,37 @@ void gui_run(void) {
                   if (g_netutil_tab == 1 &&
                       mx>=w->x+w->w-76 && mx<w->x+w->w-8 &&
                       my>=cy_nu+28 && my<cy_nu+44) {
+                      const netif_t *net_nu = runtime_primary_netif();
+                      uint32_t target_nu = runtime_dns_server4();
+                      uint32_t ifindex_nu = 0;
+                      uint32_t start_nu;
+                      int ping_ok_nu = -1;
+                      int ri_nu2;
+                      for (ri_nu2 = 0; ri_nu2 < (int)net_route_count(); ri_nu2++) {
+                          const net_route_t *route_nu = net_route_at((uint32_t)ri_nu2);
+                          if (route_nu && route_nu->dest == 0 && route_nu->mask == 0 && route_nu->gateway) {
+                              target_nu = route_nu->gateway;
+                              break;
+                          }
+                      }
+                      if (!target_nu && net_nu) target_nu = net_nu->ipv4;
+                      if (target_nu &&
+                          net_route_lookup4(target_nu, &ifindex_nu, 0) == 0) {
+                          start_nu = timer_ticks();
+                          ping_ok_nu = net_ping4(ifindex_nu, target_nu);
+                          g_netutil_ping_last_ms = timer_ticks() - start_nu;
+                          if (ping_ok_nu == 0 && g_netutil_ping_last_ms == 0)
+                              g_netutil_ping_last_ms = 1;
+                      } else {
+                          g_netutil_ping_last_ms = 0;
+                      }
                       if (g_netutil_ping_count < 999) g_netutil_ping_count++;
-                      toast_show("Network Utility","Ping sent",RGB(0,122,255));
+                      g_netutil_ping_target = target_nu;
+                      g_netutil_ping_ok = (ping_ok_nu == 0) ? 1 : -1;
+                      g_netutil_ping_last_tick = timer_ticks();
+                      toast_show("Network Utility",
+                                 ping_ok_nu == 0 ? "Ping reply received" : "Ping failed",
+                                 ping_ok_nu == 0 ? RGB(52,199,89) : RGB(255,149,0));
                       dirty=1; goto end_left_press;
                   }
                 }
