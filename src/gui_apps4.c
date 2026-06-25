@@ -556,15 +556,17 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+1, cy, 100, wh-TITLEBAR_H, g_pref_darkmode?RGB(34,34,40):RGB(236,236,240));
         vga_draw_vline(wx+100, cy, wh-TITLEBAR_H, pv_sep);
         const char *cats[]={"Location","Contacts","Calendars","Camera","Microphone","Photos","Health","HomeKit","Tracking"};
+        int active_pv = g_privacy_category;
+        if (active_pv < 0 || active_pv > 8) active_pv = 0;
         int ci, cy2=cy+6;
         for (ci=0;ci<9;ci++){
-            vga_draw_string_trans(wx+6, cy2, cats[ci], ci==0?RGB(0,122,255):pv_sub);
+            vga_draw_string_trans(wx+6, cy2, cats[ci], ci==active_pv?RGB(0,122,255):pv_sub);
             cy2+=20;
         }
         /* Content */
-        vga_draw_string_trans(wx+110, cy+8, "Location Services", pv_txt);
+        vga_draw_string_trans(wx+110, cy+8, cats[active_pv], pv_txt);
         vga_draw_hline(wx+108, cy+22, ww-112, pv_sep);
-        vga_draw_string_trans(wx+108, cy+28, "Apps that have requested your location:", pv_sub);
+        vga_draw_string_trans(wx+108, cy+28, active_pv==0 ? "Apps that have requested your location:" : "Apps that have requested access:", pv_sub);
         struct { const char *app; const char *when; int on; } locs[]={
             {"Maps","While Using",1},
             {"Weather","Always",1},
@@ -600,15 +602,17 @@ int draw_apps_group4(int idx) {
         struct { const char *cat; const char *icon; } cats2[]={
             {"Vision","V"},{"Hearing","H"},{"Motor","M"},{"Cognitive","C"},{"Speech","S"},
         };
+        int active_ac = g_accessibility_category;
+        if (active_ac < 0 || active_ac > 4) active_ac = 0;
         int ci2, cy3=cy+8;
         for (ci2=0;ci2<5;ci2++){
-            gui_draw_circle(wx+18, cy3+6, 8, ci2==0?ac_acc:ac_sep);
+            gui_draw_circle(wx+18, cy3+6, 8, ci2==active_ac?ac_acc:ac_sep);
             vga_draw_string_trans(wx+15, cy3+3, cats2[ci2].icon, RGB(255,255,255));
-            vga_draw_string_trans(wx+30, cy3+3, cats2[ci2].cat, ci2==0?ac_acc:ac_txt);
+            vga_draw_string_trans(wx+30, cy3+3, cats2[ci2].cat, ci2==active_ac?ac_acc:ac_txt);
             cy3+=28;
         }
         /* Content */
-        vga_draw_string_trans(wx+120, cy+8, "Vision", ac_txt);
+        vga_draw_string_trans(wx+120, cy+8, cats2[active_ac].cat, ac_txt);
         vga_draw_hline(wx+118, cy+22, ww-122, ac_sep);
         struct { const char *name; int on; } feats[]={
             {"VoiceOver",0},{"Zoom",0},{"Display Size",0},{"Bold Text",1},{"Increase Contrast",0},
@@ -1593,13 +1597,16 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+1,cy,80,wh-TITLEBAR_H,RGB(14,18,24));
         vga_draw_string_trans(wx+4,cy+8,"Sessions",pm_sub);
         const char *hosts[]={"api.github","s.apple.com","maps.google","cdn.fast.com"};
+        const char *paths[]={"GET /api/v3/users","GET /status","GET /tiles","GET /asset.js"};
+        int active_pm = g_proxyman_session;
+        if (active_pm < 0 || active_pm > 3) active_pm = 0;
         int hi; for(hi=0;hi<4&&hi*20<wh-TITLEBAR_H-20;hi++){
-            if(hi==0) vga_fill_rect(wx+2,cy+22+hi*20,78,18,RGB(30,40,55));
-            vga_draw_string_trans(wx+4,cy+26+hi*20,hosts[hi],hi==0?pm_acc:pm_sub);
+            if(hi==active_pm) vga_fill_rect(wx+2,cy+22+hi*20,78,18,RGB(30,40,55));
+            vga_draw_string_trans(wx+4,cy+26+hi*20,hosts[hi],hi==active_pm?pm_acc:pm_sub);
         }
         /* Request/response table */
-        vga_draw_string_trans(wx+88,cy+8,"Request",pm_acc);
-        vga_draw_string_trans(wx+88,cy+20,"GET /api/v3/users",pm_txt);
+        vga_draw_string_trans(wx+88,cy+8,hosts[active_pm],pm_acc);
+        vga_draw_string_trans(wx+88,cy+20,paths[active_pm],pm_txt);
         { char resp[24];
           int rp = 0;
           apps4_append_text(resp, &rp, sizeof(resp), "200 OK  ");
@@ -1650,19 +1657,22 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+1, wy+TITLEBAR_H, 80, wh-TITLEBAR_H, RGB(28,28,32));
         vga_draw_vline(wx+80, wy+TITLEBAR_H, wh-TITLEBAR_H, RGB(50,50,56));
         static const char *is_tabs[]={"Today","Week","Grades","Assign"};
+        int active_is = g_istudiez_tab;
+        if (active_is < 0 || active_is > 3) active_is = 0;
         int it;
         for(it=0;it<4;it++){
             int ty2=wy+TITLEBAR_H+10+it*30;
-            if(it==0) vga_fill_rect(wx+1, ty2-4, 79, 22, RGB(38,38,44));
-            vga_draw_string_trans(wx+8, ty2, is_tabs[it], it==0?is_acc:is_sub);
+            if(it==active_is) vga_fill_rect(wx+1, ty2-4, 79, 22, RGB(38,38,44));
+            vga_draw_string_trans(wx+8, ty2, is_tabs[it], it==active_is?is_acc:is_sub);
         }
-        /* Today view */
+        /* Selected view */
         { datetime_t is_now;
           char is_header[32];
           int ihp = 0;
           get_current_datetime(&is_now);
           is_header[0] = 0;
-          apps4_append_text(is_header, &ihp, sizeof(is_header), "Classes - ");
+          apps4_append_text(is_header, &ihp, sizeof(is_header), is_tabs[active_is]);
+          apps4_append_text(is_header, &ihp, sizeof(is_header), " - ");
           apps4_append_text(is_header, &ihp, sizeof(is_header), datetime_weekday_long(is_now.weekday));
           vga_draw_string_trans(wx+88, wy+TITLEBAR_H+8, is_header, is_txt); }
         vga_draw_hline(wx+82, wy+TITLEBAR_H+22, ww-84, RGB(50,50,56));
@@ -1725,14 +1735,19 @@ int draw_apps_group4(int idx) {
         vga_draw_vline(wx+90, wy+TITLEBAR_H, wh-TITLEBAR_H, RGB(40,48,60));
         vga_draw_string_trans(wx+8, wy+TITLEBAR_H+8, "Vaults", pw_sub);
         static const char *pw_vaults[]={"All Items","Login","Cards","Notes","Identity"};
+        int active_pw = g_onepassword_vault;
+        if (active_pw < 0 || active_pw > 4) active_pw = 0;
         int vi;
         for(vi=0;vi<5;vi++){
             int vy2=wy+TITLEBAR_H+24+vi*22;
-            if(vi==0) vga_fill_rect(wx+2, vy2-2, 87, 20, RGB(30,60,100));
-            vga_draw_string_trans(wx+8, vy2+2, pw_vaults[vi], vi==0?pw_txt:pw_sub);
+            if(vi==active_pw) vga_fill_rect(wx+2, vy2-2, 87, 20, RGB(30,60,100));
+            vga_draw_string_trans(wx+8, vy2+2, pw_vaults[vi], vi==active_pw?pw_txt:pw_sub);
         }
         /* Items list */
-        vga_draw_string_trans(wx+98, wy+TITLEBAR_H+8, "All Items (142)", pw_sub);
+        { char vault_title[32]; int vtp=0; vault_title[0]=0;
+          apps4_append_text(vault_title, &vtp, sizeof(vault_title), pw_vaults[active_pw]);
+          apps4_append_text(vault_title, &vtp, sizeof(vault_title), " (142)");
+          vga_draw_string_trans(wx+98, wy+TITLEBAR_H+8, vault_title, pw_sub); }
         vga_draw_hline(wx+92, wy+TITLEBAR_H+22, ww-94, RGB(40,48,60));
         /* Search bar */
         gui_draw_rounded_rect(wx+92, wy+TITLEBAR_H+26, ww-96, 20, 4,
@@ -1826,14 +1841,16 @@ int draw_apps_group4(int idx) {
         vga_draw_vline(wx+90, wy+TITLEBAR_H, wh-TITLEBAR_H, RGB(44,44,50));
         static const char *th_sec[]={"Inbox","Today","Upcoming","Anytime","Someday"};
         static const uint32_t th_sc[]={RGB(255,149,0),RGB(220,40,40),RGB(0,122,255),RGB(52,199,89),RGB(120,120,130)};
+        int active_th = g_things_section;
+        if (active_th < 0 || active_th > 4) active_th = 1;
         int ti2;
         for(ti2=0;ti2<5;ti2++){
             int sy=wy+TITLEBAR_H+10+ti2*24;
             gui_draw_circle(wx+14, sy+7, 5, th_sc[ti2]);
-            vga_draw_string_trans(wx+24, sy+3, th_sec[ti2], ti2==1?th_txt:th_sub);
+            vga_draw_string_trans(wx+24, sy+3, th_sec[ti2], ti2==active_th?th_txt:th_sub);
         }
         /* Tasks */
-        vga_draw_string_trans(wx+98, wy+TITLEBAR_H+8, "Today", th_acc);
+        vga_draw_string_trans(wx+98, wy+TITLEBAR_H+8, th_sec[active_th], th_acc);
         vga_draw_hline(wx+92, wy+TITLEBAR_H+22, ww-94, RGB(44,44,50));
         static const char *th_tasks[]={"Review design drafts","Write weekly report","Call with client","Update dependencies","Read article on SwiftUI","Plan sprint tasks"};
         static const int th_done[]={1,1,0,0,0,1};
@@ -1864,14 +1881,16 @@ int draw_apps_group4(int idx) {
         static const char *rc_cmds[]={"Calculator","File Search","Clipboard History","Window Management","System: Sleep","App Launcher"};
         static const char *rc_cats[]={"Built-in","Extension","Extension","Extension","System","Built-in"};
         static const uint32_t rc_icols[]={RGB(200,50,50),RGB(0,122,255),RGB(52,199,89),RGB(255,149,0),RGB(120,120,130),RGB(220,40,220)};
+        int active_rc = g_raycast_result;
+        if (active_rc < 0 || active_rc > 5) active_rc = 0;
         int ri2;
         for(ri2=0;ri2<6;ri2++){
             int ry2=wy+TITLEBAR_H+52+ri2*26;
-            if(ri2==0) vga_fill_rect(wx+2, ry2-2, ww-4, 28, RGB(30,30,40));
+            if(ri2==active_rc) vga_fill_rect(wx+2, ry2-2, ww-4, 28, RGB(30,30,40));
             gui_draw_rounded_rect(wx+10, ry2+3, 18, 18, 4, rc_icols[ri2]);
             { char cmd_icon[2]; cmd_icon[0] = rc_cmds[ri2][0]; cmd_icon[1] = 0;
               vga_draw_string_trans(wx+14, ry2+9, cmd_icon, RGB(255,255,255)); }
-            vga_draw_string_trans(wx+34, ry2+5, rc_cmds[ri2], ri2==0?rc_acc:rc_txt);
+            vga_draw_string_trans(wx+34, ry2+5, rc_cmds[ri2], ri2==active_rc?rc_acc:rc_txt);
             vga_draw_string_trans(wx+ww-64, ry2+8, rc_cats[ri2], rc_sub);
         }
         vga_draw_string_trans(wx+8, wy+wh-18, "Tip: Press Tab to view actions", rc_sub);
@@ -1952,14 +1971,19 @@ int draw_apps_group4(int idx) {
         vga_draw_vline(wx+80, wy+TITLEBAR_H, wh-TITLEBAR_H, RGB(48,40,32));
         vga_draw_string_trans(wx+8, wy+TITLEBAR_H+8, "Notes", br_sub);
         static const char *br_notes[]={"Dev Ideas","Meeting","Tasks","Journal","Recipes"};
+        int active_br = g_bear_note;
+        if (active_br < 0 || active_br > 4) active_br = 0;
         int bi2;
         for(bi2=0;bi2<5;bi2++){
             int by2=wy+TITLEBAR_H+24+bi2*22;
-            if(bi2==0) vga_fill_rect(wx+2, by2-2, 77, 20, RGB(38,30,22));
-            vga_draw_string_trans(wx+8, by2+2, br_notes[bi2], bi2==0?br_acc:br_sub);
+            if(bi2==active_br) vga_fill_rect(wx+2, by2-2, 77, 20, RGB(38,30,22));
+            vga_draw_string_trans(wx+8, by2+2, br_notes[bi2], bi2==active_br?br_acc:br_sub);
         }
         /* Note content */
-        vga_draw_string_trans(wx+90, wy+TITLEBAR_H+10, "# Dev Ideas", br_acc);
+        { char br_title[24]; int btp=0; br_title[0]=0;
+          apps4_append_text(br_title, &btp, sizeof(br_title), "# ");
+          apps4_append_text(br_title, &btp, sizeof(br_title), br_notes[active_br]);
+          vga_draw_string_trans(wx+90, wy+TITLEBAR_H+10, br_title, br_acc); }
         vga_draw_hline(wx+82, wy+TITLEBAR_H+24, ww-84, RGB(48,40,32));
         vga_draw_string_trans(wx+90, wy+TITLEBAR_H+32, "## OS Features", br_txt);
         vga_draw_string_trans(wx+90, wy+TITLEBAR_H+46, "- Better Spotlight", br_txt);
@@ -1983,15 +2007,17 @@ int draw_apps_group4(int idx) {
         vga_draw_vline(wx+80, wy+TITLEBAR_H, wh-TITLEBAR_H, RGB(44,44,50));
         vga_draw_string_trans(wx+8, wy+TITLEBAR_H+8, "Feeds", re_sub);
         static const char *re_feeds[]={"All","Hacker News","Ars Technica","The Verge","9to5Mac"};
+        int active_re = g_reeder_feed;
+        if (active_re < 0 || active_re > 4) active_re = 0;
         int ri3;
         for(ri3=0;ri3<5;ri3++){
             int fy=wy+TITLEBAR_H+24+ri3*22;
-            if(ri3==0) vga_fill_rect(wx+2, fy-2, 77, 20, RGB(34,34,40));
-            vga_draw_string_trans(wx+8, fy+2, re_feeds[ri3], ri3==0?re_txt:re_sub);
+            if(ri3==active_re) vga_fill_rect(wx+2, fy-2, 77, 20, RGB(34,34,40));
+            vga_draw_string_trans(wx+8, fy+2, re_feeds[ri3], ri3==active_re?re_txt:re_sub);
             if(ri3>0){ char nc[3]; nc[0]='0'+(ri3*3%9+1); nc[1]=0; vga_draw_string_trans(wx+60, fy+2, nc, re_acc); }
         }
         /* Article list */
-        vga_draw_string_trans(wx+88, wy+TITLEBAR_H+8, "Hacker News", re_acc);
+        vga_draw_string_trans(wx+88, wy+TITLEBAR_H+8, re_feeds[active_re], re_acc);
         vga_draw_hline(wx+82, wy+TITLEBAR_H+22, ww-84, RGB(44,44,50));
         static const char *re_arts[]={"Ask HN: What are you building?","Show HN: My bare-metal OS","New features in Swift 6","Apple plans ARM Mac Pro","WASM is eating the world"};
         for(ri3=0;ri3<5;ri3++){
@@ -2159,14 +2185,16 @@ int draw_apps_group4(int idx) {
         static const char *al_results[]={"MyOS Project","myos.iso","myos build script","myos.iso (copy)"};
         static const char *al_types[]={"Folder","File","Script","File"};
         static const uint32_t al_ic[]={RGB(0,122,255),RGB(200,200,200),RGB(52,199,89),RGB(200,200,200)};
+        int active_al = g_alfred_result;
+        if (active_al < 0 || active_al > 3) active_al = 0;
         int ai2;
         for(ai2=0;ai2<4;ai2++){
             int ay3=wy+TITLEBAR_H+54+ai2*28;
-            if(ai2==0) vga_fill_rect(wx+2, ay3-2, ww-4, 30, RGB(30,24,38));
+            if(ai2==active_al) vga_fill_rect(wx+2, ay3-2, ww-4, 30, RGB(30,24,38));
             gui_draw_rounded_rect(wx+8, ay3+2, 20, 20, 4, al_ic[ai2]);
-            vga_draw_string_trans(wx+34, ay3+4, al_results[ai2], ai2==0?al_acc:al_txt);
+            vga_draw_string_trans(wx+34, ay3+4, al_results[ai2], ai2==active_al?al_acc:al_txt);
             vga_draw_string_trans(wx+34, ay3+16, al_types[ai2], al_sub);
-            vga_draw_string_trans(wx+ww-32, ay3+10, ai2==0?"Ret":"", al_sub);
+            vga_draw_string_trans(wx+ww-32, ay3+10, ai2==active_al?"Ret":"", al_sub);
         }
         vga_draw_string_trans(wx+8, wy+wh-18, "Alfred Powerpack  |  Workflows  |  Clipboard", al_sub);
         return 1;

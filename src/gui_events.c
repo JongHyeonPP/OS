@@ -2807,6 +2807,15 @@ void gui_run(void) {
                 } else if (g_alfred_search_focused) {
                     g_alfred_search_focused=0; dirty=1;
                 }
+                { int ai_al;
+                  for (ai_al=0; ai_al<4; ai_al++) {
+                      int ay_al=w->y+TITLEBAR_H+54+ai_al*28;
+                      if (mx>=w->x+2 && mx<w->x+w->w-2 && my>=ay_al-2 && my<ay_al+28) {
+                          g_alfred_result=ai_al;
+                          toast_show("Alfred","Result selected",RGB(200,50,200));
+                          dirty=1; goto end_left_press;
+                      }
+                  } }
                 break;
             }
             /* Static search fields in utility apps */
@@ -2880,6 +2889,15 @@ void gui_run(void) {
                     } else if (g_sfsymbols_search_focused) { g_sfsymbols_search_focused=0; dirty=1; }
                 } else if (str_eq(w->title,"1Password")) {
                     int sy_pw=w->y+TITLEBAR_H+26;
+                    { int vi_pw; for (vi_pw=0; vi_pw<5; vi_pw++) {
+                        int vy_pw=w->y+TITLEBAR_H+24+vi_pw*22;
+                        if (mx>=w->x+2 && mx<w->x+89 && my>=vy_pw-2 && my<vy_pw+18) {
+                            g_onepassword_vault=vi_pw;
+                            g_onepassword_search_focused=0;
+                            toast_show("1Password","Vault selected",RGB(0,120,200));
+                            dirty=1; goto end_left_press;
+                        }
+                    } }
                     if (mx>=w->x+92 && mx<w->x+w->w-4 && my>=sy_pw && my<sy_pw+20) {
                         g_onepassword_search_focused=1; dirty=1; goto end_left_press;
                     } else if (g_onepassword_search_focused) { g_onepassword_search_focused=0; dirty=1; }
@@ -2888,6 +2906,70 @@ void gui_run(void) {
                     if (mx>=w->x+8 && mx<w->x+w->w-8 && my>=sy_rc && my<sy_rc+30) {
                         g_raycast_search_focused=1; dirty=1; goto end_left_press;
                     } else if (g_raycast_search_focused) { g_raycast_search_focused=0; dirty=1; }
+                    { int ri_rc; for (ri_rc=0; ri_rc<6; ri_rc++) {
+                        int ry_rc=w->y+TITLEBAR_H+52+ri_rc*26;
+                        if (mx>=w->x+2 && mx<w->x+w->w-2 && my>=ry_rc-2 && my<ry_rc+26) {
+                            g_raycast_result=ri_rc;
+                            toast_show("Raycast","Command selected",RGB(255,90,30));
+                            dirty=1; goto end_left_press;
+                        }
+                    } }
+                } else if (str_eq(w->title,"Privacy")) {
+                    int cy_pv=w->y+TITLEBAR_H, ci_pv;
+                    for (ci_pv=0; ci_pv<9; ci_pv++) {
+                        int y_pv=cy_pv+6+ci_pv*20;
+                        if (mx>=w->x+1 && mx<w->x+100 && my>=y_pv-2 && my<y_pv+18) {
+                            g_privacy_category=ci_pv; dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Accessibility")) {
+                    int cy_ac=w->y+TITLEBAR_H, ci_ac;
+                    for (ci_ac=0; ci_ac<5; ci_ac++) {
+                        int y_ac=cy_ac+8+ci_ac*28;
+                        if (mx>=w->x+1 && mx<w->x+110 && my>=y_ac-4 && my<y_ac+22) {
+                            g_accessibility_category=ci_ac; dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Proxyman")) {
+                    int cy_pm=w->y+TITLEBAR_H, hi_pm;
+                    for (hi_pm=0; hi_pm<4; hi_pm++) {
+                        int y_pm=cy_pm+22+hi_pm*20;
+                        if (mx>=w->x+2 && mx<w->x+80 && my>=y_pm && my<y_pm+18) {
+                            g_proxyman_session=hi_pm; dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"iStudiez Pro")) {
+                    int cy_is=w->y+TITLEBAR_H, ti_is;
+                    for (ti_is=0; ti_is<4; ti_is++) {
+                        int y_is=cy_is+10+ti_is*30;
+                        if (mx>=w->x+1 && mx<w->x+80 && my>=y_is-4 && my<y_is+18) {
+                            g_istudiez_tab=ti_is; dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Things 3")) {
+                    int cy_th=w->y+TITLEBAR_H, ti_th;
+                    for (ti_th=0; ti_th<5; ti_th++) {
+                        int y_th=cy_th+10+ti_th*24;
+                        if (mx>=w->x+1 && mx<w->x+90 && my>=y_th-2 && my<y_th+20) {
+                            g_things_section=ti_th; dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Bear")) {
+                    int cy_br=w->y+TITLEBAR_H, bi_br;
+                    for (bi_br=0; bi_br<5; bi_br++) {
+                        int y_br=cy_br+24+bi_br*22;
+                        if (mx>=w->x+2 && mx<w->x+80 && my>=y_br-2 && my<y_br+18) {
+                            g_bear_note=bi_br; dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Reeder 5")) {
+                    int cy_re=w->y+TITLEBAR_H, ri_re;
+                    for (ri_re=0; ri_re<5; ri_re++) {
+                        int y_re=cy_re+24+ri_re*22;
+                        if (mx>=w->x+2 && mx<w->x+80 && my>=y_re-2 && my<y_re+18) {
+                            g_reeder_feed=ri_re; dirty=1; goto end_left_press;
+                        }
+                    }
                 } else if (str_eq(w->title,"MyOS Finder")) {
                     int sfx_fn=w->x+w->w-112;
                     int sy_fn=w->y+TITLEBAR_H+6;
