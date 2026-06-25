@@ -1885,14 +1885,25 @@ static void safari_load_url_internal(const char *url, const char *method,
         return;
     }
     if (str_eq(req.scheme, "https")) {
+        char http_alt[SAFARI_URL_MAX];
+        int ap = 0;
         safari_reset_page_view();
         g_safari_page_state = 2;
         g_safari_page_status_code = 0;
         safari_copy(g_safari_page_url, SAFARI_URL_MAX, normalized);
         safari_copy(g_safari_page_title, SAFARI_TITLE_MAX, "TLS Required");
         safari_copy(g_safari_page_text, SAFARI_PAGE_TEXT_MAX,
-                    "This kernel browser performs HTTP requests. HTTPS requires a TLS layer before encrypted pages can be rendered.");
+                    "This kernel browser performs HTTP requests. HTTPS requires a TLS layer before encrypted pages can be rendered. If this site also serves HTTP, use the link above.");
         safari_copy(g_safari_page_status, SAFARI_STATUS_MAX, "TLS required");
+        http_alt[0] = 0;
+        safari_append(http_alt, &ap, sizeof(http_alt), "http://");
+        safari_append(http_alt, &ap, sizeof(http_alt), req.host);
+        safari_append(http_alt, &ap, sizeof(http_alt), req.path[0] ? req.path : "/");
+        if (http_alt[0] && g_safari_link_count < SAFARI_MAX_LINKS) {
+            safari_copy(g_safari_link_urls[g_safari_link_count], SAFARI_URL_MAX, http_alt);
+            safari_copy(g_safari_link_titles[g_safari_link_count], SAFARI_LINK_TITLE_MAX, "Open HTTP version");
+            g_safari_link_count++;
+        }
         safari_set_tab_title("TLS Required");
         if (record_history) safari_history_push_url(normalized);
         return;
