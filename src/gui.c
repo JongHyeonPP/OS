@@ -456,6 +456,16 @@ static void safari_append_ipv4(char *dst, int *pos, int max, uint32_t ipv4) {
     safari_append(dst, pos, max, ipbuf);
 }
 
+static void safari_append_host_header(char *dst, int *pos, int max, const safari_request_t *req) {
+    if (!req) return;
+    safari_append(dst, pos, max, req->host);
+    if ((str_eq(req->scheme, "http") && req->port != 80) ||
+        (str_eq(req->scheme, "https") && req->port != 443)) {
+        safari_append(dst, pos, max, ":");
+        safari_append_uint(dst, pos, max, req->port);
+    }
+}
+
 static int safari_parse_ipv4_text(const char *s, uint32_t *out) {
     uint32_t octets[4];
     int i;
@@ -563,32 +573,64 @@ static int safari_dns_encode_name(const char *host, uint8_t *packet, int *pos, i
     return 0;
 }
 
-static int safari_dns_skip_name(const uint8_t *packet, int len, int *off) {
-    int steps = 0;
-    if (!packet || !off) return -1;
-    while (*off < len && steps++ < 64) {
-        uint8_t label = packet[*off];
+static int safari_dns_read_name(const uint8_t *packet, int len, int *off, char *out, int max) {
+    int cur;
+    int pos = 0;
+    int jumped = 0;
+    int jumps = 0;
+    if (!packet || !off || !out || max <= 0) return -1;
+    out[0] = 0;
+    cur = *off;
+    while (cur < len && jumps < 16) {
+        uint8_t label = packet[cur];
         if ((label & 0xC0U) == 0xC0U) {
-            if (*off + 2 > len) return -1;
-            *off += 2;
-            return 0;
+            int ptr;
+            if (cur + 1 >= len) return -1;
+            ptr = ((label & 0x3FU) << 8) | packet[cur + 1];
+            if (ptr < 0 || ptr >= len) return -1;
+            if (!jumped) *off = cur + 2;
+            cur = ptr;
+            jumped = 1;
+            jumps++;
+            continue;
         }
         if (label & 0xC0U) return -1;
-        (*off)++;
-        if (label == 0) return 0;
-        if (*off + label > len) return -1;
-        *off += label;
+        cur++;
+        if (label == 0) {
+            if (!jumped) *off = cur;
+            out[pos] = 0;
+            return 0;
+        }
+        if (cur + label > len) return -1;
+        if (pos > 0 && pos + 1 < max) out[pos++] = '.';
+        {
+            int label_len = label;
+            int i;
+            for (i = 0; i < label_len; i++) {
+                char ch = (char)packet[cur + i];
+                if (pos + 1 < max) out[pos++] = (char)safari_char_lower((unsigned char)ch);
+            }
+            cur += label_len;
+        }
     }
     return -1;
 }
 
-static int safari_dns_parse_a_response(const uint8_t *packet, int len, uint16_t id, uint32_t *out) {
+static int safari_dns_skip_name(const uint8_t *packet, int len, int *off) {
+    char tmp[SAFARI_URL_MAX];
+    return safari_dns_read_name(packet, len, off, tmp, sizeof(tmp));
+}
+
+static int safari_dns_parse_a_response(const uint8_t *packet, int len, uint16_t id,
+                                       uint32_t *out, char *cname, int cname_max) {
     int off = 12;
     uint16_t qd;
     uint16_t an;
     uint16_t flags;
     uint16_t i;
+    int have_cname = 0;
     if (!packet || len < 12 || !out) return -1;
+    if (cname && cname_max > 0) cname[0] = 0;
     if (safari_dns_get16(packet, 0) != id) return -1;
     flags = safari_dns_get16(packet, 2);
     if ((flags & 0x8000U) == 0 || (flags & 0x000FU) != 0) return -1;
@@ -613,12 +655,17 @@ static int safari_dns_parse_a_response(const uint8_t *packet, int len, uint16_t 
                    ((uint32_t)packet[off + 2] << 8) | packet[off + 3];
             return 0;
         }
+        if (type == 5U && cls == 1U && cname && cname_max > 0) {
+            int name_off = off;
+            if (safari_dns_read_name(packet, len, &name_off, cname, cname_max) == 0 && cname[0])
+                have_cname = 1;
+        }
         off += rdlen;
     }
-    return -1;
+    return have_cname ? 1 : -1;
 }
 
-static int safari_dns_query4(const char *host, uint32_t *out) {
+static int safari_dns_query4_depth(const char *host, uint32_t *out, int depth) {
     uint8_t query[NET_UDP_PAYLOAD_MAX];
     uint8_t response[NET_UDP_PAYLOAD_MAX];
     uint32_t dns = runtime_dns_server4();
@@ -628,7 +675,7 @@ static int safari_dns_query4(const char *host, uint32_t *out) {
     int fd;
     int pos = 12;
     int attempt;
-    if (!host || !out || !dns) return -1;
+    if (!host || !out || !dns || depth > 4) return -1;
     id = (uint16_t)(0x5A00U ^ (timer_ticks() & 0xFFFFU));
     for (pos = 0; pos < (int)sizeof(query); pos++) query[pos] = 0;
     pos = 12;
@@ -650,14 +697,26 @@ static int safari_dns_query4(const char *host, uint32_t *out) {
             n = vfs_socket_recvfrom_udp4(fd, &src_ip, &src_port, response, sizeof(response));
             if (n <= 0) continue;
             if (src_ip != dns || src_port != 53) continue;
-            if (safari_dns_parse_a_response(response, n, id, out) == 0) {
-                vfs_close(fd);
-                return 0;
+            {
+                char cname[SAFARI_URL_MAX];
+                int parsed_dns = safari_dns_parse_a_response(response, n, id, out, cname, sizeof(cname));
+                if (parsed_dns == 0) {
+                    vfs_close(fd);
+                    return 0;
+                }
+                if (parsed_dns == 1 && cname[0]) {
+                    vfs_close(fd);
+                    return safari_dns_query4_depth(cname, out, depth + 1);
+                }
             }
         }
     }
     vfs_close(fd);
     return -1;
+}
+
+static int safari_dns_query4(const char *host, uint32_t *out) {
+    return safari_dns_query4_depth(host, out, 0);
 }
 
 static int safari_host_resolve4(const char *host, uint32_t *out) {
@@ -920,8 +979,8 @@ static int safari_fetch_local_http(const safari_request_t *req, char *response, 
     int total = 0;
     int off = 0;
     int n;
-    char request[128];
-    char server_req[128];
+    char request[384];
+    char server_req[384];
     char local_response[1536];
     int rp = 0;
     if (!req || !response || max <= 0) return -1;
@@ -937,9 +996,9 @@ static int safari_fetch_local_http(const safari_request_t *req, char *response, 
     request[0] = 0;
     safari_append(request, &rp, sizeof(request), "GET ");
     safari_append(request, &rp, sizeof(request), req->path);
-    safari_append(request, &rp, sizeof(request), " HTTP/1.0\r\nHost: ");
-    safari_append(request, &rp, sizeof(request), req->host);
-    safari_append(request, &rp, sizeof(request), "\r\n\r\n");
+    safari_append(request, &rp, sizeof(request), " HTTP/1.1\r\nHost: ");
+    safari_append_host_header(request, &rp, sizeof(request), req);
+    safari_append(request, &rp, sizeof(request), "\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n");
     if (vfs_write(client, request, (uint32_t)str_len(request)) <= 0) goto fail;
     n = vfs_read(accepted, server_req, sizeof(server_req) - 1);
     if (n < 0) goto fail;
@@ -979,7 +1038,7 @@ static int safari_fetch_raw_http(const safari_request_t *req, char *response, in
     int tries;
     int total = 0;
     int req_pos = 0;
-    char request[192];
+    char request[384];
     char chunk[NET_TCP_PAYLOAD_MAX + 1];
     if (!req || !response || max <= 0) return -1;
     response[0] = 0;
@@ -1015,15 +1074,25 @@ static int safari_fetch_raw_http(const safari_request_t *req, char *response, in
     request[0] = 0;
     safari_append(request, &req_pos, sizeof(request), "GET ");
     safari_append(request, &req_pos, sizeof(request), req->path);
-    safari_append(request, &req_pos, sizeof(request), " HTTP/1.0\r\nHost: ");
-    safari_append(request, &req_pos, sizeof(request), req->host);
-    safari_append(request, &req_pos, sizeof(request), "\r\nUser-Agent: MyOS-Safari/1.0\r\nConnection: close\r\n\r\n");
-    if (net_tcp_send4(ifindex, req->ipv4, src_port, req->port, seq + 1U, ack,
-                      NET_TCP_ACK | NET_TCP_PSH, request, (uint32_t)str_len(request)) < 0) {
-        safari_copy(err, err_max, "HTTP request send failed");
-        return -1;
+    safari_append(request, &req_pos, sizeof(request), " HTTP/1.1\r\nHost: ");
+    safari_append_host_header(request, &req_pos, sizeof(request), req);
+    safari_append(request, &req_pos, sizeof(request),
+                  "\r\nUser-Agent: MyOS-Safari/1.0\r\nAccept: text/html,text/plain,*/*\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n");
+    {
+        int sent = 0;
+        int req_len = str_len(request);
+        while (sent < req_len) {
+            int part = req_len - sent;
+            if (part > NET_TCP_PAYLOAD_MAX) part = NET_TCP_PAYLOAD_MAX;
+            if (net_tcp_send4(ifindex, req->ipv4, src_port, req->port, seq + 1U + (uint32_t)sent, ack,
+                              NET_TCP_ACK | NET_TCP_PSH, request + sent, (uint32_t)part) < 0) {
+                safari_copy(err, err_max, "HTTP request send failed");
+                return -1;
+            }
+            sent += part;
+        }
+        seq += 1U + (uint32_t)req_len;
     }
-    seq += 1U + (uint32_t)str_len(request);
     for (tries = 0; tries < 160 && total + 1 < max; tries++) {
         int n;
         net_poll();
@@ -1155,6 +1224,51 @@ static void safari_resolve_location(const safari_request_t *req, const char *loc
         safari_append(out, &pos, max, dir);
         safari_append(out, &pos, max, p);
     }
+}
+
+static int safari_ci_contains(const char *haystack, const char *needle) {
+    int i;
+    if (!haystack || !needle || !needle[0]) return 0;
+    for (i = 0; haystack[i]; i++) {
+        int j = 0;
+        while (needle[j] && haystack[i + j] && safari_ieq_char(haystack[i + j], needle[j])) j++;
+        if (!needle[j]) return 1;
+    }
+    return 0;
+}
+
+static int safari_hex_value(char ch) {
+    if (ch >= '0' && ch <= '9') return ch - '0';
+    if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
+    if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
+    return -1;
+}
+
+static int safari_decode_chunked_body(const char *body, char *out, int max) {
+    const char *p = body;
+    int pos = 0;
+    if (!body || !out || max <= 0) return -1;
+    out[0] = 0;
+    while (*p) {
+        uint32_t chunk_size = 0;
+        int any = 0;
+        while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+        while (safari_hex_value(*p) >= 0) {
+            chunk_size = (chunk_size << 4) | (uint32_t)safari_hex_value(*p);
+            any = 1;
+            p++;
+        }
+        if (!any) return -1;
+        while (*p && *p != '\n') p++;
+        if (*p == '\n') p++;
+        if (chunk_size == 0) break;
+        while (chunk_size-- && *p && pos + 1 < max) out[pos++] = *p++;
+        while (chunk_size && *p) { p++; chunk_size--; }
+        if (p[0] == '\r' && p[1] == '\n') p += 2;
+        else if (*p == '\n') p++;
+    }
+    out[pos] = 0;
+    return pos > 0 ? 0 : -1;
 }
 
 static const char *safari_http_body(const char *response) {
@@ -1359,6 +1473,8 @@ static void safari_load_url_internal(const char *url, int record_history, int re
     safari_request_t req;
     char normalized[SAFARI_URL_MAX];
     char response[1536];
+    char decoded_body[1536];
+    char header_value[SAFARI_STATUS_MAX];
     char err[SAFARI_STATUS_MAX];
     char title[SAFARI_TITLE_MAX];
     int parsed;
@@ -1448,11 +1564,19 @@ static void safari_load_url_internal(const char *url, int record_history, int re
         }
     }
     safari_reset_page_view();
-    title[0] = 0;
-    safari_extract_title(safari_http_body(response), title, sizeof(title));
-    if (!title[0]) safari_copy(title, sizeof(title), req.host);
-    safari_text_from_body(safari_http_body(response), g_safari_page_text, SAFARI_PAGE_TEXT_MAX);
-    safari_extract_links(&req, safari_http_body(response));
+    {
+        const char *body = safari_http_body(response);
+        if (safari_header_value(response, "Transfer-Encoding", header_value, sizeof(header_value)) == 0 &&
+            safari_ci_contains(header_value, "chunked") &&
+            safari_decode_chunked_body(body, decoded_body, sizeof(decoded_body)) == 0) {
+            body = decoded_body;
+        }
+        title[0] = 0;
+        safari_extract_title(body, title, sizeof(title));
+        if (!title[0]) safari_copy(title, sizeof(title), req.host);
+        safari_text_from_body(body, g_safari_page_text, SAFARI_PAGE_TEXT_MAX);
+        safari_extract_links(&req, body);
+    }
     g_safari_page_state = (g_safari_page_status_code >= 400U) ? 2 : 1;
     safari_copy(g_safari_page_title, SAFARI_TITLE_MAX, title);
     g_safari_page_status[0] = 0;
