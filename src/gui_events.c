@@ -3689,6 +3689,16 @@ void gui_run(void) {
                             g_things_section=ti_th; dirty=1; goto end_left_press;
                         }
                     }
+                    for (ti_th=0; ti_th<6; ti_th++) {
+                        int y_task=cy_th+30+ti_th*26;
+                        if (mx>=w->x+92 && mx<w->x+w->w-2 && my>=y_task-2 && my<y_task+24) {
+                            g_things_task=ti_th;
+                            if (mx < w->x+118)
+                                g_things_done_mask ^= (1U << ti_th);
+                            toast_show("Things 3", (g_things_done_mask & (1U << ti_th)) ? "Task completed" : "Task selected", RGB(100,60,200));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
                 } else if (str_eq(w->title,"Bear")) {
                     int cy_br=w->y+TITLEBAR_H, bi_br;
                     for (bi_br=0; bi_br<5; bi_br++) {

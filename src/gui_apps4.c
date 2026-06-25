@@ -2009,12 +2009,25 @@ int draw_apps_group4(int idx) {
         vga_draw_string_trans(wx+98, wy+TITLEBAR_H+8, th_sec[active_th], th_acc);
         vga_draw_hline(wx+92, wy+TITLEBAR_H+22, ww-94, RGB(44,44,50));
         static const char *th_tasks[]={"Review design drafts","Write weekly report","Call with client","Update dependencies","Read article on SwiftUI","Plan sprint tasks"};
-        static const int th_done[]={1,1,0,0,0,1};
+        int active_task = g_things_task;
+        if (active_task < 0 || active_task > 5) active_task = 0;
         for(ti2=0;ti2<6;ti2++){
             int ty2=wy+TITLEBAR_H+30+ti2*26;
-            if(th_done[ti2]) gui_draw_circle(wx+104, ty2+10, 7, th_acc);
+            int done = (g_things_done_mask & (1U << ti2)) != 0;
+            int is_task = ti2 == active_task;
+            if (is_task) vga_fill_rect(wx+92, ty2-2, ww-94, 26, RGB(32,28,42));
+            if(done) gui_draw_circle(wx+104, ty2+10, 7, th_acc);
             else { gui_draw_circle(wx+104, ty2+10, 7, RGB(50,50,60)); gui_draw_circle(wx+104, ty2+10, 5, th_bg); }
-            vga_draw_string_trans(wx+118, ty2+6, th_tasks[ti2], th_done[ti2]?th_sub:th_txt);
+            vga_draw_string_trans(wx+118, ty2+6, th_tasks[ti2], done?th_sub:(is_task?th_acc:th_txt));
+            if (is_task) vga_draw_string_trans(wx+ww-50, ty2+6, done?"Done":"Open", th_sub);
+        }
+        if (active_task >= 0 && active_task < 6) {
+            char task_line[48];
+            int tp=0;
+            task_line[0]=0;
+            apps4_append_text(task_line, &tp, sizeof(task_line), (g_things_done_mask & (1U << active_task)) ? "Completed: " : "Selected: ");
+            apps4_append_text(task_line, &tp, sizeof(task_line), th_tasks[active_task]);
+            vga_draw_string_trans(wx+98, wy+wh-18, task_line, th_sub);
         }
         return 1;
     }

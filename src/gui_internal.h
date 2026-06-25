@@ -814,6 +814,8 @@ extern int g_istudiez_tab;
 extern int g_onepassword_vault;
 extern int g_onepassword_item;
 extern int g_things_section;
+extern int g_things_task;
+extern uint32_t g_things_done_mask;
 extern int g_raycast_result;
 extern int g_bear_note;
 extern int g_reeder_feed;
