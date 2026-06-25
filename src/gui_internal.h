@@ -170,6 +170,7 @@ extern int g_switcher_sel;
 extern int g_music_playing;
 extern int g_music_track;
 extern int g_music_vol;
+extern int g_music_tab;
 
 /* Widget / QuickLook */
 extern int g_widget_visible;
@@ -435,6 +436,8 @@ extern int g_pref_bt;
 extern int g_pref_vpn;
 extern int g_pref_notifs;
 extern int g_pref_wallpaper;
+extern int g_pref_resolution;
+extern int g_pref_alert_sound;
 
 /* Control Center state */
 extern int g_cc_visible;
@@ -584,6 +587,7 @@ extern int  g_mail_subject_len;
 extern char g_mail_body[256];
 extern int  g_mail_body_len;
 extern int  g_mail_sel_msg;
+extern int  g_mail_folder;
 extern int  g_mail_sent_count;
 extern int  g_mail_search_focused;
 extern char g_mail_last_sent_subject[64];

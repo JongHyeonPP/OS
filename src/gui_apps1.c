@@ -480,14 +480,14 @@ int draw_apps_group1(int idx) {
               static const char *res_opts[] = {"More Space","Default (Recommended)","Larger Text","Scaled"};
               for (ri=0;ri<4;ri++) {
                   int ry=cy+128+ri*22;
-                  if (ri==1) {
+                  if (ri==g_pref_resolution) {
                       vga_fill_rect(cx-2, ry-2, rw+2, 18, g_pref_darkmode?RGB(40,40,50):RGB(230,240,255));
                       vga_draw_rect_outline(cx-2, ry-2, rw+2, 18, RGB(0,122,255));
                   }
                   gui_draw_circle(cx+7, ry+7, 5,
-                      ri==1?RGB(0,122,255):(g_pref_darkmode?RGB(55,55,65):RGB(200,200,205)));
-                  if (ri==1) gui_draw_circle(cx+7, ry+7, 2, RGB(255,255,255));
-                  vga_draw_string_trans(cx+18, ry+3, res_opts[ri], ri==1?RGB(0,122,255):lbl);
+                      ri==g_pref_resolution?RGB(0,122,255):(g_pref_darkmode?RGB(55,55,65):RGB(200,200,205)));
+                  if (ri==g_pref_resolution) gui_draw_circle(cx+7, ry+7, 2, RGB(255,255,255));
+                  vga_draw_string_trans(cx+18, ry+3, res_opts[ri], ri==g_pref_resolution?RGB(0,122,255):lbl);
               }
             }
             vga_draw_hline(cx, cy+222, rw, sep2);
@@ -545,10 +545,10 @@ int draw_apps_group1(int idx) {
             int si3;
             for (si3=0;si3<6;si3++) {
                 int sx=cx+(si3%3)*86, sy=cy+76+(si3/3)*28;
-                uint32_t sc=si3==0?RGB(0,122,255):(g_pref_darkmode?RGB(44,44,52):RGB(230,230,235));
+                uint32_t sc=si3==g_pref_alert_sound?RGB(0,122,255):(g_pref_darkmode?RGB(44,44,52):RGB(230,230,235));
                 vga_fill_rect(sx, sy, 82, 24, sc);
                 vga_draw_rect_outline(sx, sy, 82, 24, sep2);
-                vga_draw_string_trans(sx+6, sy+8, sounds2[si3], si3==0?RGB(255,255,255):lbl);
+                vga_draw_string_trans(sx+6, sy+8, sounds2[si3], si3==g_pref_alert_sound?RGB(255,255,255):lbl);
             }
             vga_draw_hline(cx, cy+142, rw, sep2);
             vga_draw_string_trans(cx, cy+148, "OUTPUT DEVICE", cat2);
@@ -1066,15 +1066,48 @@ int draw_apps_group1(int idx) {
         /* Mini tab bar: Library | Now Playing | Radio */
         {
             int tbx = wx+1, tby = wy+TITLEBAR_H+2, tbw = (ww-2)/3, tbh2 = 20;
+            int active_music_tab = g_music_tab;
+            if (active_music_tab < 0 || active_music_tab > 2) active_music_tab = 1;
             vga_fill_rect(tbx, tby, ww-2, tbh2, RGB(40,40,44));
             static const char *tabs[] = { "Library", "Now Playing", "Radio" };
             int ti;
             for (ti=0;ti<3;ti++) {
                 int tx3 = tbx + ti*tbw;
-                if (ti==1) vga_fill_rect(tx3, tby, tbw, tbh2, RGB(55,55,60));
+                int is_tab = ti == active_music_tab;
+                if (is_tab) vga_fill_rect(tx3, tby, tbw, tbh2, RGB(55,55,60));
                 int tw3 = str_len(tabs[ti])*8;
-                vga_draw_string_trans(tx3+(tbw-tw3)/2, tby+6, tabs[ti], ti==1?RGB(255,255,255):RGB(150,150,150));
+                vga_draw_string_trans(tx3+(tbw-tw3)/2, tby+6, tabs[ti], is_tab?RGB(255,255,255):RGB(150,150,150));
             }
+        }
+        if (g_music_tab == 0) {
+            static const char *lib_songs[]  = {"Midnight Drive","Neon Pulse","Starfall","Cyberwave","Solar Wind"};
+            static const char *lib_artists[] = {"Synthwave Dreams","Neon Horizon","StarlightFM","CyberBeats","SolarAudio"};
+            int ly = wy + TITLEBAR_H + 34;
+            int mi_tab;
+            vga_draw_string_trans(wx+12, ly-14, "LIBRARY", RGB(150,150,150));
+            for (mi_tab=0; mi_tab<5; mi_tab++) {
+                int ry = ly + mi_tab*24;
+                int is_track = mi_tab == g_music_track;
+                if (ry+22 > wy+wh-20) break;
+                vga_fill_rect(wx+8, ry, ww-16, 22, is_track?RGB(55,55,60):RGB(34,34,38));
+                vga_draw_string_trans(wx+14, ry+4, lib_songs[mi_tab], is_track?RGB(255,255,255):RGB(210,210,215));
+                vga_draw_string_trans(wx+ww-118, ry+4, lib_artists[mi_tab], RGB(150,150,155));
+            }
+            return 1;
+        }
+        if (g_music_tab == 2) {
+            static const char *stations[] = {"MyOS One", "Synthwave FM", "Focus Beats", "Indie Mix"};
+            int ry0 = wy + TITLEBAR_H + 38;
+            int si_tab;
+            vga_draw_string_trans(wx+12, ry0-16, "RADIO", RGB(150,150,150));
+            for (si_tab=0; si_tab<4; si_tab++) {
+                int ry = ry0 + si_tab*34;
+                int is_station = (g_music_track % 4) == si_tab;
+                gui_draw_rounded_rect(wx+12, ry, ww-24, 28, 5, is_station?RGB(80,35,45):RGB(38,38,42));
+                vga_draw_string_trans(wx+22, ry+6, stations[si_tab], is_station?RGB(255,255,255):RGB(220,220,225));
+                vga_draw_string_trans(wx+ww-68, ry+6, is_station && g_music_playing ? "Live" : "Tune", RGB(252,60,68));
+            }
+            return 1;
         }
         /* Album art square */
         int art_sz = (ww-2 > 120) ? 100 : ww/2;

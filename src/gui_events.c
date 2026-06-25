@@ -891,8 +891,18 @@ void gui_run(void) {
                        if(mx>=swx&&mx<swx+62&&my>=swy&&my<swy+30){g_pref_wallpaper=swi;dirty=1;}}}
                   } else if (g_settings_tab == 1) {
                       if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+41&&my<scy3+41+sth){g_pref_darkmode^=1;dirty=1;}
+                  } else if (g_settings_tab == 2) {
+                      { int sri; for (sri=0; sri<4; sri++) { int sry=scy3+128+sri*22;
+                        if (mx>=scx3-2 && mx<scx3+sw->w-ssb_w-20 && my>=sry-2 && my<sry+16) {
+                            g_pref_resolution=sri; toast_show("Display","Resolution selected",RGB(0,122,255)); dirty=1; goto end_left_press;
+                        } } }
                   } else if (g_settings_tab == 3) {
                       if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+15&&my<scy3+15+sth){g_pref_notifs^=1;dirty=1;}
+                  } else if (g_settings_tab == 4) {
+                      { int sai; for (sai=0; sai<6; sai++) { int sx=scx3+(sai%3)*86, sy=scy3+76+(sai/3)*28;
+                        if (mx>=sx && mx<sx+82 && my>=sy && my<sy+24) {
+                            g_pref_alert_sound=sai; toast_show("Sound","Alert sound selected",RGB(0,122,255)); dirty=1; goto end_left_press;
+                        } } }
                   } else if (g_settings_tab == 5) {
                       if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+15&&my<scy3+15+sth){g_pref_dnd^=1;dirty=1;}
                   } else if (g_settings_tab == 6) {
@@ -3090,6 +3100,16 @@ void gui_run(void) {
                 if (!g_mail_compose) {
                     int sb_w_ml=68, list_w_ml=(w->w-2-68)*2/5;
                     int lx_ml=w->x+1+sb_w_ml, msg_y=cy_ml+26;
+                    int fi_ml;
+                    for (fi_ml=0; fi_ml<6; fi_ml++) {
+                        int fy_ml=msg_y+6+fi_ml*22;
+                        if (mx>=w->x+1 && mx<w->x+1+sb_w_ml && my>=fy_ml-2 && my<fy_ml+18) {
+                            g_mail_folder=fi_ml;
+                            g_mail_sel_msg=0;
+                            toast_show("Mail","Folder selected",RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
                     int px_ml = w->x + 1 + sb_w_ml + list_w_ml;
                     int pw_ml = w->w - 2 - sb_w_ml - list_w_ml;
                     int mi3;
@@ -3163,6 +3183,35 @@ void gui_run(void) {
                 if (!w->visible || !w->title || !str_eq(w->title,"Music")) continue;
                 if (i != top_win_idx) continue;
                 int ww2 = w->w;
+                { int tab_y2=w->y+TITLEBAR_H+2, tab_w2=(ww2-2)/3;
+                  if (mx>=w->x+1 && mx<w->x+1+tab_w2*3 && my>=tab_y2 && my<tab_y2+20) {
+                      g_music_tab=(mx-(w->x+1))/tab_w2;
+                      if (g_music_tab < 0) g_music_tab = 0;
+                      if (g_music_tab > 2) g_music_tab = 2;
+                      dirty=1; goto end_left_press;
+                  }
+                  if (g_music_tab == 0) {
+                      int ly=w->y+TITLEBAR_H+34, mt;
+                      for (mt=0; mt<5; mt++) {
+                          int ry=ly+mt*24;
+                          if (mx>=w->x+8 && mx<w->x+ww2-8 && my>=ry && my<ry+22) {
+                              g_music_track=mt; g_music_tab=1; g_music_playing=1;
+                              toast_show("Music","Track selected",RGB(252,60,68));
+                              dirty=1; goto end_left_press;
+                          }
+                      }
+                  }
+                  if (g_music_tab == 2) {
+                      int ry0=w->y+TITLEBAR_H+38, ms;
+                      for (ms=0; ms<4; ms++) {
+                          int ry=ry0+ms*34;
+                          if (mx>=w->x+12 && mx<w->x+ww2-12 && my>=ry && my<ry+28) {
+                              g_music_track=ms; g_music_playing=1;
+                              toast_show("Music","Station tuned",RGB(252,60,68));
+                              dirty=1; goto end_left_press;
+                          }
+                      }
+                  } }
                 int art_sz2 = (ww2-2 > 120) ? 100 : ww2/2;
                 if (art_sz2 > w->h/2-20) art_sz2 = w->h/2-20;
                 int art_y2 = w->y + TITLEBAR_H + 28;
@@ -3348,8 +3397,18 @@ void gui_run(void) {
                      if(mx>=wx4&&mx<wx4+62&&my>=wy4&&my<wy4+30){g_pref_wallpaper=wi3;dirty=1;}}}
                 } else if (g_settings_tab == 1) {
                     if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+41&&my<cy3+41+th2){g_pref_darkmode^=1;dirty=1;}
+                } else if (g_settings_tab == 2) {
+                    { int sri2; for (sri2=0; sri2<4; sri2++) { int sry2=cy3+128+sri2*22;
+                      if (mx>=cx3-2 && mx<cx3+w->w-sb_w3-20 && my>=sry2-2 && my<sry2+16) {
+                          g_pref_resolution=sri2; toast_show("Display","Resolution selected",RGB(0,122,255)); dirty=1; goto end_left_press;
+                      } } }
                 } else if (g_settings_tab == 3) {
                     if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+15&&my<cy3+15+th2){g_pref_notifs^=1;dirty=1;}
+                } else if (g_settings_tab == 4) {
+                    { int sai2; for (sai2=0; sai2<6; sai2++) { int sx2=cx3+(sai2%3)*86, sy2=cy3+76+(sai2/3)*28;
+                      if (mx>=sx2 && mx<sx2+82 && my>=sy2 && my<sy2+24) {
+                          g_pref_alert_sound=sai2; toast_show("Sound","Alert sound selected",RGB(0,122,255)); dirty=1; goto end_left_press;
+                      } } }
                 } else if (g_settings_tab == 5) {
                     if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+15&&my<cy3+15+th2){g_pref_dnd^=1;dirty=1;}
                 } else if (g_settings_tab == 6) {

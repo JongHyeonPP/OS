@@ -218,13 +218,16 @@ int draw_apps_group2(int idx) {
             {"Inbox",   3}, {"Sent",  0}, {"Drafts", 1},
             {"Junk",    0}, {"Trash", 0}, {"Archive",0}
         };
+        int active_folder = g_mail_folder;
+        if (active_folder < 0 || active_folder > 5) active_folder = 0;
         int fi3;
         for (fi3=0; fi3<6; fi3++) {
             int fy = cy0 + 6 + fi3*22;
             int fcnt = folders[fi3].cnt + ((fi3 == 1) ? g_mail_sent_count : 0);
-            uint32_t ftxt = (fi3==0) ? ml_txt : ml_sub;
-            if (fi3==0) vga_fill_rect(wx+1, fy-2, sb_w, 20, ml_sel);
-            vga_draw_string_trans(wx+6, fy+2, folders[fi3].name, fi3==0?RGB(255,255,255):ftxt);
+            int is_folder = fi3 == active_folder;
+            uint32_t ftxt = is_folder ? ml_txt : ml_sub;
+            if (is_folder) vga_fill_rect(wx+1, fy-2, sb_w, 20, ml_sel);
+            vga_draw_string_trans(wx+6, fy+2, folders[fi3].name, is_folder?RGB(255,255,255):ftxt);
             if (fcnt > 0) {
                 char cbuf[4];
                 if (fcnt > 99) {
@@ -249,19 +252,28 @@ int draw_apps_group2(int idx) {
             {"GitHub",       "PR merged: feature",    0},
             {"Dave Park",    "Lunch plans?",          0},
         };
-        int mi;
-        for (mi=0; mi<5; mi++) {
-            int my2 = cy0 + mi*38;
-            char timebuf[20];
-            if (my2+38 > cy0+ch0-26) break;
-            uint32_t row_bg2 = (mi==0) ? (g_pref_darkmode?RGB(34,56,90):RGB(225,240,255)) : ml_bg;
-            apps2_format_mail_time(mi, 0, timebuf, sizeof(timebuf));
-            vga_fill_rect(lx, my2, list_w, 38, row_bg2);
-            vga_draw_hline(lx, my2+37, list_w, ml_sep);
-            if (msgs[mi].unread) vga_fill_rect(lx+4, my2+15, 6, 6, ml_unrd);
-            vga_draw_string_trans(lx+14, my2+5,  msgs[mi].from,  ml_txt);
-            vga_draw_string_trans(lx+14, my2+18, msgs[mi].subj,  ml_sub);
-            vga_draw_string_trans(lx+list_w-44, my2+5, timebuf, ml_sub);
+        if (active_folder == 0) {
+            int mi;
+            for (mi=0; mi<5; mi++) {
+                int my2 = cy0 + mi*38;
+                char timebuf[20];
+                if (my2+38 > cy0+ch0-26) break;
+                uint32_t row_bg2 = (mi==g_mail_sel_msg) ? (g_pref_darkmode?RGB(34,56,90):RGB(225,240,255)) : ml_bg;
+                apps2_format_mail_time(mi, 0, timebuf, sizeof(timebuf));
+                vga_fill_rect(lx, my2, list_w, 38, row_bg2);
+                vga_draw_hline(lx, my2+37, list_w, ml_sep);
+                if (msgs[mi].unread) vga_fill_rect(lx+4, my2+15, 6, 6, ml_unrd);
+                vga_draw_string_trans(lx+14, my2+5,  msgs[mi].from,  ml_txt);
+                vga_draw_string_trans(lx+14, my2+18, msgs[mi].subj,  ml_sub);
+                vga_draw_string_trans(lx+list_w-44, my2+5, timebuf, ml_sub);
+            }
+        } else if (active_folder == 1 && g_mail_sent_count > 0) {
+            vga_fill_rect(lx, cy0, list_w, 38, g_pref_darkmode?RGB(34,56,90):RGB(225,240,255));
+            vga_draw_hline(lx, cy0+37, list_w, ml_sep);
+            vga_draw_string_trans(lx+14, cy0+5, "Me", ml_txt);
+            vga_draw_string_trans(lx+14, cy0+18, g_mail_last_sent_subject, ml_sub);
+        } else {
+            vga_draw_string_trans(lx+12, cy0+14, "No messages", ml_sub);
         }
 
         /* Preview pane */
@@ -286,6 +298,23 @@ int draw_apps_group2(int idx) {
         char preview_time[24];
         int sel_m = g_mail_sel_msg; if(sel_m<0)sel_m=0; if(sel_m>4)sel_m=4;
         apps2_format_mail_time(sel_m, 1, preview_time, sizeof(preview_time));
+        if (active_folder != 0) {
+            if (active_folder == 1 && g_mail_sent_count > 0) {
+                vga_draw_string_trans(px+8, pcy, g_mail_last_sent_subject, ml_txt); pcy+=14;
+                vga_draw_string_trans(px+8, pcy, "Me <me@myos.local>", ml_sub); pcy+=12;
+                vga_draw_string_trans(px+8, pcy, "Saved in Sent", ml_sub); pcy+=16;
+                vga_draw_hline(px+4, pcy, prev_w-8, ml_sep); pcy+=10;
+                vga_draw_string_trans(px+8, pcy, "Your message is stored locally.", ml_txt);
+            } else {
+                vga_draw_string_trans(px+8, pcy, folders[active_folder].name, ml_txt); pcy+=16;
+                vga_draw_string_trans(px+8, pcy, "No selected message", ml_sub);
+            }
+            { int sby = wy+wh-18;
+              vga_fill_rect(wx+1, sby, ww-2, 1, ml_sep);
+              vga_fill_rect(wx+1, sby+1, ww-2, 17, ml_tb);
+              vga_draw_string_trans(wx+8, sby+4, folders[active_folder].name, ml_sub); }
+            return 1;
+        }
         if (g_mail_sent_count > 0) {
             vga_draw_string_trans(px+8, cy0+ch0-48, "Last sent:", ml_sub);
             vga_draw_string_trans(px+8, cy0+ch0-36, g_mail_last_sent_subject, ml_txt);

@@ -89,6 +89,7 @@ int g_switcher_sel = 0;
 int g_music_playing = 1;
 int g_music_track   = 0; /* 0-4 track index */
 int g_music_vol     = 66; /* 0-100 volume % */
+int g_music_tab     = 1;  /* 0=library, 1=now playing, 2=radio */
 
 /* Widget bar (F7 toggle) */
 int g_widget_visible = 0;
@@ -2860,6 +2861,8 @@ int g_pref_vpn       = 0;
 int g_pref_notifs    = 1;
 int g_pref_sound     __attribute__((unused)) = 1;
 int g_pref_wallpaper = 0; /* 0=blue gradient, 1=sunset, 2=forest, 3=space */
+int g_pref_resolution = 1;
+int g_pref_alert_sound = 0;
 
 /* =========================================================================
  * Control Center (quick settings dropdown from top-right menu bar)
@@ -3032,6 +3035,7 @@ int  g_mail_subject_len   = 0;
 char g_mail_body[256]     = {0};
 int  g_mail_body_len      = 0;
 int  g_mail_sel_msg       = 0;
+int  g_mail_folder        = 0;
 int  g_mail_sent_count    = 0;
 int  g_mail_search_focused = 0;
 char g_mail_last_sent_subject[64] = {0};
