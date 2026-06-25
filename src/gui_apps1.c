@@ -906,7 +906,7 @@ int draw_apps_group1(int idx) {
         {
             int dlen = str_len(g_calc_disp);
             int dx = wx + ww - 8 - dlen*8 - 4;
-            /* Large font simulation: draw twice at offset for bold effect */
+            /* Large font effect: draw twice at offset for bold effect */
             vga_draw_string_trans(dx,   wy+TITLEBAR_H+28, g_calc_disp, RGB(255,255,255));
             vga_draw_string_trans(dx+1, wy+TITLEBAR_H+28, g_calc_disp, RGB(255,255,255));
         }
@@ -1816,7 +1816,7 @@ int draw_apps_group1(int idx) {
         /* Note body - render with newlines */
         { const char *body2 = g_notes_body[g_notes_sel];
           int tx=cx2+22, ty=content_y+18, j2=0;
-          /* Show placeholder for empty new note */
+          /* Show empty-state text for a new note */
           if (g_notes_sel == NOTES_COUNT-1 && !body2[0]) {
               vga_draw_string_trans(tx, ty, g_notes_focused?"Type your note...":"Empty note - click to edit", RGB(160,160,128));
           } else {

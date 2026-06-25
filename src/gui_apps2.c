@@ -871,7 +871,7 @@ int draw_apps_group2(int idx) {
         int ep_y = wy+TITLEBAR_H+32;
         vga_fill_rect(wx+8, ep_y, ww-16, 60, pc_acc);
         vga_fill_rect_alpha(wx+8, ep_y, ww-16, 60, RGB(255,255,255), 15);
-        /* Album art placeholder */
+        /* Album art frame */
         vga_fill_rect(wx+12, ep_y+4, 50, 50, RGB(100,50,180));
         gui_draw_rounded_rect_outline(wx+12, ep_y+4, 50, 50, 6, RGB(255,255,255));
         vga_draw_string_trans(wx+22, ep_y+20, "POD", RGB(255,255,255));

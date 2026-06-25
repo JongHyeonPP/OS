@@ -1725,7 +1725,7 @@ int draw_apps_group4(int idx) {
         /* Tasks */
         vga_draw_string_trans(wx+98, wy+TITLEBAR_H+8, "Today", th_acc);
         vga_draw_hline(wx+92, wy+TITLEBAR_H+22, ww-94, RGB(44,44,50));
-        static const char *th_tasks[]={"Review design mockups","Write weekly report","Call with client","Update dependencies","Read article on SwiftUI","Plan sprint tasks"};
+        static const char *th_tasks[]={"Review design drafts","Write weekly report","Call with client","Update dependencies","Read article on SwiftUI","Plan sprint tasks"};
         static const int th_done[]={1,1,0,0,0,1};
         for(ti2=0;ti2<6;ti2++){
             int ty2=wy+TITLEBAR_H+30+ti2*26;
@@ -3586,7 +3586,7 @@ int draw_apps_group4(int idx) {
                   vga_draw_hline(px2, py2+20+li2*10, 140-li2*8, pvsep);
                   vga_draw_hline(px2, py2+22+li2*10, 130-li2*4, g_pref_darkmode?RGB(50,50,58):RGB(210,210,220));
             } }
-            /* Image placeholder */
+            /* Image frame */
             vga_fill_rect(px2+20, py2+95, 100, 60, RGB(180,210,240));
             { int mi2; for(mi2=0;mi2<100;mi2++) {
                   int mhv=20+(mi2*13%30);

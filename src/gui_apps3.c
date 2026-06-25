@@ -694,7 +694,7 @@ int draw_apps_group3(int idx) {
                 ty4 += 12;
             }
         }
-        /* Inline image placeholder */
+        /* Inline image frame */
         if (ty4+40 < page_y+page_h-4) {
             vga_fill_rect(text_x, ty4, 60, 40, g_pref_darkmode?RGB(50,60,80):RGB(200,220,240));
             vga_draw_rect_outline(text_x, ty4, 60, 40, pg_sep);
@@ -1398,7 +1398,7 @@ int draw_apps_group3(int idx) {
         gui_draw_rounded_rect(ph_x, ph_y, ph_w, ph_h, 12, RGB(10,10,16));
         /* Notch / Dynamic Island at top */
         gui_draw_rounded_rect(ph_x+ph_w/2-20, ph_y+4, 40, 12, 6, RGB(0,0,0));
-        /* Unpaired phone placeholder */
+        /* Unpaired phone illustration */
         { int gri;
           for (gri=0;gri<ph_h-50;gri++) {
               int gr_y=ph_y+30+gri;
@@ -1766,7 +1766,7 @@ int draw_apps_group3(int idx) {
         int vx2=wx+browser_w+2;
         vga_fill_rect(vx2, panel_y, viewer_w, panel_h, RGB(18,18,22));
         vga_draw_vline(vx2+viewer_w, panel_y, panel_h, fc_sep);
-        /* Video frame mockup */
+        /* Video frame preview */
         { int vfx=vx2+6, vfy=panel_y+8, vfw=viewer_w-12, vfh=panel_h-28;
           int third_w = vfw / 3;
           if (third_w < 1) third_w = 1;

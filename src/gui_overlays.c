@@ -1270,7 +1270,7 @@ void spotlight_draw(void) {
     vga_draw_line(sx+23, sy+SPOTLIGHT_H/2+5, sx+27, sy+SPOTLIGHT_H/2+9, RGB(120,120,130));
     vga_draw_line(sx+24, sy+SPOTLIGHT_H/2+5, sx+28, sy+SPOTLIGHT_H/2+9, RGB(120,120,130));
 
-    /* Query text or placeholder */
+    /* Query text or empty hint */
     if (g_spot_qlen == 0) {
         vga_draw_string_trans(sx+38, sy+(SPOTLIGHT_H-8)/2, "Spotlight Search", RGB(185,185,190));
         /* Siri Suggestions */

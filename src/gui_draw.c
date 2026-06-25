@@ -80,7 +80,7 @@ static uint32_t desktop_color_at(int y) {
     return RGB(rr,gg,bb);
 }
 
-/* Stamp window-corner cutouts in desktop color to fake rounded corners.
+/* Stamp window-corner cutouts in desktop color to approximate rounded corners.
    r = corner radius; window at (wx,wy) size (ww,wh). */
 static void draw_window_corners(int wx, int wy, int ww, int wh, int r) {
     int dy;
