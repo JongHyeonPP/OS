@@ -5320,6 +5320,71 @@ static int safari_extract_base_request(const safari_request_t *req, const char *
     return 0;
 }
 
+static int safari_meta_refresh_content_url(const char *content, char *out, int max) {
+    int i;
+    int pos = 0;
+    if (!content || !out || max <= 0) return 0;
+    out[0] = 0;
+    for (i = 0; content[i]; i++) {
+        if (safari_starts_with_ci(content + i, "url")) {
+            const char *p = content + i + 3;
+            while (*p == ' ' || *p == '\t') p++;
+            if (*p != '=') continue;
+            p++;
+            while (*p == ' ' || *p == '\t') p++;
+            if (*p == '\"' || *p == '\'') {
+                char quote = *p++;
+                while (*p && *p != quote && pos + 1 < max)
+                    out[pos++] = *p++;
+            } else {
+                while (*p && *p != ';' && *p != '\r' && *p != '\n' && pos + 1 < max)
+                    out[pos++] = *p++;
+                while (pos > 0 && (out[pos - 1] == ' ' || out[pos - 1] == '\t')) pos--;
+            }
+            out[pos] = 0;
+            safari_html_decode_inline(out);
+            return out[0] != 0;
+        }
+    }
+    return 0;
+}
+
+static int safari_extract_meta_refresh_url(const safari_request_t *req, const char *body,
+                                           char *out, int max) {
+    const char *p = body;
+    safari_request_t base_req;
+    const safari_request_t *resolve_req = req;
+    if (!req || !body || !out || max <= 0) return 0;
+    out[0] = 0;
+    if (safari_extract_base_request(req, body, &base_req))
+        resolve_req = &base_req;
+    while (p && *p) {
+        if (safari_starts_with_ci(p, "</head")) break;
+        if (safari_tag_is(p, "meta")) {
+            const char *tag_end = p;
+            char equiv[32];
+            char content[SAFARI_URL_MAX];
+            char target[SAFARI_URL_MAX];
+            while (*tag_end && *tag_end != '>') tag_end++;
+            if (!*tag_end) break;
+            equiv[0] = 0;
+            content[0] = 0;
+            target[0] = 0;
+            (void)safari_tag_attr(p, tag_end, "http-equiv", equiv, sizeof(equiv));
+            if (safari_eq_ci(equiv, "refresh") &&
+                safari_tag_attr(p, tag_end, "content", content, sizeof(content)) == 0 &&
+                safari_meta_refresh_content_url(content, target, sizeof(target))) {
+                safari_resolve_location(resolve_req, target, out, max);
+                return out[0] != 0;
+            }
+            p = tag_end + 1;
+            continue;
+        }
+        p++;
+    }
+    return 0;
+}
+
 static void safari_extract_links(const safari_request_t *req, const char *body) {
     const char *p = body;
     safari_request_t base_req;
@@ -5795,10 +5860,25 @@ have_response:
     }
     {
         const char *body = safari_http_body(response);
+        char meta_refresh[SAFARI_URL_MAX];
         if (safari_header_value(response, "Transfer-Encoding", header_value, sizeof(header_value)) == 0 &&
             safari_ci_contains(header_value, "chunked") &&
             safari_decode_chunked_body(body, decoded_body, SAFARI_RESPONSE_MAX) == 0) {
             body = decoded_body;
+        }
+        meta_refresh[0] = 0;
+        if (safari_extract_meta_refresh_url(&req, body, meta_refresh, sizeof(meta_refresh))) {
+            if (redirect_depth >= SAFARI_REDIRECT_MAX) {
+                g_safari_page_state = 2;
+                safari_copy(g_safari_page_title, SAFARI_TITLE_MAX, "Too Many Redirects");
+                safari_copy(g_safari_page_status, SAFARI_STATUS_MAX, "Meta refresh limit reached");
+                safari_copy(g_safari_page_text, SAFARI_PAGE_TEXT_MAX, "The page refreshed too many times.");
+                safari_set_tab_title("Redirect Error");
+                if (record_history) safari_history_push_url(normalized);
+                return;
+            }
+            safari_load_url_internal(meta_refresh, "GET", "", record_history, redirect_depth + 1);
+            return;
         }
         title[0] = 0;
         safari_extract_title(body, title, sizeof(title));
