@@ -1436,150 +1436,24 @@ int draw_apps_group1(int idx) {
         int cy2 = toolbary + 28;
         int ph = wh-TITLEBAR_H-19-22-26-28;
         vga_fill_rect(wx+1, cy2, ww-2, ph, sf_pg_bg);
-        /* Detect URL to show different "pages" */
         const char *active_url = g_safari_url;
-        int is_settings = (active_url[8]=='s'&&active_url[9]=='e'); /* settings */
-        int is_github   = (active_url[8]=='g'); /* github... */
-        int is_news     = (active_url[8]=='n'); /* news */
-        int is_youtube  = (active_url[8]=='y'); /* youtube */
-        int is_store    = (active_url[8]=='a'&&active_url[9]=='p'); /* appstore */
-        /* Auto-update current tab title based on URL */
-        { const char *auto_title =
-              is_settings ? "MyOS Settings" :
-              is_github   ? "github.com" :
-              is_news     ? "MyOS News" :
-              is_youtube  ? "YouTube" :
-              is_store    ? "App Store" :
-              (active_url[0] ? "MyOS Home" : "New Tab");
-          int j4; for (j4=0;j4<23&&auto_title[j4];j4++) g_safari_tab_titles[g_safari_active_tab][j4]=auto_title[j4];
-          g_safari_tab_titles[g_safari_active_tab][j4]=0;
-        }
-        if (is_settings) {
-            runtime_storage_info_t storage;
-            const netif_t *net = runtime_primary_netif();
-            vga_fill_rect(wx+1, cy2, ww-2, 28, RGB(60,60,65));
-            vga_draw_string_trans(wx+12, cy2+4,  "MyOS Settings", RGB(255,255,255));
-            vga_draw_string_trans(wx+12, cy2+16, "System Preferences Online", RGB(180,180,200));
-            vga_draw_string_trans(wx+12, cy2+36, (net && net->up) ? "Network: Connected" : "Network: Offline",
-                (net && net->up) ? RGB(52,199,89) : RGB(255,59,48));
-            if (runtime_get_storage_info("/", &storage) == 0) {
-                char sbuf[32];
-                int sp = 0;
-                sbuf[0] = 0;
-                apps1_append_text(sbuf, &sp, sizeof(sbuf), "Storage: ");
-                apps1_append_bytes(sbuf, &sp, sizeof(sbuf), storage.free_bytes);
-                apps1_append_text(sbuf, &sp, sizeof(sbuf), " free");
-                vga_draw_string_trans(wx+12, cy2+50, sbuf, RGB(100,100,100));
-            }
-        } else if (is_github) {
-            vga_fill_rect(wx+1, cy2, ww-2, 28, RGB(36,41,46));
-            vga_draw_string_trans(wx+12, cy2+4,  "github.com/myos", RGB(255,255,255));
-            vga_draw_string_trans(wx+12, cy2+16, "MyOS - Bare Metal x86 OS", RGB(180,200,220));
-            vga_draw_string_trans(wx+12, cy2+36, "Stars: 1.2k  Forks: 234", RGB(100,120,100));
-            vga_draw_string_trans(wx+12, cy2+50, "Language: C  License: MIT", RGB(100,100,100));
-        } else if (is_news) {
-            /* Apple News-style layout */
-            uint32_t nw_bg  = g_pref_darkmode ? RGB(18,18,22)    : RGB(250,250,252);
-            uint32_t nw_txt = g_pref_darkmode ? RGB(220,220,228) : RGB(20,20,25);
-            uint32_t nw_sub = g_pref_darkmode ? RGB(130,130,138) : RGB(100,100,108);
-            uint32_t nw_sep = g_pref_darkmode ? RGB(55,55,60)    : RGB(210,210,215);
-            uint32_t nw_tag = RGB(230,40,40);
-            vga_fill_rect(wx+1, cy2, ww-2, 22, nw_tag);
-            vga_draw_string_trans(wx+(ww-36)/2, cy2+7, "News", RGB(255,255,255));
-            vga_fill_rect(wx+1, cy2+22, ww-2, ph-22, nw_bg);
-            /* Hero article */
-            int hay = cy2+26;
-            vga_fill_rect(wx+4, hay, ww-8, 60, g_pref_darkmode?RGB(0,60,120):RGB(0,90,180));
-            vga_draw_string_trans(wx+8, hay+4, "TECHNOLOGY", RGB(200,220,255));
-            vga_draw_string_trans(wx+8, hay+16, "Apple Unveils M4 Ultra Mac Pro", RGB(255,255,255));
-            vga_draw_string_trans(wx+8, hay+30, "The fastest Mac ever built with", RGB(180,210,255));
-            vga_draw_string_trans(wx+8, hay+40, "unprecedented performance gains", RGB(180,210,255));
-            { char agebuf[16];
-              runtime_format_relative_time(2U * 3600U, agebuf, sizeof(agebuf));
-              vga_draw_string_trans(wx+8, hay+52, agebuf, RGB(150,180,220)); }
-            /* Article list */
-            static const struct { const char *cat; const char *title; const char *src; uint32_t age_seconds; uint32_t cat_c; } articles[] = {
-                { "WORLD",    "Global Markets Rise on Strong Earnings",      "Reuters",    1U * 3600U, RGB(0,150,80)   },
-                { "SCIENCE",  "Webb Telescope Discovers New Exoplanet",       "NASA",       3U * 3600U, RGB(80,60,200)  },
-                { "SPORTS",   "World Cup 2026: Opening Match Results",        "ESPN",       5U * 3600U, RGB(255,80,0)   },
-                { "HEALTH",   "New Study Links Sleep to Brain Health",        "Med.News",   6U * 3600U, RGB(255,60,100) },
-                { "CULTURE",  "Oscars 2026: Full Winners List",               "Variety",    8U * 3600U, RGB(180,120,0)  },
-            };
-            int nay = hay + 68;
-            int ai; for (ai=0; ai<5 && nay+36 < cy2+ph; ai++) {
-                vga_draw_hline(wx+6, nay, ww-12, nw_sep);
-                nay += 4;
-                /* Category tag */
-                vga_fill_rect(wx+6, nay, str_len(articles[ai].cat)*8+4, 10, articles[ai].cat_c);
-                vga_draw_string_trans(wx+8, nay+1, articles[ai].cat, RGB(255,255,255));
-                /* Thumbnail color block */
-                int thx = wx+ww-42;
-                vga_fill_rect(thx, nay, 36, 28, articles[ai].cat_c);
-                vga_fill_rect_alpha(thx, nay, 36, 10, RGB(255,255,255), 40);
-                vga_draw_string_trans(wx+6, nay+14, articles[ai].title, nw_txt);
-                vga_draw_string_trans(wx+6, nay+24, articles[ai].src, nw_sub);
-                { char agebuf[16];
-                  runtime_format_relative_time(articles[ai].age_seconds, agebuf, sizeof(agebuf));
-                  vga_draw_string_trans(thx+4, nay+28+2, agebuf, nw_sub); }
-                nay += 36;
-            }
-        } else if (is_youtube) {
-            /* YouTube-like page */
-            vga_fill_rect(wx+1, cy2, ww-2, 28, RGB(255,0,0));
-            vga_draw_string_trans(wx+12, cy2+8, "YouTube", RGB(255,255,255));
-            { int yw=0; for(;active_url[yw];yw++) (void)yw; }
-            vga_fill_rect(wx+1, cy2+28, ww-2, ph-28, g_pref_darkmode?RGB(15,15,15):RGB(255,255,255));
-            /* Video thumbnails */
-            { int vi3;
-              static const char *vtitles[]={"Tech Review 2026","Coding Tips","Game Play","Sunset Walk","Music Mix"};
-              static const uint32_t vcols[]={RGB(0,100,200),RGB(0,160,80),RGB(180,50,50),RGB(200,140,0),RGB(120,0,180)};
-              int col3=2, vw3=(ww-20)/col3, vh3=48;
-              for (vi3=0;vi3<4&&vi3<col3*2;vi3++) {
-                  int vr2=vi3/col3, vc=vi3%col3;
-                  int vx2=wx+4+vc*(vw3+6), vy2=cy2+32+vr2*(vh3+28);
-                  vga_fill_rect(vx2, vy2, vw3, vh3, vcols[vi3%5]);
-                  /* Play button */
-                  int pc3;
-                  for(pc3=0;pc3<12;pc3++) vga_draw_hline(vx2+vw3/2-3, vy2+vh3/2-6+pc3, pc3/2, RGB(255,255,255));
-                  vga_draw_string_trans(vx2, vy2+vh3+2, vtitles[vi3%5], g_pref_darkmode?RGB(210,210,218):RGB(30,30,30));
-                  vga_draw_string_trans(vx2, vy2+vh3+14, "1.2M views", g_pref_darkmode?RGB(120,120,128):RGB(100,100,100));
-              }
-            }
-        } else if (is_store) {
-            /* App Store-like page */
-            vga_fill_rect(wx+1, cy2, ww-2, 28, RGB(0,122,255));
-            vga_draw_string_trans(wx+12, cy2+8, "App Store", RGB(255,255,255));
-            vga_fill_rect(wx+1, cy2+28, ww-2, ph-28, g_pref_darkmode?RGB(24,24,28):RGB(248,248,252));
-            vga_draw_string_trans(wx+8, cy2+36, "Featured", g_pref_darkmode?RGB(200,200,208):RGB(30,30,30));
-            { int ai3;
-              static const char *anames[]={"Xcode","Logic","Sketch","Notion","Figma"};
-              static const uint32_t acols[]={RGB(0,122,255),RGB(180,50,50),RGB(255,100,0),RGB(0,0,0),RGB(80,60,200)};
-              int aw3=(ww-16)/3, ah3=44;
-              for(ai3=0;ai3<3;ai3++) {
-                  int ax3=wx+4+ai3*(aw3+4), ay3=cy2+52;
-                  gui_draw_rounded_rect(ax3, ay3, aw3, ah3, 8, acols[ai3%5]);
-                  vga_draw_string_trans(ax3+4, ay3+14, anames[ai3], RGB(255,255,255));
-                  vga_draw_string_trans(ax3+4, ay3+26, "GET", RGB(255,255,255));
-              }
-            }
-        } else {
-            /* Safari Start Page (macOS-style new tab) */
+        if (safari_is_home_url(active_url)) {
+            /* Safari Start Page: address entry and real navigation shortcuts */
             uint32_t sp_bg  = g_pref_darkmode ? RGB(24,24,28)    : RGB(246,246,248);
             uint32_t sp_sub = g_pref_darkmode ? RGB(130,130,138) : RGB(100,100,108);
             uint32_t sp_sep = g_pref_darkmode ? RGB(55,55,60)    : RGB(210,210,215);
+            const netif_t *net = runtime_primary_netif();
             vga_fill_rect(wx+1, cy2, ww-2, ph, sp_bg);
 
             /* Big search bar at top */
             int sbx = wx + ww/2 - 110, sby = cy2 + 12, sbw = 220, sbh = 24;
             vga_fill_rect_alpha(sbx, sby, sbw, sbh, g_pref_darkmode?RGB(50,50,56):RGB(255,255,255), 220);
             gui_draw_rounded_rect_outline(sbx, sby, sbw, sbh, 6, sp_sep);
-            /* Search icon */
             gui_draw_circle(sbx+12, sby+12, 5, sp_sub);
             gui_draw_circle(sbx+12, sby+12, 3, sp_bg);
             vga_draw_line(sbx+16, sby+16, sbx+20, sby+20, sp_sub);
             vga_draw_string_trans(sbx+22, sby+8, "Search or enter address", sp_sub);
 
-            /* FAVORITES section */
             int fy = sby + sbh + 14;
             vga_draw_string_trans(wx+12, fy, "FAVOURITES", sp_sub);
             fy += 12;
@@ -1602,43 +1476,63 @@ int draw_apps_group1(int idx) {
                 int fx = wx+12 + fc*(fav_sz+10);
                 int fya = fy + fr*(fav_sz+24);
                 if (fya + fav_sz + 24 > cy2 + ph - 8) break;
-                /* Site icon */
                 gui_draw_rounded_rect(fx, fya, fav_sz, fav_sz, 10, fav_sites[fi].col);
                 vga_fill_rect_alpha(fx+2, fya+2, fav_sz-4, fav_sz/3, RGB(255,255,255), 45);
                 { char ltr[2]; ltr[0]=fav_sites[fi].letter; ltr[1]=0;
                   vga_draw_string_trans(fx+fav_sz/2-4, fya+fav_sz/2-4, ltr, RGB(255,255,255)); }
-                /* Label */
                 int nlen = str_len(fav_sites[fi].name);
                 vga_draw_string_trans(fx+(fav_sz-nlen*8)/2, fya+fav_sz+2, fav_sites[fi].name, sp_sub);
             }
 
-            /* RECENTLY VISITED section */
-            int rvy = fy + ((n_fav+fav_cols-1)/fav_cols)*(fav_sz+24) + 8;
-            if (rvy + 80 < cy2 + ph) {
-                vga_draw_hline(wx+8, rvy, ww-16, sp_sep);
-                rvy += 6;
-                vga_draw_string_trans(wx+12, rvy, "RECENTLY VISITED", sp_sub);
-                rvy += 12;
-                static const struct { const char *title; const char *url; uint32_t col; } recent[] = {
-                    { "Apple",   "apple.com",   RGB(0,0,0)      },
-                    { "Hacker News","news.ycombinator.com",RGB(255,102,0) },
-                    { "Stack Overflow","stackoverflow.com",RGB(244,128,36) },
-                };
-                int ri2;
-                for (ri2=0; ri2<3; ri2++) {
-                    int rx = wx+12 + ri2*(ww-24)/3;
-                    int ryw = rvy;
-                    if (rx+70 > wx+ww-8) break;
-                    gui_draw_rounded_rect(rx, ryw, 48, 30, 6, recent[ri2].col);
-                    vga_fill_rect_alpha(rx+2, ryw+2, 44, 10, RGB(255,255,255), 45);
-                    vga_draw_string_trans(rx, ryw+34, recent[ri2].title, sp_sub);
+            {
+                int info_y = fy + ((n_fav+fav_cols-1)/fav_cols)*(fav_sz+24) + 8;
+                if (info_y + 52 < cy2 + ph) {
+                    char net_line[96];
+                    int np = 0;
+                    vga_draw_hline(wx+8, info_y, ww-16, sp_sep);
+                    info_y += 8;
+                    vga_draw_string_trans(wx+12, info_y, "NETWORK", sp_sub);
+                    info_y += 14;
+                    net_line[0] = 0;
+                    apps1_append_text(net_line, &np, sizeof(net_line), "HTTP over ");
+                    apps1_append_text(net_line, &np, sizeof(net_line), (net && net->up) ? net->name : "loopback");
+                    if (net && net->up && net->ipv4) {
+                        char ipbuf[18];
+                        runtime_format_ipv4(net->ipv4, ipbuf, sizeof(ipbuf));
+                        apps1_append_text(net_line, &np, sizeof(net_line), " ");
+                        apps1_append_text(net_line, &np, sizeof(net_line), ipbuf);
+                    }
+                    vga_draw_string_trans(wx+12, info_y, net_line, sp_sub);
+                    vga_draw_string_trans(wx+12, info_y+14, "Local pages: http://localhost/ and /etc/hosts", sp_sub);
                 }
             }
-
-            /* Privacy Report footer */
-            int prvy = cy2 + ph - 16;
-            vga_draw_hline(wx+8, prvy-2, ww-16, sp_sep);
-            vga_draw_string_trans(wx+12, prvy+2, "Privacy Report: 3 trackers blocked today", sp_sub);
+        } else {
+            uint32_t pg_txt = g_pref_darkmode ? RGB(225,225,232) : RGB(25,25,30);
+            uint32_t pg_sub = g_pref_darkmode ? RGB(145,145,155) : RGB(95,95,105);
+            uint32_t pg_rule = g_pref_darkmode ? RGB(65,65,72) : RGB(215,215,220);
+            int tx = wx + 12;
+            int ty = cy2 + 12;
+            int max_cols = (ww - 24) / 8;
+            int col = 0;
+            int line = 0;
+            int ci;
+            if (max_cols < 8) max_cols = 8;
+            vga_draw_string_trans(tx, ty, g_safari_page_title, g_safari_page_state == 2 ? RGB(255,80,80) : pg_txt);
+            vga_draw_string_trans(tx, ty+14, g_safari_page_status, pg_sub);
+            vga_draw_hline(wx+8, ty+28, ww-16, pg_rule);
+            ty += 36;
+            for (ci = 0; g_safari_page_text[ci] && ty + line*12 < cy2 + ph - 8; ci++) {
+                char ch = g_safari_page_text[ci];
+                if (ch == '\n' || col >= max_cols) {
+                    line++;
+                    col = 0;
+                    if (ch == '\n') continue;
+                }
+                if (ch >= 32 && ch < 127) {
+                    vga_draw_char_trans(tx + col*8, ty + line*12, ch, pg_txt);
+                    col++;
+                }
+            }
         }
         /* Status bar */
         vga_draw_string_trans(wx+8, wy+wh-13, g_safari_url_focused?"URL: editing...":"Done",

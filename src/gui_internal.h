@@ -85,6 +85,10 @@
  * Safari constants
  * ======================================================================= */
 #define SAFARI_MAX_TABS 4
+#define SAFARI_URL_MAX 96
+#define SAFARI_TITLE_MAX 48
+#define SAFARI_PAGE_TEXT_MAX 1024
+#define SAFARI_STATUS_MAX 128
 
 /* =========================================================================
  * Calendar constants
@@ -287,11 +291,18 @@ extern int  g_notes_body_len[NOTES_COUNT];
 
 /* Safari */
 extern int  g_safari_url_focused;
-extern char g_safari_url[64];
+extern char g_safari_url[SAFARI_URL_MAX];
 extern int  g_safari_tab_count;
 extern int  g_safari_active_tab;
-extern char g_safari_tab_urls[SAFARI_MAX_TABS][64];
-extern char g_safari_tab_titles[SAFARI_MAX_TABS][24];
+extern char g_safari_tab_urls[SAFARI_MAX_TABS][SAFARI_URL_MAX];
+extern char g_safari_tab_titles[SAFARI_MAX_TABS][SAFARI_TITLE_MAX];
+extern int  g_safari_page_state;
+extern char g_safari_page_url[SAFARI_URL_MAX];
+extern char g_safari_page_title[SAFARI_TITLE_MAX];
+extern char g_safari_page_status[SAFARI_STATUS_MAX];
+extern char g_safari_page_text[SAFARI_PAGE_TEXT_MAX];
+extern uint32_t g_safari_page_status_code;
+extern uint32_t g_safari_loaded_tick;
 
 extern int g_maps_view;
 
@@ -665,6 +676,9 @@ void term_process_command(void);
 
 /* Safari */
 void safari_normalize_state(void);
+int safari_is_home_url(const char *url);
+void safari_load_url(const char *url);
+void safari_load_current_tab(void);
 
 /* Drawing helpers called across files */
 void draw_toggle(int x, int y, int on);

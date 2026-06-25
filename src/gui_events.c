@@ -814,6 +814,7 @@ void gui_run(void) {
                             str_cpy(g_safari_tab_urls[g_safari_active_tab], g_safari_url);
                             g_safari_active_tab = g_safari_tab_count++;
                             g_safari_tab_urls[g_safari_active_tab][0] = 0;
+                            safari_load_url("about:home");
                             g_safari_tab_titles[g_safari_active_tab][0] = 'N';
                             g_safari_tab_titles[g_safari_active_tab][1] = 'e';
                             g_safari_tab_titles[g_safari_active_tab][2] = 'w';
@@ -849,12 +850,14 @@ void gui_run(void) {
                                       if (g_safari_active_tab >= g_safari_tab_count)
                                           g_safari_active_tab = g_safari_tab_count-1;
                                       str_cpy(g_safari_url, g_safari_tab_urls[g_safari_active_tab]);
+                                      safari_load_current_tab();
                                   }
                               } else {
                                   /* Switch tab */
                                   str_cpy(g_safari_tab_urls[g_safari_active_tab], g_safari_url);
                                   g_safari_active_tab = ti4;
                                   str_cpy(g_safari_url, g_safari_tab_urls[g_safari_active_tab]);
+                                  safari_load_current_tab();
                               }
                               dirty=1; goto end_left_press;
                           }
@@ -873,6 +876,41 @@ void gui_run(void) {
                 int ab_x2 = w->x+44, ab_w2 = w->w-90;
                 if (mx>=ab_x2 && mx<ab_x2+ab_w2 && my>=tbary+5 && my<tbary+21) {
                     g_safari_url_focused=1; dirty=1; goto end_left_press;
+                }
+                if (mx>=w->x+w->w-42 && mx<w->x+w->w-28 && my>=tbary+5 && my<tbary+21) {
+                    safari_load_current_tab(); dirty=1; goto end_left_press;
+                }
+                {
+                    int cy_home = tbary + 28;
+                    int ph_home = w->h-TITLEBAR_H-19-22-26-28;
+                    if (safari_is_home_url(g_safari_url) && my >= cy_home && my < cy_home + ph_home) {
+                        int sbx2 = w->x + w->w/2 - 110;
+                        int sby2 = cy_home + 12;
+                        int sbw2 = 220;
+                        int sbh2 = 24;
+                        if (mx>=sbx2 && mx<sbx2+sbw2 && my>=sby2 && my<sby2+sbh2) {
+                            g_safari_url_focused=1; g_safari_url[0]=0; dirty=1; goto end_left_press;
+                        }
+                        {
+                            static const char *fav_urls2[] = {
+                                "http://google.com/", "http://youtube.com/", "http://github.com/", "http://amazon.com/",
+                                "http://twitter.com/", "http://reddit.com/", "http://netflix.com/", "http://wikipedia.org/"
+                            };
+                            int fy2 = sby2 + sbh2 + 14 + 12;
+                            int fav_cols2 = 4;
+                            int fav_sz2 = (w->w-24)/fav_cols2 - 4;
+                            int fi2;
+                            if (fav_sz2 > 48) fav_sz2 = 48;
+                            for (fi2=0; fi2<8; fi2++) {
+                                int fc2 = fi2 % fav_cols2, fr2 = fi2 / fav_cols2;
+                                int fx2 = w->x+12 + fc2*(fav_sz2+10);
+                                int fya2 = fy2 + fr2*(fav_sz2+24);
+                                if (mx>=fx2 && mx<fx2+fav_sz2 && my>=fya2 && my<fya2+fav_sz2+14) {
+                                    safari_load_url(fav_urls2[fi2]); dirty=1; goto end_left_press;
+                                }
+                            }
+                        }
+                    }
                 }
                 /* Clicking elsewhere in Safari = lose URL focus */
                 if (my > w->y+TITLEBAR_H) { g_safari_url_focused=0; dirty=1; }
@@ -3529,13 +3567,12 @@ void gui_run(void) {
                     int url_len = str_len(g_safari_url);
                     safari_normalize_state();
                     if (ch == KEY_ENTER) {
-                        /* "Navigate" to URL - save to active tab */
                         g_safari_url_focused = 0;
-                        str_cpy(g_safari_tab_urls[g_safari_active_tab], g_safari_url);
-                        toast_show("Safari", g_safari_url, RGB(40,160,220));
+                        safari_load_url(g_safari_url);
+                        toast_show("Safari", g_safari_page_status, RGB(40,160,220));
                     } else if (ch == KEY_BACKSPACE) {
                         if (url_len > 0) g_safari_url[url_len-1] = 0;
-                    } else if (ch >= 0x20 && ch < 0x7F && url_len < 63) {
+                    } else if (ch >= 0x20 && ch < 0x7F && url_len + 1 < SAFARI_URL_MAX) {
                         g_safari_url[url_len] = (char)ch;
                         g_safari_url[url_len+1] = 0;
                     }

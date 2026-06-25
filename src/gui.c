@@ -13,6 +13,9 @@
 #include "keyboard.h"
 #include "timer.h"
 #include "font.h"
+#include "net.h"
+#include "uts.h"
+#include "vfs.h"
 #include <stdint.h>
 #include <stddef.h>
 #include "gui_internal.h"
@@ -314,16 +317,23 @@ int g_notes_body_len[NOTES_COUNT] = {0, 0, 0, 0, 0};
  * Safari state
  * ======================================================================= */
 int  g_safari_url_focused = 0;
-char g_safari_url[64] = "about:home";
+char g_safari_url[SAFARI_URL_MAX] = "about:home";
 /* Multi-tab state */
 int  g_safari_tab_count  = 1;
 int  g_safari_active_tab = 0;
-char g_safari_tab_urls[SAFARI_MAX_TABS][64] = {
+char g_safari_tab_urls[SAFARI_MAX_TABS][SAFARI_URL_MAX] = {
     "about:home", "", "", ""
 };
-char g_safari_tab_titles[SAFARI_MAX_TABS][24] = {
+char g_safari_tab_titles[SAFARI_MAX_TABS][SAFARI_TITLE_MAX] = {
     "MyOS Home", "", "", ""
 };
+int  g_safari_page_state = 0; /* 0=start, 1=loaded, 2=error */
+char g_safari_page_url[SAFARI_URL_MAX] = "about:home";
+char g_safari_page_title[SAFARI_TITLE_MAX] = "MyOS Home";
+char g_safari_page_status[SAFARI_STATUS_MAX] = "Ready";
+char g_safari_page_text[SAFARI_PAGE_TEXT_MAX] = "";
+uint32_t g_safari_page_status_code = 0;
+uint32_t g_safari_loaded_tick = 0;
 
 void safari_normalize_state(void) {
     if (g_safari_tab_count < 1) {
@@ -345,6 +355,659 @@ void safari_normalize_state(void) {
         g_safari_active_tab = 0;
     if (g_safari_active_tab >= g_safari_tab_count)
         g_safari_active_tab = g_safari_tab_count - 1;
+}
+
+
+typedef struct {
+    char scheme[6];
+    char host[48];
+    char path[128];
+    uint16_t port;
+    uint32_t ipv4;
+    int local;
+} safari_request_t;
+
+static int safari_char_lower(int ch) {
+    return (ch >= 'A' && ch <= 'Z') ? ch + ('a' - 'A') : ch;
+}
+
+static int safari_ieq_char(char a, char b) {
+    return safari_char_lower((unsigned char)a) == safari_char_lower((unsigned char)b);
+}
+
+static int safari_starts_with_ci(const char *s, const char *prefix) {
+    int i = 0;
+    if (!s || !prefix) return 0;
+    while (prefix[i]) {
+        if (!s[i] || !safari_ieq_char(s[i], prefix[i])) return 0;
+        i++;
+    }
+    return 1;
+}
+
+static void safari_copy(char *dst, int max, const char *src) {
+    int i = 0;
+    if (!dst || max <= 0) return;
+    if (!src) {
+        dst[0] = 0;
+        return;
+    }
+    while (src[i] && i + 1 < max) {
+        dst[i] = src[i];
+        i++;
+    }
+    dst[i] = 0;
+}
+
+static void safari_append(char *dst, int *pos, int max, const char *src) {
+    int i = 0;
+    if (!dst || !pos || max <= 0 || !src) return;
+    while (src[i] && *pos + 1 < max) {
+        dst[*pos] = src[i];
+        (*pos)++;
+        i++;
+    }
+    dst[*pos] = 0;
+}
+
+static void safari_append_uint(char *dst, int *pos, int max, uint32_t value) {
+    char nbuf[12];
+    runtime_format_uint(value, nbuf, sizeof(nbuf));
+    safari_append(dst, pos, max, nbuf);
+}
+
+static void safari_append_ipv4(char *dst, int *pos, int max, uint32_t ipv4) {
+    char ipbuf[18];
+    runtime_format_ipv4(ipv4, ipbuf, sizeof(ipbuf));
+    safari_append(dst, pos, max, ipbuf);
+}
+
+static int safari_parse_ipv4_text(const char *s, uint32_t *out) {
+    uint32_t octets[4];
+    int i;
+    if (!s || !out) return -1;
+    for (i = 0; i < 4; i++) {
+        uint32_t value = 0;
+        int any = 0;
+        while (*s >= '0' && *s <= '9') {
+            value = value * 10U + (uint32_t)(*s - '0');
+            if (value > 255U) return -1;
+            any = 1;
+            s++;
+        }
+        if (!any) return -1;
+        octets[i] = value;
+        if (i < 3) {
+            if (*s != '.') return -1;
+            s++;
+        }
+    }
+    if (*s) return -1;
+    *out = (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3];
+    return 0;
+}
+
+static int safari_host_token_eq(const char *buf, int start, int end, const char *host) {
+    int i = 0;
+    if (!buf || !host || start >= end) return 0;
+    while (start + i < end && host[i]) {
+        if (!safari_ieq_char(buf[start + i], host[i])) return 0;
+        i++;
+    }
+    return start + i == end && host[i] == 0;
+}
+
+static int safari_resolve_hosts_file(const char *host, uint32_t *out) {
+    int fd;
+    int n;
+    int i = 0;
+    char buf[512];
+    if (!host || !out) return -1;
+    fd = vfs_open("/etc/hosts", VFS_O_RDONLY);
+    if (fd < 0) return -1;
+    n = vfs_read(fd, buf, sizeof(buf) - 1);
+    vfs_close(fd);
+    if (n <= 0) return -1;
+    buf[n] = 0;
+    while (i < n) {
+        char ipbuf[18];
+        int ip_pos = 0;
+        uint32_t ip = 0;
+        while (i < n && (buf[i] == ' ' || buf[i] == '\t' || buf[i] == '\r' || buf[i] == '\n')) i++;
+        if (i >= n) break;
+        if (buf[i] == '#') {
+            while (i < n && buf[i] != '\n') i++;
+            continue;
+        }
+        while (i < n && buf[i] != ' ' && buf[i] != '\t' && buf[i] != '\r' && buf[i] != '\n' && ip_pos + 1 < (int)sizeof(ipbuf))
+            ipbuf[ip_pos++] = buf[i++];
+        ipbuf[ip_pos] = 0;
+        if (safari_parse_ipv4_text(ipbuf, &ip) < 0) {
+            while (i < n && buf[i] != '\n') i++;
+            continue;
+        }
+        while (i < n && buf[i] != '\n') {
+            int start;
+            int end;
+            while (i < n && (buf[i] == ' ' || buf[i] == '\t')) i++;
+            start = i;
+            while (i < n && buf[i] != ' ' && buf[i] != '\t' && buf[i] != '\r' && buf[i] != '\n') i++;
+            end = i;
+            if (safari_host_token_eq(buf, start, end, host)) {
+                *out = ip;
+                return 0;
+            }
+        }
+    }
+    return -1;
+}
+
+static int safari_host_resolve4(const char *host, uint32_t *out) {
+    uint32_t i;
+    if (!host || !out || !host[0]) return -1;
+    if (safari_parse_ipv4_text(host, out) == 0) return 0;
+    if (str_eq(host, "localhost")) {
+        *out = 0x7F000001U;
+        return 0;
+    }
+    if (str_eq(host, uts_nodename())) {
+        *out = 0x7F000101U;
+        return 0;
+    }
+    if (safari_resolve_hosts_file(host, out) == 0) return 0;
+    for (i = 0; i < netif_count(); i++) {
+        const netif_t *iface = netif_at(i);
+        if (iface && iface->name && iface->ipv4 && str_eq(host, iface->name)) {
+            *out = iface->ipv4;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+int safari_is_home_url(const char *url) {
+    return !url || !url[0] || str_eq(url, "about:home") || str_eq(url, "about:blank");
+}
+
+static void safari_normalize_url_text(const char *input, char *out, int max) {
+    int pos = 0;
+    const char *p = input;
+    if (!out || max <= 0) return;
+    out[0] = 0;
+    while (p && (*p == ' ' || *p == '\t')) p++;
+    if (!p || !*p) {
+        safari_copy(out, max, "about:home");
+        return;
+    }
+    if (safari_starts_with_ci(p, "about:") ||
+        safari_starts_with_ci(p, "http://") ||
+        safari_starts_with_ci(p, "https://")) {
+        safari_copy(out, max, p);
+        return;
+    }
+    safari_append(out, &pos, max, "http://");
+    safari_append(out, &pos, max, p);
+}
+
+static void safari_set_tab_title(const char *title) {
+    safari_normalize_state();
+    safari_copy(g_safari_tab_titles[g_safari_active_tab], SAFARI_TITLE_MAX,
+                title && title[0] ? title : "New Tab");
+}
+
+static int safari_parse_url(const char *url, safari_request_t *req) {
+    char normalized[SAFARI_URL_MAX];
+    const char *p;
+    int i = 0;
+    int path_pos = 0;
+    uint32_t ip = 0;
+    if (!req) return -1;
+    req->scheme[0] = 0;
+    req->host[0] = 0;
+    req->path[0] = '/';
+    req->path[1] = 0;
+    req->port = 80;
+    req->ipv4 = 0;
+    req->local = 0;
+    safari_normalize_url_text(url, normalized, sizeof(normalized));
+    if (safari_is_home_url(normalized)) return 1;
+    if (safari_starts_with_ci(normalized, "https://")) {
+        safari_copy(req->scheme, sizeof(req->scheme), "https");
+        p = normalized + 8;
+        req->port = 443;
+    } else if (safari_starts_with_ci(normalized, "http://")) {
+        safari_copy(req->scheme, sizeof(req->scheme), "http");
+        p = normalized + 7;
+    } else {
+        return -1;
+    }
+    while (p[i] && p[i] != '/' && p[i] != ':' && p[i] != '?' && p[i] != '#') {
+        if (i + 1 < (int)sizeof(req->host))
+            req->host[i] = (char)safari_char_lower((unsigned char)p[i]);
+        i++;
+    }
+    if (i >= (int)sizeof(req->host)) i = (int)sizeof(req->host) - 1;
+    req->host[i] = 0;
+    p += i;
+    if (*p == ':') {
+        uint32_t port = 0;
+        int any = 0;
+        p++;
+        while (*p >= '0' && *p <= '9') {
+            port = port * 10U + (uint32_t)(*p - '0');
+            if (port > 65535U) return -1;
+            any = 1;
+            p++;
+        }
+        if (!any || port == 0) return -1;
+        req->port = (uint16_t)port;
+    }
+    if (*p == '/' || *p == '?' || *p == '#') {
+        if (*p != '/') {
+            req->path[path_pos++] = '/';
+        }
+        while (*p && path_pos + 1 < (int)sizeof(req->path)) {
+            req->path[path_pos++] = *p++;
+        }
+        req->path[path_pos] = 0;
+    }
+    if (!req->host[0]) return -1;
+    if (safari_host_resolve4(req->host, &ip) < 0) return -2;
+    req->ipv4 = ip;
+    req->local = ((ip & 0xFF000000U) == 0x7F000000U);
+    return 0;
+}
+
+static void safari_make_local_body(const safari_request_t *req, const char *request, char *out, int max) {
+    int pos = 0;
+    int fd;
+    char filebuf[512];
+    int n = -1;
+    const char *path = req ? req->path : "/";
+    (void)request;
+    if (!out || max <= 0) return;
+    out[0] = 0;
+    if (!path || !path[0] || str_eq(path, "/") || str_eq(path, "/index.html")) {
+        runtime_system_info_t sys;
+        runtime_storage_info_t storage;
+        net_stats_t stats;
+        runtime_get_system_info(&sys);
+        runtime_get_storage_info("/", &storage);
+        net_stats(&stats);
+        safari_append(out, &pos, max, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n");
+        safari_append(out, &pos, max, "<html><title>MyOS Local Web</title><body>");
+        safari_append(out, &pos, max, "<h1>MyOS Local Web</h1>");
+        safari_append(out, &pos, max, "<p>Hostname: ");
+        safari_append(out, &pos, max, sys.nodename);
+        safari_append(out, &pos, max, "</p><p>Kernel: ");
+        safari_append(out, &pos, max, sys.sysname);
+        safari_append(out, &pos, max, " ");
+        safari_append(out, &pos, max, sys.release);
+        safari_append(out, &pos, max, "</p><p>Network packets: tx=");
+        safari_append_uint(out, &pos, max, stats.tx_packets);
+        safari_append(out, &pos, max, " rx=");
+        safari_append_uint(out, &pos, max, stats.rx_packets);
+        safari_append(out, &pos, max, "</p><p>Storage free: ");
+        {
+            char bbuf[18];
+            runtime_format_bytes(storage.free_bytes, bbuf, sizeof(bbuf));
+            safari_append(out, &pos, max, bbuf);
+        }
+        safari_append(out, &pos, max, "</p><p>Try /etc/hosts or /proc/net/hosts.</p></body></html>");
+        return;
+    }
+    fd = vfs_open(path, VFS_O_RDONLY);
+    if (fd >= 0) {
+        n = vfs_read(fd, filebuf, sizeof(filebuf) - 1);
+        vfs_close(fd);
+    }
+    if (n >= 0) {
+        filebuf[n] = 0;
+        safari_append(out, &pos, max, "HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\n");
+        safari_append(out, &pos, max, "<html><title>");
+        safari_append(out, &pos, max, path);
+        safari_append(out, &pos, max, "</title><body><pre>");
+        safari_append(out, &pos, max, filebuf);
+        safari_append(out, &pos, max, "</pre></body></html>");
+        return;
+    }
+    safari_append(out, &pos, max, "HTTP/1.0 404 Not Found\r\nContent-Type: text/html\r\n\r\n");
+    safari_append(out, &pos, max, "<html><title>Not Found</title><body><h1>Not Found</h1><p>");
+    safari_append(out, &pos, max, path);
+    safari_append(out, &pos, max, "</p></body></html>");
+}
+
+static int safari_fetch_local_http(const safari_request_t *req, char *response, int max) {
+    int server = -1;
+    int client = -1;
+    int accepted = -1;
+    int total = 0;
+    int off = 0;
+    int n;
+    char request[128];
+    char server_req[128];
+    char local_response[1536];
+    int rp = 0;
+    if (!req || !response || max <= 0) return -1;
+    response[0] = 0;
+    server = vfs_socket_tcp4();
+    client = vfs_socket_tcp4();
+    if (server < 0 || client < 0) goto fail;
+    if (vfs_socket_bind_tcp4(server, req->port) < 0 ||
+        vfs_socket_listen_tcp4(server) < 0) goto fail;
+    if (vfs_socket_connect_tcp4(client, req->ipv4, req->port) < 0) goto fail;
+    accepted = vfs_socket_accept_tcp4(server);
+    if (accepted < 0) goto fail;
+    request[0] = 0;
+    safari_append(request, &rp, sizeof(request), "GET ");
+    safari_append(request, &rp, sizeof(request), req->path);
+    safari_append(request, &rp, sizeof(request), " HTTP/1.0\r\nHost: ");
+    safari_append(request, &rp, sizeof(request), req->host);
+    safari_append(request, &rp, sizeof(request), "\r\n\r\n");
+    if (vfs_write(client, request, (uint32_t)str_len(request)) <= 0) goto fail;
+    n = vfs_read(accepted, server_req, sizeof(server_req) - 1);
+    if (n < 0) goto fail;
+    server_req[n] = 0;
+    safari_make_local_body(req, server_req, local_response, sizeof(local_response));
+    while (local_response[off] && total + 1 < max) {
+        n = vfs_write(accepted, local_response + off, (uint32_t)str_len(local_response + off));
+        if (n <= 0) break;
+        off += n;
+        n = vfs_read(client, response + total, (uint32_t)(max - total - 1));
+        if (n > 0) total += n;
+    }
+    while (total + 1 < max && (n = vfs_read(client, response + total, (uint32_t)(max - total - 1))) > 0)
+        total += n;
+    response[total] = 0;
+    vfs_close(accepted);
+    vfs_close(client);
+    vfs_close(server);
+    return total;
+fail:
+    if (accepted >= 0) vfs_close(accepted);
+    if (client >= 0) vfs_close(client);
+    if (server >= 0) vfs_close(server);
+    return -1;
+}
+
+static int safari_fetch_raw_http(const safari_request_t *req, char *response, int max, char *err, int err_max) {
+    uint32_t ifindex = 0;
+    uint32_t seq;
+    uint32_t ack = 0;
+    uint32_t rseq = 0;
+    uint32_t rack = 0;
+    uint16_t rflags = 0;
+    uint16_t src_port;
+    uint16_t srcp = 0;
+    uint32_t srcip = 0;
+    int tries;
+    int total = 0;
+    int req_pos = 0;
+    char request[192];
+    char chunk[NET_TCP_PAYLOAD_MAX + 1];
+    if (!req || !response || max <= 0) return -1;
+    response[0] = 0;
+    if (net_route_lookup4(req->ipv4, &ifindex, 0) < 0) {
+        safari_copy(err, err_max, "No IPv4 route to host");
+        return -1;
+    }
+    src_port = (uint16_t)(40000U + ((timer_ticks() / 17U) % 20000U));
+    seq = 0x53414641U ^ timer_ticks();
+    for (tries = 0; tries < 4; tries++) {
+        if (net_tcp_send4(ifindex, req->ipv4, src_port, req->port, seq, 0, NET_TCP_SYN, 0, 0) >= 0)
+            break;
+        net_poll();
+    }
+    if (tries >= 4) {
+        safari_copy(err, err_max, "TCP SYN send failed");
+        return -1;
+    }
+    for (tries = 0; tries < 64; tries++) {
+        int n;
+        net_poll();
+        n = net_tcp_recv4(src_port, chunk, sizeof(chunk) - 1, &srcip, &srcp, &rseq, &rack, &rflags);
+        if (n < 0) break;
+        if (srcip == req->ipv4 && srcp == req->port && (rflags & NET_TCP_SYN) && (rflags & NET_TCP_ACK)) {
+            ack = rseq + 1U;
+            break;
+        }
+    }
+    if (ack == 0) {
+        safari_copy(err, err_max, "TCP handshake timed out");
+        return -1;
+    }
+    request[0] = 0;
+    safari_append(request, &req_pos, sizeof(request), "GET ");
+    safari_append(request, &req_pos, sizeof(request), req->path);
+    safari_append(request, &req_pos, sizeof(request), " HTTP/1.0\r\nHost: ");
+    safari_append(request, &req_pos, sizeof(request), req->host);
+    safari_append(request, &req_pos, sizeof(request), "\r\nUser-Agent: MyOS-Safari/1.0\r\nConnection: close\r\n\r\n");
+    if (net_tcp_send4(ifindex, req->ipv4, src_port, req->port, seq + 1U, ack,
+                      NET_TCP_ACK | NET_TCP_PSH, request, (uint32_t)str_len(request)) < 0) {
+        safari_copy(err, err_max, "HTTP request send failed");
+        return -1;
+    }
+    seq += 1U + (uint32_t)str_len(request);
+    for (tries = 0; tries < 160 && total + 1 < max; tries++) {
+        int n;
+        net_poll();
+        n = net_tcp_recv4(src_port, chunk, sizeof(chunk) - 1, &srcip, &srcp, &rseq, &rack, &rflags);
+        if (n < 0) break;
+        if (n == 0) continue;
+        if (srcip != req->ipv4 || srcp != req->port) continue;
+        if (n > max - total - 1) n = max - total - 1;
+        if (n > 0) {
+            int i;
+            for (i = 0; i < n; i++) response[total + i] = chunk[i];
+            total += n;
+            ack = rseq + (uint32_t)n;
+            (void)net_tcp_send4(ifindex, req->ipv4, src_port, req->port, seq, ack,
+                                NET_TCP_ACK, 0, 0);
+        }
+        if (rflags & NET_TCP_FIN) {
+            (void)net_tcp_send4(ifindex, req->ipv4, src_port, req->port, seq, ack + 1U,
+                                NET_TCP_ACK, 0, 0);
+            break;
+        }
+    }
+    response[total] = 0;
+    if (total <= 0) {
+        safari_copy(err, err_max, "No HTTP response bytes received");
+        return -1;
+    }
+    return total;
+}
+
+static int safari_http_status_code(const char *response) {
+    int code = 0;
+    if (!response || !safari_starts_with_ci(response, "HTTP/")) return 0;
+    while (*response && *response != ' ') response++;
+    while (*response == ' ') response++;
+    while (*response >= '0' && *response <= '9') {
+        code = code * 10 + (*response - '0');
+        response++;
+    }
+    return code;
+}
+
+static const char *safari_http_body(const char *response) {
+    const char *p = response;
+    if (!p) return "";
+    while (*p) {
+        if (p[0] == '\r' && p[1] == '\n' && p[2] == '\r' && p[3] == '\n') return p + 4;
+        if (p[0] == '\n' && p[1] == '\n') return p + 2;
+        p++;
+    }
+    return response;
+}
+
+static void safari_extract_title(const char *body, char *out, int max) {
+    const char *p = body;
+    int pos = 0;
+    safari_copy(out, max, "");
+    if (!body || !out || max <= 0) return;
+    while (*p) {
+        if (safari_starts_with_ci(p, "<title")) {
+            while (*p && *p != '>') p++;
+            if (*p == '>') p++;
+            while (*p && !safari_starts_with_ci(p, "</title>") && pos + 1 < max) {
+                char ch = *p++;
+                if (ch == '\r' || ch == '\n' || ch == '\t') ch = ' ';
+                out[pos++] = ch;
+            }
+            out[pos] = 0;
+            return;
+        }
+        p++;
+    }
+}
+
+static void safari_text_from_body(const char *body, char *out, int max) {
+    int pos = 0;
+    int in_tag = 0;
+    int space_pending = 0;
+    int line_start = 1;
+    const char *p = body;
+    if (!out || max <= 0) return;
+    out[0] = 0;
+    if (!body) return;
+    while (*p && pos + 1 < max) {
+        char ch = *p++;
+        if (ch == '<') {
+            in_tag = 1;
+            if (safari_starts_with_ci(p, "br") ||
+                safari_starts_with_ci(p, "/p") ||
+                safari_starts_with_ci(p, "p") ||
+                safari_starts_with_ci(p, "/div") ||
+                safari_starts_with_ci(p, "div") ||
+                safari_starts_with_ci(p, "/h") ||
+                safari_starts_with_ci(p, "h")) {
+                if (!line_start && pos + 1 < max) {
+                    out[pos++] = '\n';
+                    line_start = 1;
+                    space_pending = 0;
+                }
+            }
+            continue;
+        }
+        if (in_tag) {
+            if (ch == '>') in_tag = 0;
+            continue;
+        }
+        if (ch == '&') {
+            if (safari_starts_with_ci(p, "amp;")) { ch = '&'; p += 4; }
+            else if (safari_starts_with_ci(p, "lt;")) { ch = '<'; p += 3; }
+            else if (safari_starts_with_ci(p, "gt;")) { ch = '>'; p += 3; }
+            else if (safari_starts_with_ci(p, "nbsp;")) { ch = ' '; p += 5; }
+        }
+        if (ch == '\r') continue;
+        if (ch == '\n') {
+            if (!line_start) {
+                out[pos++] = '\n';
+                line_start = 1;
+                space_pending = 0;
+            }
+            continue;
+        }
+        if (ch == '\t' || ch == ' ') {
+            if (!line_start) space_pending = 1;
+            continue;
+        }
+        if ((unsigned char)ch < 32 || (unsigned char)ch > 126) continue;
+        if (space_pending && pos + 1 < max) {
+            out[pos++] = ' ';
+            space_pending = 0;
+        }
+        out[pos++] = ch;
+        line_start = 0;
+    }
+    out[pos] = 0;
+    if (pos == 0) safari_copy(out, max, "(empty response)");
+}
+
+void safari_load_url(const char *url) {
+    safari_request_t req;
+    char normalized[SAFARI_URL_MAX];
+    char response[1536];
+    char err[SAFARI_STATUS_MAX];
+    char title[SAFARI_TITLE_MAX];
+    int parsed;
+    int n;
+    int sp = 0;
+    safari_normalize_state();
+    safari_normalize_url_text(url, normalized, sizeof(normalized));
+    safari_copy(g_safari_url, SAFARI_URL_MAX, normalized);
+    safari_copy(g_safari_tab_urls[g_safari_active_tab], SAFARI_URL_MAX, normalized);
+    if (safari_is_home_url(normalized)) {
+        g_safari_page_state = 0;
+        g_safari_page_status_code = 0;
+        g_safari_loaded_tick = timer_ticks();
+        safari_copy(g_safari_page_url, SAFARI_URL_MAX, "about:home");
+        safari_copy(g_safari_page_title, SAFARI_TITLE_MAX, "MyOS Home");
+        safari_copy(g_safari_page_status, SAFARI_STATUS_MAX, "Ready");
+        safari_copy(g_safari_page_text, SAFARI_PAGE_TEXT_MAX, "");
+        safari_set_tab_title("MyOS Home");
+        return;
+    }
+    parsed = safari_parse_url(normalized, &req);
+    if (parsed != 0) {
+        g_safari_page_state = 2;
+        g_safari_page_status_code = 0;
+        safari_copy(g_safari_page_url, SAFARI_URL_MAX, normalized);
+        safari_copy(g_safari_page_title, SAFARI_TITLE_MAX, "Cannot Open Page");
+        safari_copy(g_safari_page_text, SAFARI_PAGE_TEXT_MAX,
+                    parsed == -2 ? "DNS lookup failed for this host." : "The address is not a valid HTTP URL.");
+        safari_copy(g_safari_page_status, SAFARI_STATUS_MAX,
+                    parsed == -2 ? "DNS lookup failed" : "Bad address");
+        safari_set_tab_title("Load Error");
+        return;
+    }
+    if (str_eq(req.scheme, "https")) {
+        g_safari_page_state = 2;
+        g_safari_page_status_code = 0;
+        safari_copy(g_safari_page_url, SAFARI_URL_MAX, normalized);
+        safari_copy(g_safari_page_title, SAFARI_TITLE_MAX, "TLS Required");
+        safari_copy(g_safari_page_text, SAFARI_PAGE_TEXT_MAX,
+                    "This kernel browser performs HTTP requests. HTTPS requires a TLS layer before encrypted pages can be rendered.");
+        safari_copy(g_safari_page_status, SAFARI_STATUS_MAX, "TLS required");
+        safari_set_tab_title("TLS Required");
+        return;
+    }
+    err[0] = 0;
+    n = req.local ? safari_fetch_local_http(&req, response, sizeof(response))
+                  : safari_fetch_raw_http(&req, response, sizeof(response), err, sizeof(err));
+    g_safari_loaded_tick = timer_ticks();
+    safari_copy(g_safari_page_url, SAFARI_URL_MAX, normalized);
+    if (n < 0) {
+        g_safari_page_state = 2;
+        g_safari_page_status_code = 0;
+        safari_copy(g_safari_page_title, SAFARI_TITLE_MAX, "Cannot Open Page");
+        safari_copy(g_safari_page_text, SAFARI_PAGE_TEXT_MAX, err[0] ? err : "Connection failed.");
+        safari_copy(g_safari_page_status, SAFARI_STATUS_MAX, err[0] ? err : "Connection failed");
+        safari_set_tab_title("Load Error");
+        return;
+    }
+    g_safari_page_status_code = (uint32_t)safari_http_status_code(response);
+    title[0] = 0;
+    safari_extract_title(safari_http_body(response), title, sizeof(title));
+    if (!title[0]) safari_copy(title, sizeof(title), req.host);
+    safari_text_from_body(safari_http_body(response), g_safari_page_text, SAFARI_PAGE_TEXT_MAX);
+    g_safari_page_state = (g_safari_page_status_code >= 400U) ? 2 : 1;
+    safari_copy(g_safari_page_title, SAFARI_TITLE_MAX, title);
+    g_safari_page_status[0] = 0;
+    safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, "HTTP ");
+    safari_append_uint(g_safari_page_status, &sp, SAFARI_STATUS_MAX, g_safari_page_status_code);
+    safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, " from ");
+    safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, req.host);
+    safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, " (");
+    safari_append_ipv4(g_safari_page_status, &sp, SAFARI_STATUS_MAX, req.ipv4);
+    safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, ")");
+    safari_set_tab_title(title);
+}
+
+void safari_load_current_tab(void) {
+    safari_normalize_state();
+    safari_load_url(g_safari_url[0] ? g_safari_url : g_safari_tab_urls[g_safari_active_tab]);
 }
 
 /* =========================================================================

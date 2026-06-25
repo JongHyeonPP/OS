@@ -1902,6 +1902,7 @@ void dropdown_action(int menu_idx, int item_idx) {
                 str_cpy(g_safari_tab_urls[g_safari_active_tab], g_safari_url);
                 g_safari_active_tab = g_safari_tab_count++;
                 g_safari_tab_urls[g_safari_active_tab][0] = 0;
+                safari_load_url("about:home");
                 str_cpy(g_safari_tab_titles[g_safari_active_tab], "New Tab");
                 g_safari_url[0] = 0;
                 g_safari_url_focused = 1;
@@ -1918,9 +1919,9 @@ void dropdown_action(int menu_idx, int item_idx) {
                 if (g_safari_active_tab >= g_safari_tab_count)
                     g_safari_active_tab = g_safari_tab_count - 1;
                 str_cpy(g_safari_url, g_safari_tab_urls[g_safari_active_tab]);
+                safari_load_current_tab();
             } else {
-                str_cpy(g_safari_url, "about:home");
-                str_cpy(g_safari_tab_urls[0], g_safari_url);
+                safari_load_url("about:home");
                 str_cpy(g_safari_tab_titles[0], "Home");
                 g_safari_url_focused = 0;
             }
@@ -2075,13 +2076,10 @@ void dropdown_action(int menu_idx, int item_idx) {
     }
     /* Safari */
     if (str_eq(label,"Reload Page") && active_title && str_eq(active_title, "Safari")) {
-        safari_normalize_state();
-        str_cpy(g_safari_tab_urls[g_safari_active_tab], g_safari_url);
-        toast_show("Safari","Page reloaded",RGB(40,160,220));
+        safari_load_current_tab();
+        toast_show("Safari",g_safari_page_status,RGB(40,160,220));
     } else if (str_eq(label,"Home") && active_title && str_eq(active_title, "Safari")) {
-        safari_normalize_state();
-        str_cpy(g_safari_url, "about:home");
-        str_cpy(g_safari_tab_urls[g_safari_active_tab], g_safari_url);
+        safari_load_url("about:home");
         str_cpy(g_safari_tab_titles[g_safari_active_tab], "Home");
         g_safari_url_focused = 0;
     }
