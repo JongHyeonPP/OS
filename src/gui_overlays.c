@@ -4068,8 +4068,15 @@ void airdrop_draw(void) {
           vga_draw_string_trans(ad_x+10, ad_y+188, "Hold iPhone near this Mac", ad_sub); }
     } else {
         /* Sending file - show progress */
-        vga_draw_string_trans(ad_x+20, ad_y+175, "Sending to iPhone...", ad_txt);
+        const char *send_status;
         int bar_x = ad_x+20, bar_y = ad_y+193, bar_w = ad_w-40, bar_h = 8;
+        if (g_airdrop_sending == 2 && g_airdrop_progress < 100) {
+            uint32_t elapsed = timer_ticks() - g_airdrop_start_tick;
+            g_airdrop_progress = (int)(elapsed / 20U);
+            if (g_airdrop_progress > 100) g_airdrop_progress = 100;
+        }
+        send_status = g_airdrop_progress >= 100 ? "Sent to iPhone" : "Sending to iPhone...";
+        vga_draw_string_trans(ad_x+20, ad_y+175, send_status, ad_txt);
         vga_fill_rect(bar_x, bar_y, bar_w, bar_h, ad_sep);
         int prog_w = bar_w * g_airdrop_progress / 100;
         vga_fill_rect(bar_x, bar_y, prog_w, bar_h, ad_acc);

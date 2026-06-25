@@ -460,7 +460,7 @@ void gui_run(void) {
                     if (si_share == 0) { (void)gui_open_basic_app("Mail"); gui_record_share_action("Shared with Mail", RGB(0,122,255)); }
                     else if (si_share == 1) { (void)gui_open_basic_app("Messages"); gui_record_share_action("Shared with Messages", RGB(52,199,89)); }
                     else if (si_share == 2) { (void)gui_open_basic_app("Notes"); gui_record_share_action("Added to Notes", RGB(255,214,10)); }
-                    else if (si_share == 3) { g_airdrop_visible=1; g_airdrop_sending=2; g_airdrop_progress=100; gui_record_share_action("Sent with AirDrop", RGB(0,190,255)); }
+                    else if (si_share == 3) { g_airdrop_visible=1; g_airdrop_sending=2; g_airdrop_progress=0; g_airdrop_start_tick=timer_ticks(); gui_record_share_action("Sending with AirDrop", RGB(0,190,255)); }
                     else if (si_share == 4) { gui_record_share_action("Link copied", RGB(120,120,128)); }
                     else { gui_record_share_action("More sharing options", RGB(150,150,160)); }
                     g_share_visible = 0; dirty = 1; goto end_left_press;

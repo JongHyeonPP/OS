@@ -195,6 +195,7 @@ int g_screen_shared = 0;  /* orange dot = screen being shared */
 int g_airdrop_visible  = 0;
 int g_airdrop_sending  = 0;  /* 0=idle 1=scanning 2=sending */
 int g_airdrop_progress = 0;
+uint32_t g_airdrop_start_tick = 0;
 int g_airdrop_mode = 0;      /* 0=Contacts Only, 1=Everyone */
 /* Music lyrics */
 /* Lock screen overlay */

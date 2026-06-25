@@ -241,6 +241,7 @@ extern int g_screen_shared;
 extern int g_airdrop_visible;
 extern int g_airdrop_sending;
 extern int g_airdrop_progress;
+extern uint32_t g_airdrop_start_tick;
 extern int g_airdrop_mode;
 extern int g_photos_edit_tool;
 
