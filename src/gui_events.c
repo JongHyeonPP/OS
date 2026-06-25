@@ -2454,132 +2454,42 @@ void gui_run(void) {
                         g_print_visible = 0; dirty = 1;
                     } else if (g_share_visible) {
                         g_share_visible = 0; dirty = 1;
-                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
-                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
-                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
-                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
-                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
-                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
-                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
-                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
-                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
-                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
-                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
-                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
-                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
-                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
-                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
-                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
-                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
-                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
-                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
-                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
-                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
-                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
-                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
-                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
-                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
-                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
-                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
-                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
-                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
-                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
-                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
-                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
-                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
-                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
-                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
-                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
-                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
-                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
-                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
-                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
-                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
-                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
-                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
-                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
-                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
-                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
-                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
-                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
-                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
-                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
-                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
-                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
-                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
-                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
-                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
-                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
-                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
-                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
-                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
-                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
-                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
-                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
-                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
-                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
-                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
-                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
-                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
-                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
-                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
-                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
-                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
-                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
-                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
-                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
-                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
-                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
-                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
-                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
-                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
-                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
-                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
-                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
-                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
-                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
-                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
-                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
-                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
-                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
-                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
-                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
-                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
-                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
-                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
-                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
-                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
-                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
-                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
-                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
-                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
-                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
-                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
-                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
-                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
-                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
-                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
-                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
-                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
-                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
-                    } else if (g_crash_visible) { g_crash_visible=0; dirty=1;
-                    } else if (g_update_visible) { g_update_visible=0; dirty=1;
-                    } else if (g_focus_filter_visible) { g_focus_filter_visible=0; dirty=1;
-                    } else if (g_icloud_visible) { g_icloud_visible=0; dirty=1;
-                    } else if (g_bt_visible) { g_bt_visible=0; dirty=1;
-                    } else if (g_kbshort_visible) { g_kbshort_visible=0; dirty=1;
-                    } else if (g_timemachine_visible) { g_timemachine_visible=0; dirty=1;
-                    } else if (g_colormeter_visible) { g_colormeter_visible=0; dirty=1;
-                    } else if (g_notifhist_visible) { g_notifhist_visible=0; dirty=1;
-                    } else if (g_wifi_visible) { g_wifi_visible=0; dirty=1;
-                    } else if (g_display_visible) { g_display_visible=0; dirty=1;
-                    } else if (g_sound_visible) { g_sound_visible=0; dirty=1;
-                    } else if (g_actmon_visible) { g_actmon_visible=0; dirty=1;
-                    } else if (g_facetime_visible) { g_facetime_visible=0; dirty=1;
-                    } else if (g_privacy_visible) { g_privacy_visible=0; dirty=1;
-                    } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
-                    } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
-                    } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
+                    } else if (g_crash_visible) {
+                        g_crash_visible = 0; dirty = 1;
+                    } else if (g_update_visible) {
+                        g_update_visible = 0; dirty = 1;
+                    } else if (g_focus_filter_visible) {
+                        g_focus_filter_visible = 0; dirty = 1;
+                    } else if (g_icloud_visible) {
+                        g_icloud_visible = 0; dirty = 1;
+                    } else if (g_bt_visible) {
+                        g_bt_visible = 0; dirty = 1;
+                    } else if (g_kbshort_visible) {
+                        g_kbshort_visible = 0; dirty = 1;
+                    } else if (g_timemachine_visible) {
+                        g_timemachine_visible = 0; dirty = 1;
+                    } else if (g_colormeter_visible) {
+                        g_colormeter_visible = 0; dirty = 1;
+                    } else if (g_notifhist_visible) {
+                        g_notifhist_visible = 0; dirty = 1;
+                    } else if (g_wifi_visible) {
+                        g_wifi_visible = 0; dirty = 1;
+                    } else if (g_display_visible) {
+                        g_display_visible = 0; dirty = 1;
+                    } else if (g_sound_visible) {
+                        g_sound_visible = 0; dirty = 1;
+                    } else if (g_actmon_visible) {
+                        g_actmon_visible = 0; dirty = 1;
+                    } else if (g_facetime_visible) {
+                        g_facetime_visible = 0; dirty = 1;
+                    } else if (g_privacy_visible) {
+                        g_privacy_visible = 0; dirty = 1;
+                    } else if (g_reminders_visible) {
+                        g_reminders_visible = 0; dirty = 1;
+                    } else if (g_calendar_visible) {
+                        g_calendar_visible = 0; dirty = 1;
+                    } else if (g_airplay_visible) {
+                        g_airplay_visible = 0; dirty = 1;
                     } else if (g_airdrop_visible) {
                         g_airdrop_visible = 0; dirty = 1;
                     } else if (g_ql_visible) {
