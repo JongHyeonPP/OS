@@ -1438,6 +1438,318 @@ static void safari_tls_random(uint8_t *out, int len) {
 }
 
 
+
+typedef struct {
+    uint32_t h[8];
+    uint64_t bytes;
+    uint8_t buf[64];
+    uint32_t used;
+} safari_sha256_ctx_t;
+
+static uint32_t safari_rotr32(uint32_t v, int n) {
+    return (v >> n) | (v << (32 - n));
+}
+
+static uint32_t safari_load_be32(const uint8_t *p) {
+    return ((uint32_t)p[0] << 24) |
+           ((uint32_t)p[1] << 16) |
+           ((uint32_t)p[2] << 8) |
+           (uint32_t)p[3];
+}
+
+static void safari_store_be32(uint8_t *p, uint32_t v) {
+    p[0] = (uint8_t)(v >> 24);
+    p[1] = (uint8_t)(v >> 16);
+    p[2] = (uint8_t)(v >> 8);
+    p[3] = (uint8_t)v;
+}
+
+static void safari_store_be64(uint8_t *p, uint64_t v) {
+    int i;
+    for (i = 7; i >= 0; i--) {
+        p[i] = (uint8_t)v;
+        v >>= 8;
+    }
+}
+
+static void safari_sha256_transform(safari_sha256_ctx_t *ctx, const uint8_t block[64]) {
+    static const uint32_t k[64] = {
+        0x428A2F98U, 0x71374491U, 0xB5C0FBCFU, 0xE9B5DBA5U,
+        0x3956C25BU, 0x59F111F1U, 0x923F82A4U, 0xAB1C5ED5U,
+        0xD807AA98U, 0x12835B01U, 0x243185BEU, 0x550C7DC3U,
+        0x72BE5D74U, 0x80DEB1FEU, 0x9BDC06A7U, 0xC19BF174U,
+        0xE49B69C1U, 0xEFBE4786U, 0x0FC19DC6U, 0x240CA1CCU,
+        0x2DE92C6FU, 0x4A7484AAU, 0x5CB0A9DCU, 0x76F988DAU,
+        0x983E5152U, 0xA831C66DU, 0xB00327C8U, 0xBF597FC7U,
+        0xC6E00BF3U, 0xD5A79147U, 0x06CA6351U, 0x14292967U,
+        0x27B70A85U, 0x2E1B2138U, 0x4D2C6DFCU, 0x53380D13U,
+        0x650A7354U, 0x766A0ABBU, 0x81C2C92EU, 0x92722C85U,
+        0xA2BFE8A1U, 0xA81A664BU, 0xC24B8B70U, 0xC76C51A3U,
+        0xD192E819U, 0xD6990624U, 0xF40E3585U, 0x106AA070U,
+        0x19A4C116U, 0x1E376C08U, 0x2748774CU, 0x34B0BCB5U,
+        0x391C0CB3U, 0x4ED8AA4AU, 0x5B9CCA4FU, 0x682E6FF3U,
+        0x748F82EEU, 0x78A5636FU, 0x84C87814U, 0x8CC70208U,
+        0x90BEFFFAU, 0xA4506CEBU, 0xBEF9A3F7U, 0xC67178F2U
+    };
+    uint32_t w[64];
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
+    uint32_t e;
+    uint32_t f;
+    uint32_t g;
+    uint32_t h;
+    int i;
+    for (i = 0; i < 16; i++)
+        w[i] = safari_load_be32(block + i * 4);
+    for (i = 16; i < 64; i++) {
+        uint32_t s0 = safari_rotr32(w[i - 15], 7) ^ safari_rotr32(w[i - 15], 18) ^ (w[i - 15] >> 3);
+        uint32_t s1 = safari_rotr32(w[i - 2], 17) ^ safari_rotr32(w[i - 2], 19) ^ (w[i - 2] >> 10);
+        w[i] = w[i - 16] + s0 + w[i - 7] + s1;
+    }
+    a = ctx->h[0]; b = ctx->h[1]; c = ctx->h[2]; d = ctx->h[3];
+    e = ctx->h[4]; f = ctx->h[5]; g = ctx->h[6]; h = ctx->h[7];
+    for (i = 0; i < 64; i++) {
+        uint32_t s1 = safari_rotr32(e, 6) ^ safari_rotr32(e, 11) ^ safari_rotr32(e, 25);
+        uint32_t ch = (e & f) ^ ((~e) & g);
+        uint32_t temp1 = h + s1 + ch + k[i] + w[i];
+        uint32_t s0 = safari_rotr32(a, 2) ^ safari_rotr32(a, 13) ^ safari_rotr32(a, 22);
+        uint32_t maj = (a & b) ^ (a & c) ^ (b & c);
+        uint32_t temp2 = s0 + maj;
+        h = g; g = f; f = e; e = d + temp1;
+        d = c; c = b; b = a; a = temp1 + temp2;
+    }
+    ctx->h[0] += a; ctx->h[1] += b; ctx->h[2] += c; ctx->h[3] += d;
+    ctx->h[4] += e; ctx->h[5] += f; ctx->h[6] += g; ctx->h[7] += h;
+}
+
+static void safari_sha256_init(safari_sha256_ctx_t *ctx) {
+    if (!ctx) return;
+    ctx->h[0] = 0x6A09E667U; ctx->h[1] = 0xBB67AE85U;
+    ctx->h[2] = 0x3C6EF372U; ctx->h[3] = 0xA54FF53AU;
+    ctx->h[4] = 0x510E527FU; ctx->h[5] = 0x9B05688CU;
+    ctx->h[6] = 0x1F83D9ABU; ctx->h[7] = 0x5BE0CD19U;
+    ctx->bytes = 0;
+    ctx->used = 0;
+}
+
+static void safari_sha256_update(safari_sha256_ctx_t *ctx, const void *data, int len) {
+    const uint8_t *p = (const uint8_t *)data;
+    int i;
+    if (!ctx || !p || len <= 0) return;
+    ctx->bytes += (uint64_t)len;
+    for (i = 0; i < len; i++) {
+        ctx->buf[ctx->used++] = p[i];
+        if (ctx->used == 64) {
+            safari_sha256_transform(ctx, ctx->buf);
+            ctx->used = 0;
+        }
+    }
+}
+
+static void safari_sha256_final(safari_sha256_ctx_t *ctx, uint8_t out[32]) {
+    uint64_t bit_len;
+    int i;
+    if (!ctx || !out) return;
+    bit_len = ctx->bytes * 8U;
+    ctx->buf[ctx->used++] = 0x80U;
+    if (ctx->used > 56) {
+        while (ctx->used < 64) ctx->buf[ctx->used++] = 0;
+        safari_sha256_transform(ctx, ctx->buf);
+        ctx->used = 0;
+    }
+    while (ctx->used < 56) ctx->buf[ctx->used++] = 0;
+    safari_store_be64(ctx->buf + 56, bit_len);
+    safari_sha256_transform(ctx, ctx->buf);
+    for (i = 0; i < 8; i++)
+        safari_store_be32(out + i * 4, ctx->h[i]);
+}
+
+static void safari_sha256_hash(const void *data, int len, uint8_t out[32]) {
+    safari_sha256_ctx_t ctx;
+    safari_sha256_init(&ctx);
+    safari_sha256_update(&ctx, data, len);
+    safari_sha256_final(&ctx, out);
+}
+
+typedef struct {
+    safari_sha256_ctx_t inner;
+    uint8_t opad[64];
+} safari_hmac_sha256_ctx_t;
+
+static void safari_hmac_sha256_init(safari_hmac_sha256_ctx_t *ctx, const uint8_t *key, int key_len) {
+    uint8_t k0[64];
+    uint8_t kh[32];
+    int i;
+    if (!ctx) return;
+    for (i = 0; i < 64; i++) k0[i] = 0;
+    if (key && key_len > 64) {
+        safari_sha256_hash(key, key_len, kh);
+        for (i = 0; i < 32; i++) k0[i] = kh[i];
+    } else if (key && key_len > 0) {
+        for (i = 0; i < key_len && i < 64; i++) k0[i] = key[i];
+    }
+    for (i = 0; i < 64; i++) {
+        ctx->opad[i] = (uint8_t)(k0[i] ^ 0x5CU);
+        k0[i] ^= 0x36U;
+    }
+    safari_sha256_init(&ctx->inner);
+    safari_sha256_update(&ctx->inner, k0, 64);
+}
+
+static void safari_hmac_sha256_update(safari_hmac_sha256_ctx_t *ctx, const void *data, int len) {
+    if (!ctx) return;
+    safari_sha256_update(&ctx->inner, data, len);
+}
+
+static void safari_hmac_sha256_final(safari_hmac_sha256_ctx_t *ctx, uint8_t out[32]) {
+    uint8_t inner_hash[32];
+    safari_sha256_ctx_t outer;
+    if (!ctx || !out) return;
+    safari_sha256_final(&ctx->inner, inner_hash);
+    safari_sha256_init(&outer);
+    safari_sha256_update(&outer, ctx->opad, 64);
+    safari_sha256_update(&outer, inner_hash, 32);
+    safari_sha256_final(&outer, out);
+}
+
+static void safari_hmac_sha256(const uint8_t *key, int key_len,
+                               const void *data, int len,
+                               uint8_t out[32]) {
+    safari_hmac_sha256_ctx_t ctx;
+    safari_hmac_sha256_init(&ctx, key, key_len);
+    safari_hmac_sha256_update(&ctx, data, len);
+    safari_hmac_sha256_final(&ctx, out);
+}
+
+static void safari_hkdf_extract(const uint8_t *salt, int salt_len,
+                                const uint8_t *ikm, int ikm_len,
+                                uint8_t out[32]) {
+    static const uint8_t zero_salt[32] = { 0 };
+    if (!salt || salt_len <= 0) {
+        salt = zero_salt;
+        salt_len = 32;
+    }
+    safari_hmac_sha256(salt, salt_len, ikm, ikm_len, out);
+}
+
+static int safari_hkdf_expand(const uint8_t *prk, int prk_len,
+                              const uint8_t *info, int info_len,
+                              uint8_t *out, int out_len) {
+    uint8_t t[32];
+    int t_len = 0;
+    int pos = 0;
+    uint8_t counter = 1;
+    int i;
+    if (!prk || prk_len <= 0 || !out || out_len < 0) return -1;
+    while (pos < out_len) {
+        safari_hmac_sha256_ctx_t hctx;
+        safari_hmac_sha256_init(&hctx, prk, prk_len);
+        if (t_len > 0) safari_hmac_sha256_update(&hctx, t, t_len);
+        if (info && info_len > 0) safari_hmac_sha256_update(&hctx, info, info_len);
+        safari_hmac_sha256_update(&hctx, &counter, 1);
+        safari_hmac_sha256_final(&hctx, t);
+        t_len = 32;
+        for (i = 0; i < t_len && pos < out_len; i++)
+            out[pos++] = t[i];
+        counter++;
+        if (counter == 0 && pos < out_len) return -1;
+    }
+    return 0;
+}
+
+static int safari_tls13_hkdf_expand_label(const uint8_t secret[32],
+                                          const char *label,
+                                          const uint8_t *context,
+                                          int context_len,
+                                          uint8_t *out,
+                                          int out_len) {
+    uint8_t info[128];
+    const char prefix[] = "tls13 ";
+    int pos = 0;
+    int i;
+    int label_len = str_len(label);
+    int full_label_len = 6 + label_len;
+    if (!secret || !label || !out || out_len < 0 || full_label_len > 64 ||
+        context_len < 0 || context_len > 64)
+        return -1;
+    safari_tls_put16(info, &pos, sizeof(info), (uint16_t)out_len);
+    safari_tls_put8(info, &pos, sizeof(info), (uint8_t)full_label_len);
+    for (i = 0; i < 6; i++) safari_tls_put8(info, &pos, sizeof(info), (uint8_t)prefix[i]);
+    for (i = 0; i < label_len; i++) safari_tls_put8(info, &pos, sizeof(info), (uint8_t)label[i]);
+    safari_tls_put8(info, &pos, sizeof(info), (uint8_t)context_len);
+    if (context && context_len > 0) safari_tls_append_bytes(info, &pos, sizeof(info), context, context_len);
+    return safari_hkdf_expand(secret, 32, info, pos, out, out_len);
+}
+
+static int safari_bytes_equal(const uint8_t *a, const uint8_t *b, int len) {
+    uint8_t diff = 0;
+    int i;
+    if (!a || !b || len < 0) return 0;
+    for (i = 0; i < len; i++) diff |= (uint8_t)(a[i] ^ b[i]);
+    return diff == 0;
+}
+
+static int safari_tls13_hash_selftest(void) {
+    static int checked = 0;
+    static int ok = 0;
+    static const uint8_t sha_abc[32] = {
+        0xBA,0x78,0x16,0xBF,0x8F,0x01,0xCF,0xEA,
+        0x41,0x41,0x40,0xDE,0x5D,0xAE,0x22,0x23,
+        0xB0,0x03,0x61,0xA3,0x96,0x17,0x7A,0x9C,
+        0xB4,0x10,0xFF,0x61,0xF2,0x00,0x15,0xAD
+    };
+    static const uint8_t hmac_quick[32] = {
+        0xF7,0xBC,0x83,0xF4,0x30,0x53,0x84,0x24,
+        0xB1,0x32,0x98,0xE6,0xAA,0x6F,0xB1,0x43,
+        0xEF,0x4D,0x59,0xA1,0x49,0x46,0x17,0x59,
+        0x97,0x47,0x9D,0xBC,0x2D,0x1A,0x3C,0xD8
+    };
+    static const uint8_t hkdf_prk_expected[32] = {
+        0x07,0x77,0x09,0x36,0x2C,0x2E,0x32,0xDF,
+        0x0D,0xDC,0x3F,0x0D,0xC4,0x7B,0xBA,0x63,
+        0x90,0xB6,0xC7,0x3B,0xB5,0x0F,0x9C,0x31,
+        0x22,0xEC,0x84,0x4A,0xD7,0xC2,0xB3,0xE5
+    };
+    static const uint8_t hkdf_okm_expected[42] = {
+        0x3C,0xB2,0x5F,0x25,0xFA,0xAC,0xD5,0x7A,
+        0x90,0x43,0x4F,0x64,0xD0,0x36,0x2F,0x2A,
+        0x2D,0x2D,0x0A,0x90,0xCF,0x1A,0x5A,0x4C,
+        0x5D,0xB0,0x2D,0x56,0xEC,0xC4,0xC5,0xBF,
+        0x34,0x00,0x72,0x08,0xD5,0xB8,0x87,0x18,
+        0x58,0x65
+    };
+    uint8_t digest[32];
+    uint8_t hmac[32];
+    uint8_t ikm[22];
+    uint8_t salt[13];
+    uint8_t info[10];
+    uint8_t prk[32];
+    uint8_t okm[42];
+    uint8_t label_out[16];
+    int i;
+    if (checked) return ok;
+    checked = 1;
+    safari_sha256_hash("abc", 3, digest);
+    if (!safari_bytes_equal(digest, sha_abc, 32)) return 0;
+    safari_hmac_sha256((const uint8_t *)"key", 3,
+                       "The quick brown fox jumps over the lazy dog", 43,
+                       hmac);
+    if (!safari_bytes_equal(hmac, hmac_quick, 32)) return 0;
+    for (i = 0; i < 22; i++) ikm[i] = 0x0B;
+    for (i = 0; i < 13; i++) salt[i] = (uint8_t)i;
+    for (i = 0; i < 10; i++) info[i] = (uint8_t)(0xF0 + i);
+    safari_hkdf_extract(salt, sizeof(salt), ikm, sizeof(ikm), prk);
+    if (!safari_bytes_equal(prk, hkdf_prk_expected, 32)) return 0;
+    if (safari_hkdf_expand(prk, 32, info, sizeof(info), okm, sizeof(okm)) != 0) return 0;
+    if (!safari_bytes_equal(okm, hkdf_okm_expected, sizeof(okm))) return 0;
+    if (safari_tls13_hkdf_expand_label(prk, "test", info, 3, label_out, sizeof(label_out)) != 0)
+        return 0;
+    ok = 1;
+    return 1;
+}
+
 typedef int64_t safari_x25519_fe_t[16];
 
 static void safari_x25519_set(safari_x25519_fe_t out, const safari_x25519_fe_t in) {
@@ -1631,6 +1943,7 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
     if (!req || !req->host[0] || !out || max < 128) return -1;
     host_len = str_len(req->host);
     if (host_len <= 0 || host_len > 253) return -1;
+    if (!safari_tls13_hash_selftest()) return -1;
     safari_tls_random(rnd, sizeof(rnd));
     safari_tls_random(x25519_private, sizeof(x25519_private));
     safari_x25519_public_from_private(x25519_private, x25519_public);
