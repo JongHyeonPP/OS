@@ -85,7 +85,7 @@
  * Safari constants
  * ======================================================================= */
 #define SAFARI_MAX_TABS 4
-#define SAFARI_URL_MAX 96
+#define SAFARI_URL_MAX 192
 #define SAFARI_TITLE_MAX 48
 #define SAFARI_PAGE_TEXT_MAX 1024
 #define SAFARI_STATUS_MAX 128

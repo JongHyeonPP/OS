@@ -394,8 +394,8 @@ void safari_normalize_state(void) {
 
 typedef struct {
     char scheme[6];
-    char host[48];
-    char path[128];
+    char host[64];
+    char path[192];
     uint16_t port;
     uint32_t ipv4;
     int local;
@@ -988,8 +988,8 @@ static int safari_fetch_local_http(const safari_request_t *req, char *response, 
     int total = 0;
     int off = 0;
     int n;
-    char request[384];
-    char server_req[384];
+    char request[512];
+    char server_req[512];
     char local_response[1536];
     int rp = 0;
     if (!req || !response || max <= 0) return -1;
@@ -1047,7 +1047,7 @@ static int safari_fetch_raw_http(const safari_request_t *req, char *response, in
     int tries;
     int total = 0;
     int req_pos = 0;
-    char request[384];
+    char request[512];
     char chunk[NET_TCP_PAYLOAD_MAX + 1];
     if (!req || !response || max <= 0) return -1;
     response[0] = 0;
@@ -1216,7 +1216,7 @@ static void safari_resolve_location(const safari_request_t *req, const char *loc
     if (p[0] == '/') {
         safari_append(out, &pos, max, p);
     } else {
-        char dir[128];
+        char dir[192];
         int i;
         int last_slash = 0;
         int dpos = 0;
