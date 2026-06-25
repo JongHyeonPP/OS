@@ -595,7 +595,7 @@ extern int g_atv_sel;
 /* Context menu (defined in gui_overlays.c) */
 #define CTX_MENU_W       150
 #define CTX_MENU_ITEM_H   20
-#define CTX_MENU_ITEMS     9
+#define CTX_MENU_ITEMS     8
 extern int g_ctx_visible;
 extern int g_ctx_x;
 extern int g_ctx_y;

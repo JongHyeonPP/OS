@@ -1905,9 +1905,7 @@ void gui_run(void) {
                 g_ctx_visible = 0;
                 if (item >= 0) {
                     const char *lbl2 = g_ctx_labels[item];
-                    if (str_eq(lbl2,"New Folder")) {
-                        toast_show("Finder","Folder creation unavailable",RGB(120,120,130));
-                    } else if (str_eq(lbl2,"Get Info")) {
+                    if (str_eq(lbl2,"Get Info")) {
                         int fcount3 = 0;
                         char nbuf3[12];
                         char msg3[32];

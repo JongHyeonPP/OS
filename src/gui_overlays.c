@@ -1484,7 +1484,7 @@ void draw_toggle(int x, int y, int on) {
 int g_ctx_visible = 0;
 int g_ctx_x = 0, g_ctx_y = 0;
 const char *g_ctx_labels[CTX_MENU_ITEMS] = {
-    "New Folder", "Get Info", "---",
+    "Get Info", "---",
     "Change Wallpaper", "Sort By Name", "---",
     "Settings...", "Widgets...", "About MyOS"
 };
