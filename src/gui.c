@@ -1492,16 +1492,23 @@ static int safari_fetch_raw_http(const safari_request_t *req, const char *method
                                     NET_TCP_ACK, 0, 0);
                 continue;
             }
-            if (n > max - total - 1) n = max - total - 1;
-            if (n > 0) {
+            {
+                int recv_len = n;
+                int copy_len = n;
                 int i;
-                for (i = 0; i < n; i++) response[total + i] = chunk[i];
-                total += n;
-                expected_seq += (uint32_t)n;
+                if (copy_len > max - total - 1) copy_len = max - total - 1;
+                for (i = 0; i < copy_len; i++) response[total + i] = chunk[i];
+                total += copy_len;
+                expected_seq += (uint32_t)recv_len;
                 ack = expected_seq;
                 (void)net_tcp_send4(ifindex, req->ipv4, src_port, req->port, seq, ack,
                                     NET_TCP_ACK, 0, 0);
             }
+        }
+        if (n == 0 && (rflags & NET_TCP_FIN) && rseq != expected_seq) {
+            (void)net_tcp_send4(ifindex, req->ipv4, src_port, req->port, seq, expected_seq,
+                                NET_TCP_ACK, 0, 0);
+            continue;
         }
         if (rflags & NET_TCP_FIN) {
             ack = expected_seq + 1U;
