@@ -5393,7 +5393,7 @@ static void safari_extract_links(const safari_request_t *req, const char *body) 
     if (safari_extract_base_request(req, body, &base_req))
         resolve_req = &base_req;
     while (p && *p && g_safari_link_count < SAFARI_MAX_LINKS) {
-        if (safari_starts_with_ci(p, "<a") && (p[2] == ' ' || p[2] == '\t' || p[2] == '>')) {
+        if (safari_tag_is(p, "a")) {
             const char *tag_end = p;
             const char *text_start;
             const char *text_end;
