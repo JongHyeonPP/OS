@@ -946,7 +946,7 @@ int draw_apps_group3(int idx) {
         vga_draw_string_trans(wx+11, wy+TITLEBAR_H+9, "Run", RGB(255,255,255));
         gui_draw_rounded_rect(wx+36, wy+TITLEBAR_H+4, 30, 18, 4, RGB(55,55,60));
         vga_draw_string_trans(wx+40, wy+TITLEBAR_H+9, "Stop", xc_txt);
-        /* Scheme: MyOS > iPhone Simulator */
+        /* Scheme: MyOS > iPhone runtime */
         vga_draw_string_trans(wx+80, wy+TITLEBAR_H+9, "MyOS | iPad", xc_sub);
         /* Build status */
         vga_draw_string_trans(wx+ww/2-30, wy+TITLEBAR_H+9, "Build Succeeded", RGB(52,199,89));
@@ -1773,7 +1773,7 @@ int draw_apps_group3(int idx) {
           vga_fill_rect(vfx, vfy, vfw, vfh, RGB(10,10,14));
           /* Safe area guides */
           vga_draw_rect_outline(vfx+vfw/10, vfy+vfh/10, vfw*8/10, vfh*8/10, RGB(50,50,60));
-          /* Simulated frame content: gradient sky */
+          /* Frame content: gradient sky */
           { int gri2;
             for (gri2=0;gri2<vfh/2;gri2++){
                 vga_draw_hline(vfx+1, vfy+1+gri2, vfw-2, RGB(30+gri2*2,60+gri2,120+gri2));

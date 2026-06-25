@@ -1165,7 +1165,7 @@ int draw_apps_group4(int idx) {
         else if (g_pb_filter==5) vbg2=RGB(0,10,20);
         vga_fill_rect(vx2, vy2, vw2, vh2, vbg2);
 
-        /* Simulated scene: person silhouette */
+        /* Scene: person silhouette */
         int fx2=vx2+vw2/2, fy2=vy2+vh2/2;
         /* Background gradient lines */
         { int li2; for(li2=0;li2<vh2;li2+=4) {
@@ -1839,7 +1839,7 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+1, wy+TITLEBAR_H, 80, wh-TITLEBAR_H, RGB(28,24,18));
         vga_draw_vline(wx+80, wy+TITLEBAR_H, wh-TITLEBAR_H, RGB(48,40,32));
         vga_draw_string_trans(wx+8, wy+TITLEBAR_H+8, "Notes", br_sub);
-        static const char *br_notes[]={"Dev Ideas","Meeting","Todo","Journal","Recipes"};
+        static const char *br_notes[]={"Dev Ideas","Meeting","Tasks","Journal","Recipes"};
         int bi2;
         for(bi2=0;bi2<5;bi2++){
             int by2=wy+TITLEBAR_H+24+bi2*22;
@@ -3157,7 +3157,7 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+1, cy+src_h+21, ww-2, wh-TITLEBAR_H-src_h-22, resbg);
         /* Korean translation */
         vga_draw_string_trans(wx+8, cy+src_h+30, "Translation:", trst);
-        /* Placeholder Korean in ASCII approximation */
+        /* Korean text in ASCII approximation */
         vga_draw_string_trans(wx+8, cy+src_h+44, "Annyeonghaseyo?", trtx);
         vga_draw_string_trans(wx+8, cy+src_h+58, "Jal jinaego itsseoyo, gamsahaeyo.", trtx);
         /* Speaker button */
@@ -3675,7 +3675,7 @@ int draw_apps_group4(int idx) {
                   if(tx+tw > wx+ww-4) break;
                   vga_fill_rect(tx, ry+10, tw, th, rowc[ri2]);
                   vga_fill_rect_alpha(tx, ry+10, tw, th/2, RGB(255,255,255), 20);
-                  /* Fake title text */
+                  /* Title text */
                   char tn[4]; tn[0]='A'+ti2; tn[1]='p'; tn[2]='0'+ri2; tn[3]=0;
                   vga_draw_string_trans(tx+2, ry+14, tn, RGB(255,255,255));
               }

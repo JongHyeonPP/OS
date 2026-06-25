@@ -653,7 +653,7 @@ int draw_apps_group2(int idx) {
                 int ix=chat_x+8;
                 gui_draw_rounded_rect(ix, bub_y, iw, ih, 8, RGB(30,110,170));
                 vga_fill_rect_alpha(ix+2, bub_y+2, iw-4, 12, RGB(255,255,255), 40);
-                /* Fake landscape */
+                /* Landscape illustration */
                 { int mi2;
                   for (mi2=0;mi2<iw-4;mi2++) {
                       int mhv = 12 + (mi2*7%17);

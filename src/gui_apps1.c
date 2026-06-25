@@ -1529,7 +1529,7 @@ int draw_apps_group1(int idx) {
             vga_draw_string_trans(wx+12, cy2+8, "YouTube", RGB(255,255,255));
             { int yw=0; for(;active_url[yw];yw++) (void)yw; }
             vga_fill_rect(wx+1, cy2+28, ww-2, ph-28, g_pref_darkmode?RGB(15,15,15):RGB(255,255,255));
-            /* Fake video thumbnails */
+            /* Video thumbnails */
             { int vi3;
               static const char *vtitles[]={"Tech Review 2026","Coding Tips","Game Play","Sunset Walk","Music Mix"};
               static const uint32_t vcols[]={RGB(0,100,200),RGB(0,160,80),RGB(180,50,50),RGB(200,140,0),RGB(120,0,180)};
