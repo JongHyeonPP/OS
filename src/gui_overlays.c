@@ -3511,10 +3511,20 @@ void widget_bar_draw(void) {
         gui_draw_rounded_rect_outline(wdx, wdy, 160, WIDGET_BAR_H, 6, RGB(200,190,80));
         vga_draw_string_trans(wdx+8, wdy+6, "Quick Notes", RGB(80,80,60));
         vga_draw_hline(wdx+4, wdy+18, 152, RGB(200,190,80));
-        vga_draw_string_trans(wdx+8, wdy+22, "- Buy groceries", RGB(60,60,40));
-        vga_draw_string_trans(wdx+8, wdy+34, "- Call dentist", RGB(60,60,40));
-        vga_draw_string_trans(wdx+8, wdy+46, "- MyOS demo ready", RGB(60,60,40));
-        vga_draw_string_trans(wdx+8, wdy+58, "- Ship v1.0!", RGB(60,60,40));
+        {
+            int ni;
+            for (ni = 0; ni < 4 && ni < NOTES_COUNT; ni++) {
+                char note_line[24];
+                const char *title = g_notes_titles[ni][0] ? g_notes_titles[ni] : "Untitled";
+                int np = 0;
+                int ti = 0;
+                note_line[np++] = '-';
+                note_line[np++] = ' ';
+                while (title[ti] && np + 1 < 20) note_line[np++] = title[ti++];
+                note_line[np] = 0;
+                vga_draw_string_trans(wdx+8, wdy+22+ni*12, note_line, RGB(60,60,40));
+            }
+        }
         vga_draw_string_trans(wdx+8, wdy+72, "+ Add note...", RGB(150,150,120));
     }
 
