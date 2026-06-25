@@ -576,6 +576,24 @@ int safari_url_has_scheme(const char *url, const char *scheme) {
     return url[i] == ':' && url[i + 1] == '/' && url[i + 2] == '/';
 }
 
+static int safari_url_has_any_scheme(const char *url) {
+    int i = 0;
+    if (!url || !((url[0] >= 'A' && url[0] <= 'Z') ||
+                  (url[0] >= 'a' && url[0] <= 'z')))
+        return 0;
+    while (url[i]) {
+        char ch = url[i];
+        if (ch == ':') return i > 0;
+        if (!((ch >= 'A' && ch <= 'Z') ||
+              (ch >= 'a' && ch <= 'z') ||
+              (ch >= '0' && ch <= '9') ||
+              ch == '+' || ch == '-' || ch == '.'))
+            return 0;
+        i++;
+    }
+    return 0;
+}
+
 static void safari_copy(char *dst, int max, const char *src) {
     int i = 0;
     if (!dst || max <= 0) return;
@@ -671,7 +689,7 @@ static int safari_text_has_whitespace(const char *s) {
 static int safari_text_looks_like_host(const char *s) {
     int i = 0;
     int saw_dot = 0;
-    int saw_colon = 0;
+    int saw_port = 0;
     if (!s || !s[0]) return 0;
     if (safari_starts_with_ci(s, "localhost")) {
         char next = s[9];
@@ -683,7 +701,12 @@ static int safari_text_looks_like_host(const char *s) {
         if (ch == '.') {
             saw_dot = 1;
         } else if (ch == ':') {
-            saw_colon = 1;
+            i++;
+            if (!(s[i] >= '0' && s[i] <= '9')) return 0;
+            while (s[i] >= '0' && s[i] <= '9') i++;
+            if (s[i] && s[i] != '/' && s[i] != '?' && s[i] != '#') return 0;
+            saw_port = 1;
+            break;
         } else if (!((ch >= 'A' && ch <= 'Z') ||
                      (ch >= 'a' && ch <= 'z') ||
                      (ch >= '0' && ch <= '9') ||
@@ -692,7 +715,7 @@ static int safari_text_looks_like_host(const char *s) {
         }
         i++;
     }
-    return saw_dot || saw_colon;
+    return saw_dot || saw_port;
 }
 
 static void safari_make_search_url(const char *query, char *out, int max) {
@@ -1081,6 +1104,10 @@ static void safari_normalize_url_text(const char *input, char *out, int max) {
     if (safari_starts_with_ci(p, "about:") ||
         safari_starts_with_ci(p, "http://") ||
         safari_starts_with_ci(p, "https://")) {
+        safari_copy(out, max, p);
+        return;
+    }
+    if (safari_url_has_any_scheme(p) && !safari_text_looks_like_host(p)) {
         safari_copy(out, max, p);
         return;
     }
@@ -4625,7 +4652,7 @@ static void safari_resolve_location(const safari_request_t *req, const char *loc
     while (p && (*p == ' ' || *p == '\t')) p++;
     if (!p || !*p) return;
     if (safari_starts_with_ci(p, "about:") || safari_starts_with_ci(p, "http://") ||
-        safari_starts_with_ci(p, "https://")) {
+        safari_starts_with_ci(p, "https://") || safari_url_has_any_scheme(p)) {
         safari_copy(out, max, p);
         return;
     }
