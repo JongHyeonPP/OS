@@ -1904,10 +1904,9 @@ void dropdown_action(int menu_idx, int item_idx) {
             if (g_safari_tab_count < SAFARI_MAX_TABS) {
                 str_cpy(g_safari_tab_urls[g_safari_active_tab], g_safari_url);
                 g_safari_active_tab = g_safari_tab_count++;
-                g_safari_tab_urls[g_safari_active_tab][0] = 0;
-                safari_load_url("about:home");
+                safari_reset_tab_state(g_safari_active_tab, "about:home");
+                safari_load_current_tab();
                 str_cpy(g_safari_tab_titles[g_safari_active_tab], "New Tab");
-                g_safari_url[0] = 0;
                 g_safari_url_focused = 1;
             }
         } else if (str_eq(label, "Close Tab") && active_title && str_eq(active_title, "Safari")) {
@@ -1915,10 +1914,10 @@ void dropdown_action(int menu_idx, int item_idx) {
             safari_normalize_state();
             if (g_safari_tab_count > 1) {
                 for (j = g_safari_active_tab; j < g_safari_tab_count - 1; j++) {
-                    str_cpy(g_safari_tab_urls[j], g_safari_tab_urls[j + 1]);
-                    str_cpy(g_safari_tab_titles[j], g_safari_tab_titles[j + 1]);
+                    safari_copy_tab_state(j, j + 1);
                 }
                 g_safari_tab_count--;
+                safari_reset_tab_state(g_safari_tab_count, "about:home");
                 if (g_safari_active_tab >= g_safari_tab_count)
                     g_safari_active_tab = g_safari_tab_count - 1;
                 str_cpy(g_safari_url, g_safari_tab_urls[g_safari_active_tab]);

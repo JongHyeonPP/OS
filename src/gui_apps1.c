@@ -1419,9 +1419,16 @@ int draw_apps_group1(int idx) {
         if (g_safari_url_focused) {
             vga_fill_rect_alpha(ab_x+2, toolbary+6, ab_w-4, 14, RGB(0,122,255), 30);
         }
-        /* Lock icon (green padlock) */
-        vga_fill_rect(ab_x+4, toolbary+8, 5, 4, RGB(52,199,89));
-        vga_draw_rect_outline(ab_x+3, toolbary+7, 7, 6, RGB(52,199,89));
+        /* Actual transport indicator: local/about, HTTP, or unsupported TLS. */
+        if (safari_url_has_scheme(g_safari_url, "https")) {
+            vga_draw_string_trans(ab_x+4, toolbary+8, "!", RGB(255,59,48));
+        } else if (safari_url_has_scheme(g_safari_url, "http")) {
+            gui_draw_circle(ab_x+7, toolbary+12, 4, RGB(0,122,255));
+            vga_draw_hline(ab_x+4, toolbary+12, 7, RGB(255,255,255));
+            vga_draw_vline(ab_x+7, toolbary+9, 7, RGB(255,255,255));
+        } else {
+            vga_draw_string_trans(ab_x+5, toolbary+8, "i", g_pref_darkmode?RGB(150,150,158):RGB(110,110,118));
+        }
         /* URL text */
         { int url_len = str_len(g_safari_url);
           int max_url_chars = (ab_w - 18) / 8;
@@ -1542,6 +1549,59 @@ int draw_apps_group1(int idx) {
                     apps1_append_text(link_line, &lp, sizeof(link_line), g_safari_link_titles[li]);
                     vga_draw_string_trans(tx, ty, link_line, RGB(0,122,255));
                     ty += 12;
+                }
+                vga_draw_hline(wx+8, ty+2, ww-16, pg_rule);
+                ty += 8;
+            }
+            if (g_safari_form_count > 0) {
+                int fi;
+                vga_draw_string_trans(tx, ty, "Forms:", pg_sub);
+                ty += 12;
+                for (fi = 0; fi < g_safari_form_count && ty + 24 < cy2 + ph - 8; fi++) {
+                    int active_form = (fi == g_safari_form_focused);
+                    int input_x = tx + 16;
+                    int go_x = wx + ww - 48;
+                    int input_w = go_x - input_x - 6;
+                    char form_label[64];
+                    int fp = 0;
+                    if (input_w < 40) input_w = 40;
+                    apps1_append_uint(form_label, &fp, sizeof(form_label), (uint32_t)(fi + 1));
+                    apps1_append_text(form_label, &fp, sizeof(form_label), ". ");
+                    apps1_append_text(form_label, &fp, sizeof(form_label), g_safari_form_titles[fi]);
+                    {
+                        int max_label = (ww - 24) / 8;
+                        int lc;
+                        if (max_label < 1) max_label = 1;
+                        for (lc = 0; form_label[lc] && lc < max_label; lc++)
+                            vga_draw_char_trans(tx + lc*8, ty, form_label[lc], active_form ? RGB(0,122,255) : pg_sub);
+                    }
+                    vga_fill_rect(input_x, ty + 11, input_w, 14,
+                                  active_form ? (g_pref_darkmode?RGB(42,52,70):RGB(235,245,255)) :
+                                                (g_pref_darkmode?RGB(38,38,44):RGB(248,248,250)));
+                    vga_draw_rect_outline(input_x, ty + 11, input_w, 14,
+                                          active_form ? RGB(0,122,255) : pg_rule);
+                    {
+                        const char *fdisp = g_safari_form_values[fi][0] ? g_safari_form_values[fi] :
+                                           (g_safari_form_input_names[fi][0] ? g_safari_form_input_names[fi] : "submit");
+                        uint32_t fcol = g_safari_form_values[fi][0] ? pg_txt : pg_sub;
+                        int fmax = (input_w - 6) / 8;
+                        int fci;
+                        if (fmax < 0) fmax = 0;
+                        for (fci = 0; fdisp[fci] && fci < fmax; fci++)
+                            vga_draw_char_trans(input_x + 3 + fci*8, ty + 14, fdisp[fci], fcol);
+                    }
+                    if (active_form && ((timer_ticks()/500)%2)==0) {
+                        int clen = str_len(g_safari_form_values[fi]);
+                        int fmax = (input_w - 6) / 8;
+                        int cx_cur;
+                        if (clen > fmax) clen = fmax;
+                        cx_cur = input_x + 3 + clen * 8;
+                        if (cx_cur < input_x + input_w - 2)
+                            vga_fill_rect(cx_cur, ty + 13, 1, 10, pg_txt);
+                    }
+                    vga_fill_rect(go_x, ty + 11, 28, 14, RGB(0,122,255));
+                    vga_draw_string_trans(go_x + 6, ty + 14, "Go", RGB(255,255,255));
+                    ty += 28;
                 }
                 vga_draw_hline(wx+8, ty+2, ww-16, pg_rule);
                 ty += 8;

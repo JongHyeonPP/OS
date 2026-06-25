@@ -1026,28 +1026,31 @@ void gui_run(void) {
                 if (my>=tbary+5 && my<tbary+21) {
                     if (mx>=w->x+4 && mx<w->x+20) {
                         g_safari_url_focused=0;
+                        g_safari_form_focused=-1;
                         if (safari_can_go_back()) safari_go_back();
                         else toast_show("Safari", "No back history", RGB(120,120,128));
                         dirty=1; goto end_left_press;
                     }
                     if (mx>=w->x+20 && mx<w->x+36) {
                         g_safari_url_focused=0;
+                        g_safari_form_focused=-1;
                         if (safari_can_go_forward()) safari_go_forward();
                         else toast_show("Safari", "No forward history", RGB(120,120,128));
                         dirty=1; goto end_left_press;
                     }
                     if (mx>=w->x+w->w-24 && mx<w->x+w->w-6) {
                         g_safari_url_focused=0;
+                        g_safari_form_focused=-1;
                         g_share_visible=1;
                         gui_record_share_action("Sharing web page", RGB(40,160,220));
                         dirty=1; goto end_left_press;
                     }
                 }
                 if (mx>=ab_x2 && mx<ab_x2+ab_w2 && my>=tbary+5 && my<tbary+21) {
-                    g_safari_url_focused=1; dirty=1; goto end_left_press;
+                    g_safari_url_focused=1; g_safari_form_focused=-1; dirty=1; goto end_left_press;
                 }
                 if (mx>=w->x+w->w-42 && mx<w->x+w->w-28 && my>=tbary+5 && my<tbary+21) {
-                    safari_reload(); dirty=1; goto end_left_press;
+                    g_safari_form_focused=-1; safari_reload(); dirty=1; goto end_left_press;
                 }
                 {
                     int cy_home = tbary + 28;
@@ -1058,7 +1061,7 @@ void gui_run(void) {
                         int sbw2 = 220;
                         int sbh2 = 24;
                         if (mx>=sbx2 && mx<sbx2+sbw2 && my>=sby2 && my<sby2+sbh2) {
-                            g_safari_url_focused=1; g_safari_url[0]=0; dirty=1; goto end_left_press;
+                            g_safari_url_focused=1; g_safari_form_focused=-1; g_safari_url[0]=0; dirty=1; goto end_left_press;
                         }
                         {
                             static const char *fav_urls2[] = {
@@ -1090,9 +1093,28 @@ void gui_run(void) {
                             safari_load_url(g_safari_link_urls[li_hit]); dirty=1; goto end_left_press;
                         }
                     }
+                    if (!safari_is_home_url(g_safari_url) && g_safari_form_count > 0 &&
+                        my >= cy_home && my < cy_home + ph_home) {
+                        int form_y2 = cy_home + 12 + 36;
+                        int fi_hit;
+                        if (g_safari_link_count > 0)
+                            form_y2 += 12 + g_safari_link_count * 12 + 8;
+                        fi_hit = (my - (form_y2 + 12)) / 28;
+                        if (fi_hit >= 0 && fi_hit < g_safari_form_count &&
+                            my >= form_y2 + 12 + fi_hit * 28 &&
+                            my < form_y2 + 12 + fi_hit * 28 + 24) {
+                            g_safari_url_focused=0;
+                            safari_focus_form(fi_hit);
+                            if (mx >= w->x+w->w-52 && mx < w->x+w->w-12) {
+                                safari_submit_form(fi_hit);
+                                toast_show("Safari", g_safari_page_status, RGB(40,160,220));
+                            }
+                            dirty=1; goto end_left_press;
+                        }
+                    }
                 }
                 /* Clicking elsewhere in Safari = lose URL focus */
-                if (my > w->y+TITLEBAR_H) { g_safari_url_focused=0; dirty=1; }
+                if (my > w->y+TITLEBAR_H) { g_safari_url_focused=0; g_safari_form_focused=-1; dirty=1; }
             }
             /* Maps view mode toggle + zoom buttons */
             for (i=0; i<g_num_windows; i++) {
@@ -3387,6 +3409,34 @@ void gui_run(void) {
                     }
                     ch = keyboard_poll(); continue;
                 }
+                if (gui_top_window_named("Safari") && g_safari_form_focused >= 0 && !g_safari_url_focused && ch != KEY_ESC) {
+                    int sf = g_safari_form_focused;
+                    if (sf >= g_safari_form_count) {
+                        g_safari_form_focused = -1;
+                    } else if (ch == KEY_ENTER || ch == '\r' || ch == '\n') {
+                        safari_submit_form(sf);
+                        toast_show("Safari", g_safari_page_status, RGB(40,160,220));
+                        dirty = 1;
+                    } else if (ch == '\t') {
+                        if (g_safari_form_count > 0)
+                            g_safari_form_focused = (sf + 1) % g_safari_form_count;
+                        dirty = 1;
+                    } else if (ch == KEY_BACKSPACE || ch == '\b' || ch == 0x7F) {
+                        int flen = str_len(g_safari_form_values[sf]);
+                        if (flen > 0) {
+                            g_safari_form_values[sf][flen - 1] = 0;
+                            dirty = 1;
+                        }
+                    } else if (ch >= 0x20 && ch < 0x7F && g_safari_form_input_names[sf][0]) {
+                        int flen = str_len(g_safari_form_values[sf]);
+                        if (flen + 1 < SAFARI_FORM_VALUE_MAX) {
+                            g_safari_form_values[sf][flen] = (char)ch;
+                            g_safari_form_values[sf][flen + 1] = 0;
+                            dirty = 1;
+                        }
+                    }
+                    ch = keyboard_poll(); continue;
+                }
                 /* Wordle pre-chain: consume ALL input when Wordle window is topmost */
                 g_wordle_focused = gui_top_window_named("Wordle") ? 1 : 0;
                 if (g_wordle_focused && ch != KEY_ESC) {
@@ -3567,8 +3617,8 @@ void gui_run(void) {
                         g_mail_compose = 0; g_mail_focused_field = 0; dirty = 1;
                     } else if (g_photos_fullscreen) {
                         g_photos_fullscreen = 0; dirty = 1;
-                    } else if (g_safari_url_focused) {
-                        g_safari_url_focused = 0; dirty = 1;
+                    } else if (g_safari_url_focused || g_safari_form_focused >= 0) {
+                        g_safari_url_focused = 0; g_safari_form_focused = -1; dirty = 1;
                     } else if (g_ctx_visible) {
                         g_ctx_visible = 0; dirty = 1;
                     } else if (g_dock_ctx_visible) {
@@ -4705,6 +4755,7 @@ void gui_run(void) {
                     safari_normalize_state();
                     if (ch == KEY_ENTER) {
                         g_safari_url_focused = 0;
+                        g_safari_form_focused = -1;
                         safari_load_url(g_safari_url);
                         toast_show("Safari", g_safari_page_status, RGB(40,160,220));
                     } else if (ch == KEY_BACKSPACE) {

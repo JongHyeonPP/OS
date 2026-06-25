@@ -87,12 +87,17 @@
 #define SAFARI_MAX_TABS 4
 #define SAFARI_URL_MAX 192
 #define SAFARI_TITLE_MAX 48
-#define SAFARI_PAGE_TEXT_MAX 1024
+#define SAFARI_PAGE_TEXT_MAX 2048
+#define SAFARI_RESPONSE_MAX 4096
 #define SAFARI_STATUS_MAX 128
 #define SAFARI_HISTORY_MAX 12
 #define SAFARI_REDIRECT_MAX 4
-#define SAFARI_MAX_LINKS 8
+#define SAFARI_MAX_LINKS 16
 #define SAFARI_LINK_TITLE_MAX 40
+#define SAFARI_MAX_FORMS 8
+#define SAFARI_FORM_NAME_MAX 32
+#define SAFARI_FORM_VALUE_MAX 64
+#define SAFARI_FORM_QUERY_MAX 160
 
 /* =========================================================================
  * Calendar constants
@@ -322,6 +327,14 @@ extern int  g_safari_page_scroll;
 extern int  g_safari_link_count;
 extern char g_safari_link_urls[SAFARI_MAX_LINKS][SAFARI_URL_MAX];
 extern char g_safari_link_titles[SAFARI_MAX_LINKS][SAFARI_LINK_TITLE_MAX];
+extern int  g_safari_form_count;
+extern int  g_safari_form_focused;
+extern char g_safari_form_actions[SAFARI_MAX_FORMS][SAFARI_URL_MAX];
+extern char g_safari_form_methods[SAFARI_MAX_FORMS][8];
+extern char g_safari_form_input_names[SAFARI_MAX_FORMS][SAFARI_FORM_NAME_MAX];
+extern char g_safari_form_values[SAFARI_MAX_FORMS][SAFARI_FORM_VALUE_MAX];
+extern char g_safari_form_query_prefix[SAFARI_MAX_FORMS][SAFARI_FORM_QUERY_MAX];
+extern char g_safari_form_titles[SAFARI_MAX_FORMS][SAFARI_LINK_TITLE_MAX];
 extern uint32_t g_safari_page_status_code;
 extern uint32_t g_safari_loaded_tick;
 
@@ -779,10 +792,13 @@ int safari_is_home_url(const char *url);
 void safari_load_url(const char *url);
 void safari_load_current_tab(void);
 void safari_reload(void);
+int safari_url_has_scheme(const char *url, const char *scheme);
 int safari_can_go_back(void);
 int safari_can_go_forward(void);
 void safari_go_back(void);
 void safari_go_forward(void);
+void safari_focus_form(int index);
+void safari_submit_form(int index);
 void safari_reset_tab_state(int tab, const char *url);
 void safari_copy_tab_state(int dst, int src);
 int writing_tools_apply(int tool);
