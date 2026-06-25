@@ -580,6 +580,33 @@ static int safari_text_has_whitespace(const char *s) {
     return 0;
 }
 
+static int safari_text_looks_like_host(const char *s) {
+    int i = 0;
+    int saw_dot = 0;
+    int saw_colon = 0;
+    if (!s || !s[0]) return 0;
+    if (safari_starts_with_ci(s, "localhost")) {
+        char next = s[9];
+        if (!next || next == '/' || next == ':' || next == '?' || next == '#')
+            return 1;
+    }
+    while (s[i] && s[i] != '/' && s[i] != '?' && s[i] != '#') {
+        char ch = s[i];
+        if (ch == '.') {
+            saw_dot = 1;
+        } else if (ch == ':') {
+            saw_colon = 1;
+        } else if (!((ch >= 'A' && ch <= 'Z') ||
+                     (ch >= 'a' && ch <= 'z') ||
+                     (ch >= '0' && ch <= '9') ||
+                     ch == '-')) {
+            return 0;
+        }
+        i++;
+    }
+    return saw_dot || saw_colon;
+}
+
 static void safari_make_search_url(const char *query, char *out, int max) {
     char encoded[SAFARI_URL_MAX];
     int pos = 0;
@@ -974,7 +1001,7 @@ static void safari_normalize_url_text(const char *input, char *out, int max) {
         safari_append(out, &pos, max, p);
         return;
     }
-    if (safari_text_has_whitespace(p)) {
+    if (safari_text_has_whitespace(p) || !safari_text_looks_like_host(p)) {
         safari_make_search_url(p, out, max);
         return;
     }
