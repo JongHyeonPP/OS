@@ -6710,7 +6710,7 @@ void gui_init(void) {
     nc_add("Calendar","Stand-up meeting",                RGB(255,59,48));
     nc_add("Notes",   "Shopping list updated",           RGB(255,204,0));
     nc_add("Music",   "Now playing: Midnight Drive",     RGB(252,60,68));
-    nc_add("App Store","Updates available (3 apps)",     RGB(0,122,255));
+    nc_add("App Store","No downloads yet",               RGB(0,122,255));
     /* Welcome toast */
     toast_show("MyOS", "Welcome! Fully bare-metal.", RGB(0,122,255));
 }

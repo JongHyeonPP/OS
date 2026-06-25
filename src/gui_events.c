@@ -262,7 +262,7 @@ static const struct { const char *app; const char *msg; uint32_t color; int type
     { "Reminders",  "Buy groceries",                     RGB(255, 149,   0),TOAST_TYPE_SNOOZE  },
     { "Calendar",   "Dentist appointment scheduled",     RGB(255,  59,  48),TOAST_TYPE_SNOOZE  },
     { "Messages",   "Mom: Call me when you can",         RGB(52, 199,  89), TOAST_TYPE_REPLY   },
-    { "App Store",  "Updates available",                 RGB( 0, 122, 255), TOAST_TYPE_DEFAULT },
+    { "App Store",  "Browse apps in App Store",          RGB( 0, 122, 255), TOAST_TYPE_DEFAULT },
     { "Maps",       "Leave now for on-time arrival",     RGB(255, 149,   0),TOAST_TYPE_DEFAULT },
     { "Photos",     "New memory from Photos",            RGB(240,  80, 160),TOAST_TYPE_DEFAULT },
     { "Wallet",     "Transaction from Netflix",          RGB( 52, 199,  89),TOAST_TYPE_DEFAULT },
