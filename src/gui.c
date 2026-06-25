@@ -4962,7 +4962,19 @@ static int safari_attr_name_matches(const char *p, const char *name) {
         if (!p[i] || !safari_ieq_char(p[i], name[i])) return 0;
         i++;
     }
-    return p[i] == ' ' || p[i] == '\t' || p[i] == '\r' || p[i] == '\n' || p[i] == '=';
+    return p[i] == ' ' || p[i] == '\t' || p[i] == '\r' || p[i] == '\n' ||
+           p[i] == '=' || p[i] == '>' || p[i] == '/';
+}
+
+static int safari_tag_has_attr(const char *tag_start, const char *tag_end, const char *name) {
+    const char *p = tag_start;
+    if (!tag_start || !tag_end || !name) return 0;
+    while (p < tag_end && *p) {
+        if (safari_attr_boundary(p == tag_start ? '<' : p[-1]) && safari_attr_name_matches(p, name))
+            return 1;
+        p++;
+    }
+    return 0;
 }
 
 static int safari_tag_attr(const char *tag_start, const char *tag_end, const char *name, char *out, int max) {
@@ -5139,6 +5151,7 @@ static void safari_extract_forms(const safari_request_t *req, const char *body) 
                     char name[SAFARI_FORM_NAME_MAX];
                     char value[SAFARI_FORM_VALUE_MAX];
                     char placeholder[SAFARI_LINK_TITLE_MAX];
+                    int disabled;
                     while (*input_end && input_end < form_end && *input_end != '>') input_end++;
                     if (!*input_end || input_end > form_end) break;
                     type[0] = 0;
@@ -5149,18 +5162,103 @@ static void safari_extract_forms(const safari_request_t *req, const char *body) 
                     (void)safari_tag_attr(q, input_end, "name", name, sizeof(name));
                     (void)safari_tag_attr(q, input_end, "value", value, sizeof(value));
                     (void)safari_tag_attr(q, input_end, "placeholder", placeholder, sizeof(placeholder));
-                    if (safari_eq_ci(type, "hidden")) {
+                    disabled = safari_tag_has_attr(q, input_end, "disabled");
+                    if (disabled) {
+                    } else if (safari_eq_ci(type, "hidden")) {
                         safari_append_form_pair(query, &query_pos, sizeof(query), name, value);
+                    } else if ((safari_eq_ci(type, "checkbox") || safari_eq_ci(type, "radio")) &&
+                               name[0] && safari_tag_has_attr(q, input_end, "checked")) {
+                        safari_append_form_pair(query, &query_pos, sizeof(query), name, value[0] ? value : "on");
                     } else if (safari_form_text_type(type) && name[0] && input_count < SAFARI_MAX_FORMS) {
                         safari_copy(input_names[input_count], SAFARI_FORM_NAME_MAX, name);
                         safari_copy(input_values[input_count], SAFARI_FORM_VALUE_MAX, value);
                         safari_copy(input_hints[input_count], SAFARI_LINK_TITLE_MAX,
                                     placeholder[0] ? placeholder : name);
                         input_count++;
-                    } else if (safari_eq_ci(type, "submit") && value[0] && !submit_hint[0]) {
-                        safari_copy(submit_hint, sizeof(submit_hint), value);
+                    } else if (safari_eq_ci(type, "submit")) {
+                        if (name[0])
+                            safari_append_form_pair(query, &query_pos, sizeof(query), name, value);
+                        if (value[0] && !submit_hint[0])
+                            safari_copy(submit_hint, sizeof(submit_hint), value);
                     }
                     q = input_end;
+                } else if (safari_tag_is(q, "textarea")) {
+                    const char *textarea_tag_end = q;
+                    const char *text_start;
+                    const char *text_end;
+                    char name[SAFARI_FORM_NAME_MAX];
+                    char value[SAFARI_FORM_VALUE_MAX];
+                    char placeholder[SAFARI_LINK_TITLE_MAX];
+                    while (*textarea_tag_end && textarea_tag_end < form_end && *textarea_tag_end != '>') textarea_tag_end++;
+                    if (!*textarea_tag_end || textarea_tag_end > form_end) break;
+                    name[0] = 0;
+                    value[0] = 0;
+                    placeholder[0] = 0;
+                    (void)safari_tag_attr(q, textarea_tag_end, "name", name, sizeof(name));
+                    (void)safari_tag_attr(q, textarea_tag_end, "placeholder", placeholder, sizeof(placeholder));
+                    if (!safari_tag_has_attr(q, textarea_tag_end, "disabled") &&
+                        name[0] && input_count < SAFARI_MAX_FORMS) {
+                        text_start = textarea_tag_end + 1;
+                        text_end = text_start;
+                        while (text_end < form_end && *text_end && !safari_starts_with_ci(text_end, "</textarea")) text_end++;
+                        safari_anchor_text(text_start, text_end, value, sizeof(value));
+                        safari_copy(input_names[input_count], SAFARI_FORM_NAME_MAX, name);
+                        safari_copy(input_values[input_count], SAFARI_FORM_VALUE_MAX, value);
+                        safari_copy(input_hints[input_count], SAFARI_LINK_TITLE_MAX,
+                                    placeholder[0] ? placeholder : name);
+                        input_count++;
+                        while (text_end < form_end && *text_end && *text_end != '>') text_end++;
+                        q = text_end;
+                    } else {
+                        q = textarea_tag_end;
+                    }
+                } else if (safari_tag_is(q, "select")) {
+                    const char *select_tag_end = q;
+                    const char *select_end;
+                    const char *opt;
+                    char name[SAFARI_FORM_NAME_MAX];
+                    char selected_value[SAFARI_FORM_VALUE_MAX];
+                    int have_value = 0;
+                    int selected_seen = 0;
+                    while (*select_tag_end && select_tag_end < form_end && *select_tag_end != '>') select_tag_end++;
+                    if (!*select_tag_end || select_tag_end > form_end) break;
+                    name[0] = 0;
+                    selected_value[0] = 0;
+                    (void)safari_tag_attr(q, select_tag_end, "name", name, sizeof(name));
+                    select_end = select_tag_end + 1;
+                    while (select_end < form_end && *select_end && !safari_starts_with_ci(select_end, "</select")) select_end++;
+                    if (!safari_tag_has_attr(q, select_tag_end, "disabled") && name[0]) {
+                        for (opt = select_tag_end + 1; opt < select_end && *opt; opt++) {
+                            if (safari_tag_is(opt, "option")) {
+                                const char *opt_end = opt;
+                                const char *label_start;
+                                const char *label_end;
+                                char opt_value[SAFARI_FORM_VALUE_MAX];
+                                char opt_label[SAFARI_FORM_VALUE_MAX];
+                                int is_selected;
+                                while (*opt_end && opt_end < select_end && *opt_end != '>') opt_end++;
+                                if (!*opt_end || opt_end > select_end) break;
+                                opt_value[0] = 0;
+                                opt_label[0] = 0;
+                                (void)safari_tag_attr(opt, opt_end, "value", opt_value, sizeof(opt_value));
+                                label_start = opt_end + 1;
+                                label_end = label_start;
+                                while (label_end < select_end && *label_end && !safari_starts_with_ci(label_end, "</option") && !safari_tag_is(label_end, "option")) label_end++;
+                                safari_anchor_text(label_start, label_end, opt_label, sizeof(opt_label));
+                                is_selected = safari_tag_has_attr(opt, opt_end, "selected");
+                                if (!have_value || (is_selected && !selected_seen)) {
+                                    safari_copy(selected_value, sizeof(selected_value), opt_value[0] ? opt_value : opt_label);
+                                    have_value = 1;
+                                    selected_seen = is_selected ? 1 : selected_seen;
+                                }
+                                opt = label_end;
+                            }
+                        }
+                        if (have_value)
+                            safari_append_form_pair(query, &query_pos, sizeof(query), name, selected_value);
+                    }
+                    while (select_end < form_end && *select_end && *select_end != '>') select_end++;
+                    q = select_end;
                 }
             }
             if (resolved[0]) {
