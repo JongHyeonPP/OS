@@ -77,6 +77,83 @@ static int gui_top_window_named(const char *title) {
            str_eq(g_windows[top].title, title);
 }
 
+static int gui_focused_search_owner(void) {
+    if (g_mail_search_focused && gui_top_window_named("Mail")) return GUI_SEARCH_MAIL;
+    if (g_ms_search_focused && gui_top_window_named("Messages")) return GUI_SEARCH_MESSAGES;
+    if (g_contacts_search_focused && gui_top_window_named("Contacts")) return GUI_SEARCH_CONTACTS;
+    if (g_photos_search_focused && gui_top_window_named("Photos")) return GUI_SEARCH_PHOTOS;
+    if (g_maps_search_focused && gui_top_window_named("Maps")) return GUI_SEARCH_MAPS;
+    if (g_appstore_search_focused && gui_top_window_named("App Store")) return GUI_SEARCH_APPSTORE;
+    if (g_findmy_search_focused && gui_top_window_named("Find My")) return GUI_SEARCH_FINDMY;
+    if (g_passwords_search_focused && gui_top_window_named("Passwords")) return GUI_SEARCH_PASSWORDS;
+    if (g_automator_search_focused && gui_top_window_named("Automator")) return GUI_SEARCH_AUTOMATOR;
+    if (g_fontbook_search_focused && gui_top_window_named("Font Book")) return GUI_SEARCH_FONTBOOK;
+    if (g_console_filter_focused && gui_top_window_named("Console")) return GUI_SEARCH_CONSOLE;
+    if (g_sfsymbols_search_focused && gui_top_window_named("SF Symbols")) return GUI_SEARCH_SFSYMBOLS;
+    if (g_onepassword_search_focused && gui_top_window_named("1Password")) return GUI_SEARCH_ONEPASSWORD;
+    if (g_raycast_search_focused && gui_top_window_named("Raycast")) return GUI_SEARCH_RAYCAST;
+    if (g_finder_search_focused && gui_top_window_named("MyOS Finder")) return GUI_SEARCH_FINDER;
+    if (g_alfred_search_focused && gui_top_window_named("Alfred")) return GUI_SEARCH_ALFRED;
+    return 0;
+}
+
+static void gui_clear_search_focus(int owner) {
+    if (owner == GUI_SEARCH_MAIL) {
+        g_mail_search_focused = 0;
+    } else if (owner == GUI_SEARCH_MESSAGES) {
+        g_ms_search_focused = 0;
+    } else if (owner == GUI_SEARCH_CONTACTS) {
+        g_contacts_search_focused = 0;
+    } else if (owner == GUI_SEARCH_PHOTOS) {
+        g_photos_search_focused = 0;
+    } else if (owner == GUI_SEARCH_MAPS) {
+        g_maps_search_focused = 0;
+    } else if (owner == GUI_SEARCH_APPSTORE) {
+        g_appstore_search_focused = 0;
+    } else if (owner == GUI_SEARCH_FINDMY) {
+        g_findmy_search_focused = 0;
+    } else if (owner == GUI_SEARCH_PASSWORDS) {
+        g_passwords_search_focused = 0;
+    } else if (owner == GUI_SEARCH_AUTOMATOR) {
+        g_automator_search_focused = 0;
+    } else if (owner == GUI_SEARCH_FONTBOOK) {
+        g_fontbook_search_focused = 0;
+    } else if (owner == GUI_SEARCH_CONSOLE) {
+        g_console_filter_focused = 0;
+    } else if (owner == GUI_SEARCH_SFSYMBOLS) {
+        g_sfsymbols_search_focused = 0;
+    } else if (owner == GUI_SEARCH_ONEPASSWORD) {
+        g_onepassword_search_focused = 0;
+    } else if (owner == GUI_SEARCH_RAYCAST) {
+        g_raycast_search_focused = 0;
+    } else if (owner == GUI_SEARCH_FINDER) {
+        g_finder_search_focused = 0;
+    } else if (owner == GUI_SEARCH_ALFRED) {
+        g_alfred_search_focused = 0;
+    }
+    gui_search_blur(owner);
+}
+
+static const char *gui_search_owner_name(int owner) {
+    if (owner == GUI_SEARCH_MAIL) return "Mail";
+    if (owner == GUI_SEARCH_MESSAGES) return "Messages";
+    if (owner == GUI_SEARCH_CONTACTS) return "Contacts";
+    if (owner == GUI_SEARCH_PHOTOS) return "Photos";
+    if (owner == GUI_SEARCH_MAPS) return "Maps";
+    if (owner == GUI_SEARCH_APPSTORE) return "App Store";
+    if (owner == GUI_SEARCH_FINDMY) return "Find My";
+    if (owner == GUI_SEARCH_PASSWORDS) return "Passwords";
+    if (owner == GUI_SEARCH_AUTOMATOR) return "Automator";
+    if (owner == GUI_SEARCH_FONTBOOK) return "Font Book";
+    if (owner == GUI_SEARCH_CONSOLE) return "Console";
+    if (owner == GUI_SEARCH_SFSYMBOLS) return "SF Symbols";
+    if (owner == GUI_SEARCH_ONEPASSWORD) return "1Password";
+    if (owner == GUI_SEARCH_RAYCAST) return "Raycast";
+    if (owner == GUI_SEARCH_FINDER) return "Finder";
+    if (owner == GUI_SEARCH_ALFRED) return "Alfred";
+    return "Search";
+}
+
 static int gui_filename_has_ext(const char *name, const char *ext) {
     const char *dot = 0;
     int i;
@@ -1268,9 +1345,9 @@ void gui_run(void) {
                 if (!w->visible || !w->title || !str_eq(w->title,"Maps")) continue;
                 int cy3 = w->y+TITLEBAR_H+1;
                 if (mx>=w->x+8 && mx<w->x+w->w-64 && my>=cy3+6 && my<cy3+28) {
-                    g_maps_search_focused=1; dirty=1; goto end_left_press;
+                    g_maps_search_focused=1; gui_search_focus(GUI_SEARCH_MAPS); dirty=1; goto end_left_press;
                 } else if (g_maps_search_focused) {
-                    g_maps_search_focused=0; dirty=1;
+                    g_maps_search_focused=0; gui_search_blur(GUI_SEARCH_MAPS); dirty=1;
                 }
                 int vi;
                 for (vi=0;vi<3;vi++) {
@@ -1410,9 +1487,9 @@ void gui_run(void) {
                       g_photos_section=2; dirty=1; goto end_left_press;
                   }
                   if (mx>=w->x+188 && mx<w->x+248 && my>=ph_top_ev+6 && my<ph_top_ev+24) {
-                      g_photos_search_focused=1; dirty=1; goto end_left_press;
+                      g_photos_search_focused=1; gui_search_focus(GUI_SEARCH_PHOTOS); dirty=1; goto end_left_press;
                   } else if (g_photos_search_focused) {
-                      g_photos_search_focused=0; dirty=1;
+                      g_photos_search_focused=0; gui_search_blur(GUI_SEARCH_PHOTOS); dirty=1;
                   }
                   if (mx>=w->x+2 && mx<w->x+80) {
                       int lib_start=ph_top_ev+42;
@@ -1527,9 +1604,9 @@ void gui_run(void) {
                 }
                 int ct_top2 = w->y + TITLEBAR_H + 1;
                 if (mx>=w->x+8 && mx<w->x+w->w-8 && my>=ct_top2+28 && my<ct_top2+44) {
-                    g_contacts_search_focused=1; dirty=1; goto end_left_press;
+                    g_contacts_search_focused=1; gui_search_focus(GUI_SEARCH_CONTACTS); dirty=1; goto end_left_press;
                 } else if (g_contacts_search_focused) {
-                    g_contacts_search_focused=0; dirty=1;
+                    g_contacts_search_focused=0; gui_search_blur(GUI_SEARCH_CONTACTS); dirty=1;
                 }
                 int list_w2 = w->w * 2 / 5;
                 int det_x2 = w->x + 1 + list_w2;
@@ -1586,9 +1663,9 @@ void gui_run(void) {
                 int sb_w2 = 130; if (sb_w2 > w->w/2) sb_w2=w->w/2;
                 if (mx>=w->x+6 && mx<w->x+6+sb_w2-10 &&
                     my>=w->y+TITLEBAR_H+6 && my<w->y+TITLEBAR_H+24) {
-                    g_ms_search_focused=1; g_ms_focused=0; dirty=1; goto end_left_press;
+                    g_ms_search_focused=1; gui_search_focus(GUI_SEARCH_MESSAGES); g_ms_focused=0; dirty=1; goto end_left_press;
                 } else if (g_ms_search_focused) {
-                    g_ms_search_focused=0; dirty=1;
+                    g_ms_search_focused=0; gui_search_blur(GUI_SEARCH_MESSAGES); dirty=1;
                 }
                 /* Sidebar conversation click */
                 if (mx >= w->x+1 && mx < w->x+sb_w2 && my >= w->y+TITLEBAR_H+27) {
@@ -1962,9 +2039,9 @@ void gui_run(void) {
                     int sch_y_pw = w->y + TITLEBAR_H + 28;
                     int sit_y_pw = sch_y_pw + 22;
                     if (mx>=w->x+4 && mx<w->x+sb_w_pw-2 && my>=sch_y_pw && my<sch_y_pw+16) {
-                        g_passwords_search_focused=1; dirty=1; goto end_left_press;
+                        g_passwords_search_focused=1; gui_search_focus(GUI_SEARCH_PASSWORDS); dirty=1; goto end_left_press;
                     } else if (g_passwords_search_focused) {
-                        g_passwords_search_focused=0; dirty=1;
+                        g_passwords_search_focused=0; gui_search_blur(GUI_SEARCH_PASSWORDS); dirty=1;
                     }
                     int cat_pw;
                     for (cat_pw=0; cat_pw<4; cat_pw++) {
@@ -2042,18 +2119,18 @@ void gui_run(void) {
                       if (tab_as < 0) tab_as = 0;
                       if (tab_as > 3) tab_as = 3;
                       g_appstore_tab = tab_as;
-                      g_appstore_search_focused = 0;
+                      g_appstore_search_focused = 0; gui_search_blur(GUI_SEARCH_APPSTORE);
                       toast_show("App Store",tab_names_as[tab_as],RGB(0,122,255));
                       dirty=1; goto end_left_press;
                   }
                   if (mx >= w->x + 8 && mx < w->x + w->w - 8 &&
                       my >= sb_y_as && my < sb_y_as + 20) {
-                      g_appstore_search_focused = 1;
+                      g_appstore_search_focused = 1; gui_search_focus(GUI_SEARCH_APPSTORE);
                       toast_show("App Store","Search active",RGB(0,122,255));
                       dirty=1; goto end_left_press;
                   }
                   if (g_appstore_search_focused) {
-                      g_appstore_search_focused = 0;
+                      g_appstore_search_focused = 0; gui_search_blur(GUI_SEARCH_APPSTORE);
                       dirty = 1;
                   }
                   { static const char *feat_names_as[] = {
@@ -2526,9 +2603,9 @@ void gui_run(void) {
                     int cy_at=w->y+TITLEBAR_H;
                     int lib_w_at=w->w/3;
                     if (mx>=w->x+4 && mx<w->x+lib_w_at-2 && my>=cy_at+38 && my<cy_at+52) {
-                        g_automator_search_focused=1; dirty=1; goto end_left_press;
+                        g_automator_search_focused=1; gui_search_focus(GUI_SEARCH_AUTOMATOR); dirty=1; goto end_left_press;
                     } else if (g_automator_search_focused) {
-                        g_automator_search_focused=0; dirty=1;
+                        g_automator_search_focused=0; gui_search_blur(GUI_SEARCH_AUTOMATOR); dirty=1;
                     }
                     static const char *labels_at[]={"Run","Stop","Record","Variables"};
                     int bx_at=w->x+6;
@@ -2549,7 +2626,7 @@ void gui_run(void) {
                         int cat_i=(my-(cy_at+56))/20;
                         if (cat_i>=0 && cat_i<6) {
                             g_automator_category=cat_i;
-                            g_automator_search_focused=0;
+                            g_automator_search_focused=0; gui_search_blur(GUI_SEARCH_AUTOMATOR);
                             toast_show("Automator","Category selected",RGB(238,95,0));
                             dirty=1; goto end_left_press;
                         }
@@ -3245,9 +3322,9 @@ void gui_run(void) {
                 if (i != top_win_idx) continue;
                 if (mx>=w->x+8 && mx<w->x+w->w-8 &&
                     my>=w->y+TITLEBAR_H+10 && my<w->y+TITLEBAR_H+44) {
-                    g_alfred_search_focused=1; dirty=1; goto end_left_press;
+                    g_alfred_search_focused=1; gui_search_focus(GUI_SEARCH_ALFRED); dirty=1; goto end_left_press;
                 } else if (g_alfred_search_focused) {
-                    g_alfred_search_focused=0; dirty=1;
+                    g_alfred_search_focused=0; gui_search_blur(GUI_SEARCH_ALFRED); dirty=1;
                 }
                 { int ai_al;
                   for (ai_al=0; ai_al<4; ai_al++) {
@@ -3269,17 +3346,17 @@ void gui_run(void) {
                     int cy_fb=w->y+TITLEBAR_H;
                     int sb_w_fb=w->w*2/5;
                     if (mx>=w->x+4 && mx<w->x+sb_w_fb-2 && my>=cy_fb+26 && my<cy_fb+40) {
-                        g_fontbook_search_focused=1; dirty=1; goto end_left_press;
+                        g_fontbook_search_focused=1; gui_search_focus(GUI_SEARCH_FONTBOOK); dirty=1; goto end_left_press;
                     }
                     if (mx>=w->x+2 && mx<w->x+sb_w_fb && my>=cy_fb+44 && my<cy_fb+44+9*18) {
                         int font_i = (my - (cy_fb+44)) / 18;
                         if (font_i >= 0 && font_i < 9) {
                             g_fontbook_selected = font_i;
-                            g_fontbook_search_focused=0;
+                            g_fontbook_search_focused=0; gui_search_blur(GUI_SEARCH_FONTBOOK);
                             toast_show("Font Book","Font selected",RGB(0,122,255));
                             dirty=1; goto end_left_press;
                         }
-                    } else if (g_fontbook_search_focused) { g_fontbook_search_focused=0; dirty=1; }
+                    } else if (g_fontbook_search_focused) { g_fontbook_search_focused=0; gui_search_blur(GUI_SEARCH_FONTBOOK); dirty=1; }
                 } else if (str_eq(w->title,"Console")) {
                     int cy_co=w->y+TITLEBAR_H;
                     int sf_x_co=w->x+w->w-100;
@@ -3290,7 +3367,7 @@ void gui_run(void) {
                               int lw_co=str_len(levels_co[li_co])*8+8;
                               if (mx>=bx_co && mx<bx_co+lw_co) {
                                   g_console_level_filter=li_co;
-                                  g_console_filter_focused=0;
+                                  g_console_filter_focused=0; gui_search_blur(GUI_SEARCH_CONSOLE);
                                   toast_show("Console","Level filter changed",RGB(0,122,255));
                                   dirty=1; goto end_left_press;
                               }
@@ -3303,19 +3380,19 @@ void gui_run(void) {
                           int dev_i=(my-(cy_co+40))/16;
                           if (dev_i>=0 && dev_i<5) {
                               g_console_device_filter=dev_i;
-                              g_console_filter_focused=0;
+                              g_console_filter_focused=0; gui_search_blur(GUI_SEARCH_CONSOLE);
                               toast_show("Console","Device filter changed",RGB(0,122,255));
                               dirty=1; goto end_left_press;
                           }
                       }
                     }
                     if (mx>=sf_x_co && mx<sf_x_co+94 && my>=cy_co+4 && my<cy_co+18) {
-                        g_console_filter_focused=1; dirty=1; goto end_left_press;
-                    } else if (g_console_filter_focused) { g_console_filter_focused=0; dirty=1; }
+                        g_console_filter_focused=1; gui_search_focus(GUI_SEARCH_CONSOLE); dirty=1; goto end_left_press;
+                    } else if (g_console_filter_focused) { g_console_filter_focused=0; gui_search_blur(GUI_SEARCH_CONSOLE); dirty=1; }
                 } else if (str_eq(w->title,"SF Symbols")) {
                     int cy_sf=w->y+TITLEBAR_H;
                     if (mx>=w->x+8 && mx<w->x+w->w-82 && my>=cy_sf+6 && my<cy_sf+22) {
-                        g_sfsymbols_search_focused=1; dirty=1; goto end_left_press;
+                        g_sfsymbols_search_focused=1; gui_search_focus(GUI_SEARCH_SFSYMBOLS); dirty=1; goto end_left_press;
                     }
                     if (mx>=w->x+10 && mx<w->x+w->w-10 && my>=cy_sf+30 && my<cy_sf+130) {
                         int cell_w_sf=(w->w-20)/5;
@@ -3324,30 +3401,30 @@ void gui_run(void) {
                         int sym_i=row_sf*5+col_sf;
                         if (sym_i>=0 && sym_i<10) {
                             g_sfsymbols_selected=sym_i;
-                            g_sfsymbols_search_focused=0;
+                            g_sfsymbols_search_focused=0; gui_search_blur(GUI_SEARCH_SFSYMBOLS);
                             toast_show("SF Symbols","Symbol selected",RGB(52,199,89));
                             dirty=1; goto end_left_press;
                         }
-                    } else if (g_sfsymbols_search_focused) { g_sfsymbols_search_focused=0; dirty=1; }
+                    } else if (g_sfsymbols_search_focused) { g_sfsymbols_search_focused=0; gui_search_blur(GUI_SEARCH_SFSYMBOLS); dirty=1; }
                 } else if (str_eq(w->title,"1Password")) {
                     int sy_pw=w->y+TITLEBAR_H+26;
                     { int vi_pw; for (vi_pw=0; vi_pw<5; vi_pw++) {
                         int vy_pw=w->y+TITLEBAR_H+24+vi_pw*22;
                         if (mx>=w->x+2 && mx<w->x+89 && my>=vy_pw-2 && my<vy_pw+18) {
                             g_onepassword_vault=vi_pw;
-                            g_onepassword_search_focused=0;
+                            g_onepassword_search_focused=0; gui_search_blur(GUI_SEARCH_ONEPASSWORD);
                             toast_show("1Password","Vault selected",RGB(0,120,200));
                             dirty=1; goto end_left_press;
                         }
                     } }
                     if (mx>=w->x+92 && mx<w->x+w->w-4 && my>=sy_pw && my<sy_pw+20) {
-                        g_onepassword_search_focused=1; dirty=1; goto end_left_press;
-                    } else if (g_onepassword_search_focused) { g_onepassword_search_focused=0; dirty=1; }
+                        g_onepassword_search_focused=1; gui_search_focus(GUI_SEARCH_ONEPASSWORD); dirty=1; goto end_left_press;
+                    } else if (g_onepassword_search_focused) { g_onepassword_search_focused=0; gui_search_blur(GUI_SEARCH_ONEPASSWORD); dirty=1; }
                 } else if (str_eq(w->title,"Raycast")) {
                     int sy_rc=w->y+TITLEBAR_H+10;
                     if (mx>=w->x+8 && mx<w->x+w->w-8 && my>=sy_rc && my<sy_rc+30) {
-                        g_raycast_search_focused=1; dirty=1; goto end_left_press;
-                    } else if (g_raycast_search_focused) { g_raycast_search_focused=0; dirty=1; }
+                        g_raycast_search_focused=1; gui_search_focus(GUI_SEARCH_RAYCAST); dirty=1; goto end_left_press;
+                    } else if (g_raycast_search_focused) { g_raycast_search_focused=0; gui_search_blur(GUI_SEARCH_RAYCAST); dirty=1; }
                     { int ri_rc; for (ri_rc=0; ri_rc<6; ri_rc++) {
                         int ry_rc=w->y+TITLEBAR_H+52+ri_rc*26;
                         if (mx>=w->x+2 && mx<w->x+w->w-2 && my>=ry_rc-2 && my<ry_rc+26) {
@@ -3548,8 +3625,8 @@ void gui_run(void) {
                     int sfx_fn=w->x+w->w-112;
                     int sy_fn=w->y+TITLEBAR_H+6;
                     if (mx>=sfx_fn && mx<sfx_fn+72 && my>=sy_fn && my<sy_fn+16) {
-                        g_finder_search_focused=1; dirty=1; goto end_left_press;
-                    } else if (g_finder_search_focused) { g_finder_search_focused=0; dirty=1; }
+                        g_finder_search_focused=1; gui_search_focus(GUI_SEARCH_FINDER); dirty=1; goto end_left_press;
+                    } else if (g_finder_search_focused) { g_finder_search_focused=0; gui_search_blur(GUI_SEARCH_FINDER); dirty=1; }
                 }
                 break;
             }
@@ -3611,11 +3688,11 @@ void gui_run(void) {
                     static const int fry_ev[] = {40,60,30};
                     if (mx>=w->x+4 && mx<w->x+w->w-4 &&
                         my>=w->y+TITLEBAR_H+3 && my<w->y+TITLEBAR_H+23) {
-                        g_findmy_search_focused = 1;
+                        g_findmy_search_focused = 1; gui_search_focus(GUI_SEARCH_FINDMY);
                         dirty=1; goto end_left_press;
                     }
                     if (g_findmy_search_focused) {
-                        g_findmy_search_focused = 0;
+                        g_findmy_search_focused = 0; gui_search_blur(GUI_SEARCH_FINDMY);
                         dirty = 1;
                     }
                     for (fd_ev=0; fd_ev<3; fd_ev++) {
@@ -3705,9 +3782,9 @@ void gui_run(void) {
                 if (i != top_win_idx) continue;
                 int cy_ml = w->y+TITLEBAR_H+1;
                 if (!g_mail_compose && mx>=w->x+w->w-76&&mx<w->x+w->w-4&&my>=cy_ml+4&&my<cy_ml+22) {
-                    g_mail_search_focused=1; dirty=1; goto end_left_press;
+                    g_mail_search_focused=1; gui_search_focus(GUI_SEARCH_MAIL); dirty=1; goto end_left_press;
                 } else if (!g_mail_compose && g_mail_search_focused) {
-                    g_mail_search_focused=0; dirty=1;
+                    g_mail_search_focused=0; gui_search_blur(GUI_SEARCH_MAIL); dirty=1;
                 }
                 /* New button (compose) at x+4..x+32, cy_ml+4..cy_ml+22 */
                 if (!g_mail_compose && mx>=w->x+4&&mx<w->x+32&&my>=cy_ml+4&&my<cy_ml+22) {
@@ -4438,6 +4515,29 @@ void gui_run(void) {
                         }
                     }
                     ch = keyboard_poll(); continue;
+                }
+                {
+                    int search_owner = gui_focused_search_owner();
+                    if (search_owner && ch == KEY_ESC) {
+                        gui_clear_search_focus(search_owner);
+                        dirty = 1;
+                        ch = keyboard_poll();
+                        continue;
+                    }
+                    if (search_owner && (ch == KEY_ENTER || ch == '\r' || ch == '\n')) {
+                        const char *query = gui_search_text(search_owner);
+                        toast_show(gui_search_owner_name(search_owner),
+                                   query && query[0] ? query : "Search ready",
+                                   RGB(0,122,255));
+                        dirty = 1;
+                        ch = keyboard_poll();
+                        continue;
+                    }
+                    if (search_owner && gui_search_handle_key(search_owner, ch)) {
+                        dirty = 1;
+                        ch = keyboard_poll();
+                        continue;
+                    }
                 }
                 if (gui_top_window_named("Safari") && g_safari_form_focused >= 0 && !g_safari_url_focused && ch != KEY_ESC) {
                     int sf = g_safari_form_focused;

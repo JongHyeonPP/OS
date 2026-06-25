@@ -234,6 +234,66 @@ int  g_qn_visible = 0;
 char g_qn_text[128] = "Quick Note\n----------\n";
 int  g_qn_len = 22;
 
+/* Shared app search fields */
+int  g_gui_search_owner = 0;
+char g_gui_search_texts[GUI_SEARCH_COUNT][GUI_SEARCH_TEXT_MAX];
+int  g_gui_search_lens[GUI_SEARCH_COUNT];
+
+static int gui_search_valid_owner(int owner) {
+    return owner > 0 && owner < GUI_SEARCH_COUNT;
+}
+
+void gui_search_focus(int owner) {
+    if (gui_search_valid_owner(owner))
+        g_gui_search_owner = owner;
+}
+
+void gui_search_blur(int owner) {
+    if (g_gui_search_owner == owner)
+        g_gui_search_owner = 0;
+}
+
+const char *gui_search_text(int owner) {
+    if (!gui_search_valid_owner(owner)) return "";
+    return g_gui_search_texts[owner];
+}
+
+const char *gui_search_display_text(int owner, const char *placeholder, const char *focused_placeholder) {
+    if (gui_search_valid_owner(owner) && g_gui_search_texts[owner][0])
+        return g_gui_search_texts[owner];
+    if (g_gui_search_owner == owner && focused_placeholder)
+        return focused_placeholder;
+    return placeholder ? placeholder : "";
+}
+
+int gui_search_handle_key(int owner, int ch) {
+    int len;
+    if (!gui_search_valid_owner(owner)) return 0;
+    gui_search_focus(owner);
+    len = g_gui_search_lens[owner];
+    if (len < 0 || len >= GUI_SEARCH_TEXT_MAX) {
+        len = str_len(g_gui_search_texts[owner]);
+        if (len >= GUI_SEARCH_TEXT_MAX) len = GUI_SEARCH_TEXT_MAX - 1;
+        g_gui_search_lens[owner] = len;
+        g_gui_search_texts[owner][len] = 0;
+    }
+    if (ch == KEY_BACKSPACE || ch == '\b' || ch == 0x7F) {
+        if (len > 0) {
+            g_gui_search_texts[owner][--len] = 0;
+            g_gui_search_lens[owner] = len;
+        }
+        return 1;
+    }
+    if (ch == KEY_ENTER || ch == '\r' || ch == '\n') return 1;
+    if (ch >= 0x20 && ch < 0x7F && len + 1 < GUI_SEARCH_TEXT_MAX) {
+        g_gui_search_texts[owner][len++] = (char)ch;
+        g_gui_search_texts[owner][len] = 0;
+        g_gui_search_lens[owner] = len;
+        return 1;
+    }
+    return 0;
+}
+
 /* Clock window tabs: 0=Clock, 1=Alarm, 2=Timer, 3=Stopwatch */
 int g_clock_tab = 0;
 

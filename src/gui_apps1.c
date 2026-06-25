@@ -1267,7 +1267,7 @@ int draw_apps_group1(int idx) {
         vga_draw_string_trans(wx+8,   ph_top+8, "Library",   active_ph_top==0?RGB(0,122,255):ph_sub);
         vga_draw_string_trans(wx+72,  ph_top+8, "For You",   active_ph_top==1?RGB(0,122,255):ph_sub);
         vga_draw_string_trans(wx+132, ph_top+8, "Albums",    active_ph_top==2?RGB(0,122,255):ph_sub);
-        vga_draw_string_trans(wx+190, ph_top+8, g_photos_search_focused ? "Search*" : "Search",
+        vga_draw_string_trans(wx+190, ph_top+8, gui_search_display_text(GUI_SEARCH_PHOTOS, "Search", "Search*"),
                               g_photos_search_focused ? RGB(0,122,255) : ph_sub);
         /* Sidebar (80px) */
         int sb_w = 80;
@@ -2256,7 +2256,7 @@ int draw_apps_group1(int idx) {
         gui_draw_circle(wx+20, cy+17, 3, mp_sb_bg);
         vga_draw_line(wx+24, cy+21, wx+28, cy+25, mp_sb_tx);
         vga_draw_string_trans(wx+30, cy+11,
-            g_maps_search_focused ? "Search focused" : "Search Maps...", mp_sb_tx);
+            gui_search_display_text(GUI_SEARCH_MAPS, "Search Maps...", "Search focused"), mp_sb_tx);
 
         /* View toggle button group (top right) */
         { static const char *vm_labels[3]={"Map","Sat","Mix"};
@@ -2686,7 +2686,7 @@ int draw_apps_group1(int idx) {
         gui_draw_circle(wx+20, sb_y+10, 3, g_pref_darkmode?RGB(44,44,50):RGB(235,235,240));
         vga_draw_line(wx+24, sb_y+14, wx+28, sb_y+18, as_sub);
         vga_draw_string_trans(wx+30, sb_y+6,
-            g_appstore_search_focused ? "Search focused" : "Search games, apps, stories...", as_sub);
+            gui_search_display_text(GUI_SEARCH_APPSTORE, "Search games, apps, stories...", "Search focused"), as_sub);
         cy = sb_y + 26;
 
         /* APP OF THE DAY hero card */

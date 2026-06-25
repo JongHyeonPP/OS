@@ -52,6 +52,26 @@
 #define SPOTLIGHT_H    40
 #define SPOT_QUERY_MAX 32
 
+/* Shared search field state */
+#define GUI_SEARCH_TEXT_MAX 32
+#define GUI_SEARCH_MAIL 1
+#define GUI_SEARCH_MESSAGES 2
+#define GUI_SEARCH_CONTACTS 3
+#define GUI_SEARCH_PHOTOS 4
+#define GUI_SEARCH_MAPS 5
+#define GUI_SEARCH_APPSTORE 6
+#define GUI_SEARCH_FINDMY 7
+#define GUI_SEARCH_PASSWORDS 8
+#define GUI_SEARCH_AUTOMATOR 9
+#define GUI_SEARCH_FONTBOOK 10
+#define GUI_SEARCH_CONSOLE 11
+#define GUI_SEARCH_SFSYMBOLS 12
+#define GUI_SEARCH_ONEPASSWORD 13
+#define GUI_SEARCH_RAYCAST 14
+#define GUI_SEARCH_FINDER 15
+#define GUI_SEARCH_ALFRED 16
+#define GUI_SEARCH_COUNT 17
+
 /* =========================================================================
  * Launchpad constants
  * ======================================================================= */
@@ -317,6 +337,11 @@ extern int  g_notes_focused;
 extern char g_notes_titles[NOTES_COUNT][32];
 extern char g_notes_body[NOTES_COUNT][NOTES_MAXLEN];
 extern int  g_notes_body_len[NOTES_COUNT];
+
+/* Shared app search */
+extern int  g_gui_search_owner;
+extern char g_gui_search_texts[GUI_SEARCH_COUNT][GUI_SEARCH_TEXT_MAX];
+extern int  g_gui_search_lens[GUI_SEARCH_COUNT];
 
 /* Safari */
 extern int  g_safari_url_focused;
@@ -866,6 +891,11 @@ void toast_show(const char *msg, const char *sub, uint32_t color);
 void toast_show_action(const char *msg, const char *sub, uint32_t color, int type);
 void nc_add(const char *msg, const char *sub, uint32_t color);
 void term_println(const char *s);
+void gui_search_focus(int owner);
+void gui_search_blur(int owner);
+int  gui_search_handle_key(int owner, int ch);
+const char *gui_search_text(int owner);
+const char *gui_search_display_text(int owner, const char *placeholder, const char *focused_placeholder);
 
 /* Calculator helpers */
 void calc_update_disp(int32_t v);

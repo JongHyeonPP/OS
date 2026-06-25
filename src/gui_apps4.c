@@ -1451,7 +1451,7 @@ int draw_apps_group4(int idx) {
         vga_draw_rect_outline(wx+8,cy+6,ww-90,16,
             g_sfsymbols_search_focused ? sf_acc : (g_pref_darkmode?RGB(70,70,78):RGB(190,190,200)));
         vga_draw_string_trans(wx+14,cy+11,
-            g_sfsymbols_search_focused ? "Search focused" : "Search symbols...",
+            gui_search_display_text(GUI_SEARCH_SFSYMBOLS, "Search symbols...", "Search focused"),
             g_pref_darkmode?RGB(100,100,110):RGB(150,150,160));
         vga_draw_hline(wx+2,cy+26,ww-4,g_pref_darkmode?RGB(50,50,56):RGB(210,210,216));
         /* Symbol grid */
@@ -1856,7 +1856,7 @@ int draw_apps_group4(int idx) {
         gui_draw_rounded_rect(wx+92, wy+TITLEBAR_H+26, ww-96, 20, 4,
                               g_onepassword_search_focused ? RGB(0,60,105) : RGB(30,36,48));
         vga_draw_string_trans(wx+100, wy+TITLEBAR_H+32,
-                              g_onepassword_search_focused ? "Search focused" : "Search...", pw_sub);
+                              gui_search_display_text(GUI_SEARCH_ONEPASSWORD, "Search...", "Search focused"), pw_sub);
         static const char *pw_items[]={"GitHub","Google","Apple ID","Netflix","Amazon","Spotify"};
         for(vi=0;vi<6;vi++){
             int iy2=wy+TITLEBAR_H+52+vi*26;
@@ -1986,7 +1986,7 @@ int draw_apps_group4(int idx) {
         gui_draw_rounded_rect(wx+8, wy+TITLEBAR_H+10, ww-16, 30, 8,
                               g_raycast_search_focused ? RGB(50,36,34) : RGB(28,28,34));
         vga_draw_string_trans(wx+20, wy+TITLEBAR_H+22,
-                              g_raycast_search_focused ? "> Search focused" : "> Search commands...", rc_sub);
+                              gui_search_display_text(GUI_SEARCH_RAYCAST, "> Search commands...", "> Search focused"), rc_sub);
         vga_draw_hline(wx+2, wy+TITLEBAR_H+46, ww-4, RGB(36,36,44));
         /* Command results */
         static const char *rc_cmds[]={"Calculator","File Search","Clipboard History","Window Management","System: Sleep","App Launcher"};
@@ -2312,8 +2312,14 @@ int draw_apps_group4(int idx) {
         gui_draw_rounded_rect_outline(wx+8, wy+TITLEBAR_H+10, ww-16, 34, 10,
                                       g_alfred_search_focused ? RGB(255,120,255) : al_acc);
         gui_draw_circle(wx+26, wy+TITLEBAR_H+27, 8, al_sub);
-        vga_draw_string_trans(wx+42, wy+TITLEBAR_H+23, "myos", al_txt);
-        vga_fill_rect(wx+42+4*8, wy+TITLEBAR_H+24, 2, 12, al_acc);
+        { const char *al_query = gui_search_display_text(GUI_SEARCH_ALFRED, "myos", "Search focused");
+          int al_query_len = str_len(al_query);
+          int al_cursor_x;
+          if (al_query_len > (ww - 64) / 8) al_query_len = (ww - 64) / 8;
+          vga_draw_string_trans(wx+42, wy+TITLEBAR_H+23, al_query, al_txt);
+          al_cursor_x = wx + 42 + al_query_len * 8;
+          if (al_cursor_x < wx + ww - 12)
+              vga_fill_rect(al_cursor_x, wy+TITLEBAR_H+24, 2, 12, al_acc); }
         /* Results */
         vga_draw_hline(wx+2, wy+TITLEBAR_H+50, ww-4, RGB(36,28,44));
         static const char *al_results[]={"MyOS Project","myos.iso","myos build script","myos.iso (copy)"};
@@ -2858,7 +2864,7 @@ int draw_apps_group4(int idx) {
         vga_draw_rect_outline(sfx, wy+TITLEBAR_H+6, sfw, sfh,
             g_finder_search_focused ? RGB(0,122,255) : fn_btn_bd);
         vga_draw_string_trans(sfx+4, wy+TITLEBAR_H+9,
-            g_finder_search_focused ? "Search*" : "Search", fn_sb_cat);
+            gui_search_display_text(GUI_SEARCH_FINDER, "Search", "Search*"), fn_sb_cat);
     }
     /* Path breadcrumb showing current finder depth */
     {

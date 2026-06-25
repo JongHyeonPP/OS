@@ -202,7 +202,7 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(wx+8,  cy0+8, "New", RGB(255,255,255));
         vga_draw_string_trans(wx+36, cy0+7, "[<]", ml_sub);   /* reply */
         vga_draw_string_trans(wx+64, cy0+7, "[X]", ml_sub);   /* delete */
-        vga_draw_string_trans(wx+ww-70, cy0+7, g_mail_search_focused ? "[Search*]" : "[Search]",
+        vga_draw_string_trans(wx+ww-70, cy0+7, gui_search_display_text(GUI_SEARCH_MAIL, "[Search]", "[Search*]"),
             g_mail_search_focused ? RGB(0,122,255) : ml_sub);
         cy0 += 26;
 
@@ -542,7 +542,7 @@ int draw_apps_group2(int idx) {
           gui_draw_circle(sx+10, sy+9, 4, ms_sub);
           gui_draw_circle(sx+10, sy+9, 2, g_pref_darkmode?RGB(44,44,52):RGB(212,212,220));
           vga_draw_line(sx+13, sy+12, sx+16, sy+15, ms_sub);
-          vga_draw_string_trans(sx+20, sy+5, g_ms_search_focused ? "Search focused" : "Search", ms_sub);
+          vga_draw_string_trans(sx+20, sy+5, gui_search_display_text(GUI_SEARCH_MESSAGES, "Search", "Search focused"), ms_sub);
         }
         /* Conversations */
         static const struct {
@@ -1282,7 +1282,7 @@ int draw_apps_group2(int idx) {
         gui_draw_rounded_rect_outline(wx+4, wy+TITLEBAR_H+3, ww-8, 20, 5,
             g_findmy_search_focused ? RGB(0,122,255) : RGB(180,180,180));
         vga_draw_string_trans(wx+10, wy+TITLEBAR_H+9,
-            g_findmy_search_focused ? "Search focused" : "Search people and devices...", RGB(150,150,150));
+            gui_search_display_text(GUI_SEARCH_FINDMY, "Search people and devices...", "Search focused"), RGB(150,150,150));
         /* Bottom panel */
         int bp_y = wy+TITLEBAR_H+fm_h-44;
         vga_fill_rect_alpha(wx+1, bp_y, ww-2, 44, RGB(20,20,24), 200);
@@ -1472,7 +1472,7 @@ int draw_apps_group2(int idx) {
         gui_draw_rounded_rect_outline(wx+8, sb_y2+2, ww-16, 16, 4,
             g_contacts_search_focused ? RGB(0,122,255) : ct_bd);
         vga_draw_string_trans(wx+16, sb_y2+6,
-            g_contacts_search_focused ? "Search focused" : "Search", ct_sub);
+            gui_search_display_text(GUI_SEARCH_CONTACTS, "Search", "Search focused"), ct_sub);
         /* Two-pane layout */
         int list_w = ww*2/5;
         int det_x  = wx+1+list_w;

@@ -309,7 +309,7 @@ int draw_apps_group3(int idx) {
         vga_draw_rect_outline(wx+4, sch_y, sb_w-6, 16,
             g_passwords_search_focused ? RGB(0,122,255) : pw_sep);
         vga_draw_string_trans(wx+8, sch_y+4,
-            g_passwords_search_focused ? "Search*" : "Search", pw_sub);
+            gui_search_display_text(GUI_SEARCH_PASSWORDS, "Search", "Search*"), pw_sub);
         /* Sidebar categories */
         int sit_y = sch_y + 22;
         {
@@ -1288,7 +1288,7 @@ int draw_apps_group3(int idx) {
         vga_draw_rect_outline(wx+4, content_y+38, lib_w-6, 14,
             g_automator_search_focused ? at_acc : at_sep);
         vga_draw_string_trans(wx+8, content_y+41,
-            g_automator_search_focused ? "Search focused" : "Search actions...", at_sub);
+            gui_search_display_text(GUI_SEARCH_AUTOMATOR, "Search actions...", "Search focused"), at_sub);
         /* Action categories */
         { static const char *cats[] = {"Files & Folders","Text","PDFs","Music","Photos","Utilities"};
           int ci;
@@ -1358,7 +1358,7 @@ int draw_apps_group3(int idx) {
         vga_draw_rect_outline(wx+4, content_y+26, sb_w-6, 14,
             g_fontbook_search_focused ? fb_acc : fb_sep);
         vga_draw_string_trans(wx+8, content_y+29,
-            g_fontbook_search_focused ? "Search focused" : "Search...", fb_sub);
+            gui_search_display_text(GUI_SEARCH_FONTBOOK, "Search...", "Search focused"), fb_sub);
         /* Font list */
         { static const char *fonts[]={"Arial","Courier","Georgia","Helvetica","Impact","Monaco","Palatino","Times New Roman","Verdana"};
           int fi2, fy=content_y+44;
@@ -1447,7 +1447,7 @@ int draw_apps_group3(int idx) {
           vga_draw_rect_outline(sf_x, content_y+4, 94, 14,
               g_console_filter_focused ? RGB(0,122,255) : co_sep);
           vga_draw_string_trans(sf_x+4, content_y+7,
-              g_console_filter_focused ? "Filter focused" : "Filter...", co_sub);
+              gui_search_display_text(GUI_SEARCH_CONSOLE, "Filter...", "Filter focused"), co_sub);
         }
         /* Left sidebar: devices */
         int dev_w = ww/4;
