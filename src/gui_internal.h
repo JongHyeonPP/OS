@@ -117,7 +117,7 @@
 #define SAFARI_MAX_FORMS 16
 #define SAFARI_FORM_NAME_MAX 32
 #define SAFARI_FORM_VALUE_MAX 64
-#define SAFARI_FORM_QUERY_MAX 160
+#define SAFARI_FORM_QUERY_MAX 512
 #define SAFARI_COOKIE_MAX 16
 #define SAFARI_COOKIE_NAME_MAX 32
 #define SAFARI_COOKIE_VALUE_MAX 96
@@ -366,6 +366,7 @@ extern int  g_safari_form_count;
 extern int  g_safari_form_focused;
 extern char g_safari_form_actions[SAFARI_MAX_FORMS][SAFARI_URL_MAX];
 extern char g_safari_form_methods[SAFARI_MAX_FORMS][8];
+extern int  g_safari_form_group_ids[SAFARI_MAX_FORMS];
 extern char g_safari_form_input_names[SAFARI_MAX_FORMS][SAFARI_FORM_NAME_MAX];
 extern char g_safari_form_values[SAFARI_MAX_FORMS][SAFARI_FORM_VALUE_MAX];
 extern char g_safari_form_query_prefix[SAFARI_MAX_FORMS][SAFARI_FORM_QUERY_MAX];

@@ -458,6 +458,7 @@ int  g_safari_form_count = 0;
 int  g_safari_form_focused = -1;
 char g_safari_form_actions[SAFARI_MAX_FORMS][SAFARI_URL_MAX];
 char g_safari_form_methods[SAFARI_MAX_FORMS][8];
+int  g_safari_form_group_ids[SAFARI_MAX_FORMS];
 char g_safari_form_input_names[SAFARI_MAX_FORMS][SAFARI_FORM_NAME_MAX];
 char g_safari_form_values[SAFARI_MAX_FORMS][SAFARI_FORM_VALUE_MAX];
 char g_safari_form_query_prefix[SAFARI_MAX_FORMS][SAFARI_FORM_QUERY_MAX];
@@ -4923,6 +4924,7 @@ static void safari_clear_forms(void) {
     for (i = 0; i < SAFARI_MAX_FORMS; i++) {
         g_safari_form_actions[i][0] = 0;
         g_safari_form_methods[i][0] = 0;
+        g_safari_form_group_ids[i] = -1;
         g_safari_form_input_names[i][0] = 0;
         g_safari_form_values[i][0] = 0;
         g_safari_form_query_prefix[i][0] = 0;
@@ -5096,6 +5098,7 @@ static void safari_append_form_pair(char *query, int *pos, int max, const char *
 
 static void safari_extract_forms(const safari_request_t *req, const char *body) {
     const char *p = body;
+    int next_group_id = 0;
     safari_clear_forms();
     while (p && *p && g_safari_form_count < SAFARI_MAX_FORMS) {
         if (safari_tag_is(p, "form")) {
@@ -5105,11 +5108,14 @@ static void safari_extract_forms(const safari_request_t *req, const char *body) 
             char action[SAFARI_URL_MAX];
             char method[8];
             char resolved[SAFARI_URL_MAX];
-            char input_name[SAFARI_FORM_NAME_MAX];
-            char input_value[SAFARI_FORM_VALUE_MAX];
-            char input_hint[SAFARI_LINK_TITLE_MAX];
+            char input_names[SAFARI_MAX_FORMS][SAFARI_FORM_NAME_MAX];
+            char input_values[SAFARI_MAX_FORMS][SAFARI_FORM_VALUE_MAX];
+            char input_hints[SAFARI_MAX_FORMS][SAFARI_LINK_TITLE_MAX];
+            char submit_hint[SAFARI_LINK_TITLE_MAX];
             char query[SAFARI_FORM_QUERY_MAX];
             int query_pos = 0;
+            int input_count = 0;
+            int form_group = next_group_id++;
             while (*tag_end && *tag_end != '>') tag_end++;
             if (!*tag_end) break;
             form_end = tag_end + 1;
@@ -5117,9 +5123,8 @@ static void safari_extract_forms(const safari_request_t *req, const char *body) 
             if (!*form_end) form_end = tag_end + 1;
             action[0] = 0;
             method[0] = 0;
-            input_name[0] = 0;
-            input_value[0] = 0;
-            input_hint[0] = 0;
+            resolved[0] = 0;
+            submit_hint[0] = 0;
             query[0] = 0;
             if (safari_tag_attr(p, tag_end, "action", action, sizeof(action)) == 0)
                 safari_resolve_location(req, action, resolved, sizeof(resolved));
@@ -5146,25 +5151,42 @@ static void safari_extract_forms(const safari_request_t *req, const char *body) 
                     (void)safari_tag_attr(q, input_end, "placeholder", placeholder, sizeof(placeholder));
                     if (safari_eq_ci(type, "hidden")) {
                         safari_append_form_pair(query, &query_pos, sizeof(query), name, value);
-                    } else if (safari_form_text_type(type) && !input_name[0] && name[0]) {
-                        safari_copy(input_name, sizeof(input_name), name);
-                        safari_copy(input_value, sizeof(input_value), value);
-                        safari_copy(input_hint, sizeof(input_hint), placeholder[0] ? placeholder : name);
-                    } else if (safari_eq_ci(type, "submit") && value[0] && !input_hint[0]) {
-                        safari_copy(input_hint, sizeof(input_hint), value);
+                    } else if (safari_form_text_type(type) && name[0] && input_count < SAFARI_MAX_FORMS) {
+                        safari_copy(input_names[input_count], SAFARI_FORM_NAME_MAX, name);
+                        safari_copy(input_values[input_count], SAFARI_FORM_VALUE_MAX, value);
+                        safari_copy(input_hints[input_count], SAFARI_LINK_TITLE_MAX,
+                                    placeholder[0] ? placeholder : name);
+                        input_count++;
+                    } else if (safari_eq_ci(type, "submit") && value[0] && !submit_hint[0]) {
+                        safari_copy(submit_hint, sizeof(submit_hint), value);
                     }
                     q = input_end;
                 }
             }
             if (resolved[0]) {
-                int idx = g_safari_form_count++;
-                safari_copy(g_safari_form_actions[idx], SAFARI_URL_MAX, resolved);
-                safari_copy(g_safari_form_methods[idx], sizeof(g_safari_form_methods[idx]), method);
-                safari_copy(g_safari_form_input_names[idx], SAFARI_FORM_NAME_MAX, input_name);
-                safari_copy(g_safari_form_values[idx], SAFARI_FORM_VALUE_MAX, input_value);
-                safari_copy(g_safari_form_query_prefix[idx], SAFARI_FORM_QUERY_MAX, query);
-                safari_copy(g_safari_form_titles[idx], SAFARI_LINK_TITLE_MAX,
-                            input_hint[0] ? input_hint : (input_name[0] ? input_name : "Submit form"));
+                int ti;
+                if (input_count == 0 && g_safari_form_count < SAFARI_MAX_FORMS) {
+                    int idx = g_safari_form_count++;
+                    safari_copy(g_safari_form_actions[idx], SAFARI_URL_MAX, resolved);
+                    safari_copy(g_safari_form_methods[idx], sizeof(g_safari_form_methods[idx]), method);
+                    g_safari_form_group_ids[idx] = form_group;
+                    g_safari_form_input_names[idx][0] = 0;
+                    g_safari_form_values[idx][0] = 0;
+                    safari_copy(g_safari_form_query_prefix[idx], SAFARI_FORM_QUERY_MAX, query);
+                    safari_copy(g_safari_form_titles[idx], SAFARI_LINK_TITLE_MAX,
+                                submit_hint[0] ? submit_hint : "Submit form");
+                }
+                for (ti = 0; ti < input_count && g_safari_form_count < SAFARI_MAX_FORMS; ti++) {
+                    int idx = g_safari_form_count++;
+                    safari_copy(g_safari_form_actions[idx], SAFARI_URL_MAX, resolved);
+                    safari_copy(g_safari_form_methods[idx], sizeof(g_safari_form_methods[idx]), method);
+                    g_safari_form_group_ids[idx] = form_group;
+                    safari_copy(g_safari_form_input_names[idx], SAFARI_FORM_NAME_MAX, input_names[ti]);
+                    safari_copy(g_safari_form_values[idx], SAFARI_FORM_VALUE_MAX, input_values[ti]);
+                    safari_copy(g_safari_form_query_prefix[idx], SAFARI_FORM_QUERY_MAX, query);
+                    safari_copy(g_safari_form_titles[idx], SAFARI_LINK_TITLE_MAX,
+                                input_hints[ti][0] ? input_hints[ti] : input_names[ti]);
+                }
             }
             p = form_end;
             continue;
@@ -5205,15 +5227,23 @@ void safari_submit_form(int index) {
     char target[SAFARI_URL_MAX];
     char encoded_pair[SAFARI_FORM_QUERY_MAX];
     int qpos = 0;
+    int i;
+    int group_id;
     if (index < 0 || index >= g_safari_form_count) return;
+    group_id = g_safari_form_group_ids[index];
     safari_copy(target, sizeof(target), g_safari_form_actions[index]);
     encoded_pair[0] = 0;
     if (g_safari_form_query_prefix[index][0])
         safari_append(encoded_pair, &qpos, sizeof(encoded_pair), g_safari_form_query_prefix[index]);
-    if (g_safari_form_input_names[index][0])
-        safari_append_form_pair(encoded_pair, &qpos, sizeof(encoded_pair),
-                                g_safari_form_input_names[index],
-                                g_safari_form_values[index]);
+    for (i = 0; i < g_safari_form_count; i++) {
+        if (g_safari_form_group_ids[i] != group_id) continue;
+        if (!str_eq(g_safari_form_actions[i], g_safari_form_actions[index])) continue;
+        if (!safari_eq_ci(g_safari_form_methods[i], g_safari_form_methods[index])) continue;
+        if (g_safari_form_input_names[i][0])
+            safari_append_form_pair(encoded_pair, &qpos, sizeof(encoded_pair),
+                                    g_safari_form_input_names[i],
+                                    g_safari_form_values[i]);
+    }
     g_safari_form_focused = -1;
     if (safari_eq_ci(g_safari_form_methods[index], "post")) {
         safari_load_url_internal(target, "POST", encoded_pair, 1, 0);
