@@ -119,12 +119,15 @@ int g_kbshort_page = 0;
 
 /* Time Machine */
 int g_timemachine_visible = 0;
+int g_tm_snapshot_count = 0;
+uint32_t g_tm_last_snapshot_tick = 0;
 
 /* Digital Color Meter */
 int g_colormeter_visible = 0;
 
 /* Notification History */
 int g_notifhist_visible = 0;
+int g_notifhist_clear_count = 0;
 
 /* WiFi */
 int g_wifi_visible = 0;
@@ -160,6 +163,8 @@ int g_calendar_year = 0;
 
 /* AirPlay */
 int g_airplay_visible = 0;
+int g_airplay_scan_count = 0;
+uint32_t g_airplay_last_scan_tick = 0;
 
 
 /* Siri overlay */
@@ -209,6 +214,7 @@ int      g_wt_visible = 0;
 int      g_wt_sel     = -1;  /* -1=none, 0-5=tool selected */
 int      g_wt_done    = 0;   /* 0=choosing, 1=processing, 2=done */
 uint32_t g_wt_tick    = 0;
+char     g_wt_result[128] = "Select editable text.";
 
 /* Quick Note floating panel */
 int  g_qn_visible = 0;
@@ -1124,6 +1130,8 @@ int g_am_tab = 0;
 /* Reminders: which items are checked (bitmask for 3 items) */
 int g_reminders_done = 0x01; /* item 0 checked by default */
 int g_reminders_sel_list = 0; /* selected list in sidebar */
+int g_reminders_extra_lists = 0;
+int g_reminders_extra_items = 0;
 
 /* Music: show equalizer (always on) */
 int g_music_eq_visible = 1;
@@ -1141,6 +1149,8 @@ int g_passwords_entry = 0; /* selected password entry */
 /* Numbers state */
 int g_numbers_sel_row = 0;
 int g_numbers_sel_col = 0;
+int g_calendar_added_events = 0;
+int g_calendar_added_day = 0;
 
 /* =========================================================================
  * Notification toast state
@@ -1713,6 +1723,7 @@ int g_print_page_from = 1;
 int g_print_page_to   = 4;
 int g_print_color     = 1;
 int g_print_quality   = 1; /* 0=Draft 1=Normal 2=Best */
+int g_print_jobs      = 0;
 
 /* Per-space wallpaper (index 0-4 for each of spaces 1-4) */
 int g_space_wallpaper[4] = {4, 1, 2, 3}; /* space1=Sequoia, 2=sunset, 3=forest, 4=space */
@@ -1727,6 +1738,8 @@ int  g_mail_subject_len   = 0;
 char g_mail_body[256]     = {0};
 int  g_mail_body_len      = 0;
 int  g_mail_sel_msg       = 0;
+int  g_mail_sent_count    = 0;
+char g_mail_last_sent_subject[64] = {0};
 
 /* Maps interactive state */
 int g_maps_zoom  = 1;
@@ -2472,6 +2485,207 @@ void win_close(int idx) {
     if (g_switcher_sel >= g_num_windows)
         g_switcher_sel = g_num_windows > 0 ? g_num_windows - 1 : 0;
 }
+
+
+static int wt_is_space(char ch) {
+    return ch == ' ' || ch == '\n' || ch == '\t' || ch == '\r';
+}
+
+static int wt_is_alpha(char ch) {
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+}
+
+static char wt_upper(char ch) {
+    return (ch >= 'a' && ch <= 'z') ? (char)(ch - ('a' - 'A')) : ch;
+}
+
+static char wt_lower(char ch) {
+    return (ch >= 'A' && ch <= 'Z') ? (char)(ch + ('a' - 'A')) : ch;
+}
+
+static void wt_copy(char *dst, int max, const char *src) {
+    int i = 0;
+    if (!dst || max <= 0) return;
+    if (!src) {
+        dst[0] = 0;
+        return;
+    }
+    while (src[i] && i + 1 < max) {
+        dst[i] = src[i];
+        i++;
+    }
+    dst[i] = 0;
+}
+
+static void wt_append_char(char *dst, int *pos, int max, char ch) {
+    if (!dst || !pos || max <= 0 || *pos + 1 >= max) return;
+    dst[*pos] = ch;
+    (*pos)++;
+    dst[*pos] = 0;
+}
+
+static void wt_append_text(char *dst, int *pos, int max, const char *src) {
+    int i = 0;
+    if (!dst || !pos || max <= 0 || !src) return;
+    while (src[i] && *pos + 1 < max) {
+        dst[*pos] = src[i];
+        (*pos)++;
+        i++;
+    }
+    dst[*pos] = 0;
+}
+
+static int wt_word_match(const char *src, int at, const char *word) {
+    int i = 0;
+    if (at > 0 && wt_is_alpha(src[at - 1])) return 0;
+    while (word[i]) {
+        if (!src[at + i] || wt_lower(src[at + i]) != word[i]) return 0;
+        i++;
+    }
+    return !wt_is_alpha(src[at + i]);
+}
+
+static int wt_skip_filler(const char *src, int at) {
+    static const char *fillers[] = { "very", "really", "just", "basically", "actually", 0 };
+    int i;
+    for (i = 0; fillers[i]; i++) {
+        if (wt_word_match(src, at, fillers[i])) {
+            int n = str_len(fillers[i]);
+            while (src[at + n] == ' ') n++;
+            return n;
+        }
+    }
+    return 0;
+}
+
+static void wt_transform_text(int tool, const char *src, char *out, int max) {
+    int i = 0;
+    int pos = 0;
+    int cap_next = 1;
+    int prev_space = 1;
+    if (!out || max <= 0) return;
+    out[0] = 0;
+    if (!src) return;
+    if (tool == 5) {
+        wt_append_text(out, &pos, max, "Summary: ");
+        while (src[i] && pos + 1 < max && pos < 88) {
+            char ch = src[i++];
+            if (ch == '\n' || ch == '\t') ch = ' ';
+            wt_append_char(out, &pos, max, ch);
+            if (ch == '.' || ch == '!' || ch == '?') break;
+        }
+        return;
+    }
+    while (src[i] && pos + 1 < max) {
+        char ch = src[i];
+        int skip;
+        if (tool == 4 && (skip = wt_skip_filler(src, i)) > 0) {
+            i += skip;
+            continue;
+        }
+        i++;
+        if (wt_is_space(ch)) {
+            if (!prev_space) {
+                wt_append_char(out, &pos, max, ' ');
+                prev_space = 1;
+            }
+            continue;
+        }
+        if (tool == 3 && ch == '!') ch = '.';
+        if (cap_next && wt_is_alpha(ch)) {
+            ch = wt_upper(ch);
+            cap_next = 0;
+        }
+        wt_append_char(out, &pos, max, ch);
+        prev_space = 0;
+        if (ch == '.' || ch == '?' || ch == '!') cap_next = 1;
+    }
+    while (pos > 0 && out[pos - 1] == ' ') out[--pos] = 0;
+    if (tool == 2 && pos + 9 < max) wt_append_text(out, &pos, max, " Thanks!");
+}
+
+static void wt_set_result(const char *text) {
+    wt_copy(g_wt_result, sizeof(g_wt_result), text);
+}
+
+static int wt_replace_textedit_range(int start, int end, const char *replacement) {
+    int repl_len = str_len(replacement);
+    int old_len;
+    int new_len;
+    int i;
+    if (g_edit_len == 0) {
+        while (g_edit_len < TEXTEDIT_MAXCHARS - 1 && g_edit_text[g_edit_len]) g_edit_len++;
+    }
+    if (start < 0) start = 0;
+    if (end < start) end = start;
+    if (end > g_edit_len) end = g_edit_len;
+    old_len = end - start;
+    new_len = g_edit_len - old_len + repl_len;
+    if (new_len >= TEXTEDIT_MAXCHARS) {
+        repl_len -= new_len - (TEXTEDIT_MAXCHARS - 1);
+        if (repl_len < 0) repl_len = 0;
+        new_len = g_edit_len - old_len + repl_len;
+    }
+    for (i = g_edit_len; i >= end; i--)
+        g_edit_text[start + repl_len + i - end] = g_edit_text[i];
+    for (i = 0; i < repl_len; i++)
+        g_edit_text[start + i] = replacement[i];
+    g_edit_len = new_len;
+    g_edit_text[g_edit_len] = 0;
+    g_edit_sel_start = start;
+    g_edit_sel_end = start + repl_len;
+    g_edit_focused = 1;
+    return repl_len;
+}
+
+int writing_tools_apply(int tool) {
+    int top = win_top_visible();
+    int start = 0;
+    int end;
+    int src_pos = 0;
+    int i;
+    char src[512];
+    char out[512];
+    if (tool < 0 || tool > 5) return 0;
+    g_wt_sel = tool;
+    g_wt_done = 2;
+    g_wt_tick = timer_ticks();
+    if (top < 0 || !g_windows[top].title || !str_eq(g_windows[top].title, "TextEdit")) {
+        wt_set_result("Open TextEdit, select text, then choose a tool.");
+        return 0;
+    }
+    if (g_edit_len == 0) {
+        while (g_edit_len < TEXTEDIT_MAXCHARS - 1 && g_edit_text[g_edit_len]) g_edit_len++;
+    }
+    if (g_edit_len <= 0) {
+        wt_set_result("TextEdit has no text to transform.");
+        return 0;
+    }
+    end = g_edit_len;
+    if (g_edit_sel_end != g_edit_sel_start) {
+        start = g_edit_sel_start;
+        end = g_edit_sel_end;
+        if (start > end) {
+            int tmp = start;
+            start = end;
+            end = tmp;
+        }
+        if (start < 0) start = 0;
+        if (end > g_edit_len) end = g_edit_len;
+    }
+    for (i = start; i < end && src_pos + 1 < (int)sizeof(src); i++)
+        src[src_pos++] = g_edit_text[i];
+    src[src_pos] = 0;
+    if (src_pos <= 0) {
+        wt_set_result("No text selected.");
+        return 0;
+    }
+    wt_transform_text(tool, src, out, sizeof(out));
+    (void)wt_replace_textedit_range(start, end, out);
+    wt_set_result((g_edit_sel_end - g_edit_sel_start) > 0 ? "Applied to TextEdit selection." : "Applied to TextEdit document.");
+    return 1;
+}
+
 
 /* =========================================================================
  * gui_run  -  event loop (~60fps frame-limited, with close-button support)

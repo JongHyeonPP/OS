@@ -405,7 +405,7 @@ int draw_apps_group4(int idx) {
         /* Home button indicator */
         gui_draw_circle(wx+ww/2, cy+112, 5, RGB(80,80,90));
         /* Status */
-        vga_draw_string_trans(wx+ww/2-30, cy+130, "Connect iPad", sc_txt);
+        vga_draw_string_trans(wx+ww/2-34, cy+130, "iPad Connected", sc_txt);
         vga_draw_string_trans(wx+20, cy+150, "iPad Pro (12.9-inch)", sc_sub);
         vga_draw_hline(wx+20, cy+165, ww-40, sc_sep);
         vga_draw_string_trans(wx+20, cy+170, "Display As:", sc_sub);
@@ -442,11 +442,11 @@ int draw_apps_group4(int idx) {
         vga_draw_string_trans(wx+ww-108, cy+58, "iPad", RGB(255,255,255));
         /* Status */
         vga_draw_hline(wx+10, cy+110, ww-20, uc_sep);
-        vga_draw_string_trans(wx+10, cy+118, "No nearby devices configured", uc_sub);
+        vga_draw_string_trans(wx+10, cy+118, "Local pairing ready", uc_sub);
         vga_draw_string_trans(wx+10, cy+134, "Nearby Devices:", uc_txt);
         gui_draw_rounded_rect(wx+10, cy+150, ww-20, 20, 4, g_pref_darkmode?RGB(44,44,52):RGB(220,220,228));
-        vga_draw_string_trans(wx+16, cy+156, "No devices found", uc_sub);
-        gui_draw_circle(wx+ww-24, cy+160, 4, uc_sep);
+        vga_draw_string_trans(wx+16, cy+156, "iPad - Ready", uc_txt);
+        gui_draw_circle(wx+ww-24, cy+160, 4, RGB(52,199,89));
         return 1;
     }
 

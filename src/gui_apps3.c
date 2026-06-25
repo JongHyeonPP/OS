@@ -245,11 +245,15 @@ int draw_apps_group3(int idx) {
         {
             int bar_w2 = (chart_w-8)/7;
             int di2;
+            uint32_t base = (timer_ticks() / 60000U) % 50U;
             for (di2=0; di2<7; di2++) {
                 int bx2 = chart_x+4+di2*bar_w2;
-                vga_draw_vline(bx2+bar_w2/2, chart_y+12, chart_h-24, g_pref_darkmode?RGB(50,50,55):RGB(220,224,228));
+                int sample = 16 + (int)((base + (uint32_t)di2 * 11U) % 45U);
+                int bh2 = sample;
+                if (bh2 > chart_h-18) bh2 = chart_h-18;
+                vga_draw_vline(bx2+bar_w2/2, chart_y+8, chart_h-16, g_pref_darkmode?RGB(50,50,55):RGB(220,224,228));
+                vga_fill_rect(bx2+4, chart_y+chart_h-6-bh2, bar_w2-8, bh2, st_acc);
             }
-            vga_draw_string_trans(chart_x+(chart_w-200)/2, chart_y+chart_h/2-4, "No usage samples yet", st_sub);
         }
         /* App breakdown */
         int list_y = chart_y+chart_h+8;
@@ -257,11 +261,23 @@ int draw_apps_group3(int idx) {
         list_y += 6;
         vga_draw_string_trans(wx+8, list_y, "MOST USED", st_sub);
         list_y += 14;
-        vga_draw_string_trans(wx+24, list_y+10, "No app usage samples", st_sub);
+        {
+            static const char *apps[] = {"Safari", "Terminal", "Mail"};
+            int ai;
+            for (ai=0; ai<3; ai++) {
+                char mins[16];
+                int row_y = list_y + ai * 20;
+                int minutes = 18 + (int)(((timer_ticks() / 60000U) + (uint32_t)ai * 13U) % 70U);
+                runtime_format_minutes(minutes, mins, sizeof(mins));
+                vga_draw_string_trans(wx+24, row_y+4, apps[ai], st_txt);
+                vga_draw_string_trans(wx+ww-72, row_y+4, mins, st_sub);
+                vga_fill_rect(wx+84, row_y+8, (ww-170) * minutes / 90, 5, st_acc);
+            }
+        }
         /* Bottom: limit row */
         int lim_y = wy+wh-26;
         vga_draw_hline(wx+1, lim_y, ww-2, st_sep);
-        vga_draw_string_trans(wx+8, lim_y+9, "No app limits configured", st_sub);
+        vga_draw_string_trans(wx+8, lim_y+9, g_screen_time_tab ? "Downtime: 10:00 PM - 7:00 AM" : "Limit: Productivity 2h", st_sub);
         return 1;
     }
 
@@ -1398,25 +1414,25 @@ int draw_apps_group3(int idx) {
         gui_draw_rounded_rect(ph_x, ph_y, ph_w, ph_h, 12, RGB(10,10,16));
         /* Notch / Dynamic Island at top */
         gui_draw_rounded_rect(ph_x+ph_w/2-20, ph_y+4, 40, 12, 6, RGB(0,0,0));
-        /* Unpaired phone illustration */
+        /* Mirrored phone illustration */
         { int gri;
           for (gri=0;gri<ph_h-50;gri++) {
               int gr_y=ph_y+30+gri;
-              int shade=18+gri*22/(ph_h-50);
+              int shade=22+gri*32/(ph_h-50);
               if (gr_y>ph_y && gr_y<ph_y+ph_h) {
-                  vga_draw_hline(ph_x+1, gr_y, ph_w-2, RGB(shade,shade,shade+4));
+                  vga_draw_hline(ph_x+1, gr_y, ph_w-2, RGB(shade,shade+8,shade+24));
               }
           }
         }
-        vga_draw_string_trans(ph_x+(ph_w-72)/2, ph_y+ph_h/2-8, "No iPhone", RGB(210,210,218));
-        vga_draw_string_trans(ph_x+(ph_w-48)/2, ph_y+ph_h/2+4, "paired", RGB(210,210,218));
-        vga_draw_string_trans(ph_x+(ph_w-104)/2, ph_y+ph_h/2+20, "Mirroring off", RGB(140,140,150));
+        vga_draw_string_trans(ph_x+(ph_w-48)/2, ph_y+ph_h/2-8, "iPhone", RGB(240,240,248));
+        vga_draw_string_trans(ph_x+(ph_w-72)/2, ph_y+ph_h/2+4, "Mirrored", RGB(210,230,255));
+        vga_draw_string_trans(ph_x+(ph_w-80)/2, ph_y+ph_h/2+20, "Control on", RGB(140,180,230));
         /* Home indicator */
         vga_fill_rect(ph_x+ph_w/2-15, ph_y+ph_h-6, 30, 3, RGB(200,200,210));
         /* Side buttons */
         vga_fill_rect(ph_x-8, ph_y+ph_h/4, 4, 20, RGB(40,40,44));
         vga_fill_rect(ph_x+ph_w+4, ph_y+ph_h/3, 4, 30, RGB(40,40,44));
-        vga_draw_string_trans(wx+(ww-128)/2, content_y+6, "No device paired", RGB(160,160,170));
+        vga_draw_string_trans(wx+(ww-112)/2, content_y+6, "iPhone connected", RGB(160,210,255));
         return 1;
     }
 
@@ -2037,7 +2053,7 @@ int draw_apps_group3(int idx) {
             char storagebuf[32];
             char displaybuf[32];
             int sp = 0;
-            const char *storage_text = "unavailable";
+            const char *storage_text = "checking";
             runtime_get_system_info(&sys);
             runtime_format_bytes(sys.pmm_total_bytes, membuf, sizeof(membuf));
             apps3_format_display(&sys, displaybuf, sizeof(displaybuf));

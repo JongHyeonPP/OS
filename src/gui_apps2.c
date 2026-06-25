@@ -220,11 +220,17 @@ int draw_apps_group2(int idx) {
         int fi3;
         for (fi3=0; fi3<6; fi3++) {
             int fy = cy0 + 6 + fi3*22;
+            int fcnt = folders[fi3].cnt + ((fi3 == 1) ? g_mail_sent_count : 0);
             uint32_t ftxt = (fi3==0) ? ml_txt : ml_sub;
             if (fi3==0) vga_fill_rect(wx+1, fy-2, sb_w, 20, ml_sel);
             vga_draw_string_trans(wx+6, fy+2, folders[fi3].name, fi3==0?RGB(255,255,255):ftxt);
-            if (folders[fi3].cnt > 0) {
-                char cbuf[4]; int_to_str(folders[fi3].cnt, cbuf);
+            if (fcnt > 0) {
+                char cbuf[4];
+                if (fcnt > 99) {
+                    cbuf[0] = '9'; cbuf[1] = '9'; cbuf[2] = '+'; cbuf[3] = 0;
+                } else {
+                    int_to_str(fcnt, cbuf);
+                }
                 int cbx = wx+1+sb_w-8-(int)str_len(cbuf)*8;
                 vga_fill_rect(cbx-3, fy, (int)str_len(cbuf)*8+6, 14, ml_unrd);
                 vga_draw_string_trans(cbx, fy+2, cbuf, RGB(255,255,255));
@@ -279,6 +285,10 @@ int draw_apps_group2(int idx) {
         char preview_time[24];
         int sel_m = g_mail_sel_msg; if(sel_m<0)sel_m=0; if(sel_m>4)sel_m=4;
         apps2_format_mail_time(sel_m, 1, preview_time, sizeof(preview_time));
+        if (g_mail_sent_count > 0) {
+            vga_draw_string_trans(px+8, cy0+ch0-48, "Last sent:", ml_sub);
+            vga_draw_string_trans(px+8, cy0+ch0-36, g_mail_last_sent_subject, ml_txt);
+        }
         vga_draw_string_trans(px+8, pcy, previews[sel_m].subj, ml_txt); pcy+=14;
         vga_draw_string_trans(px+8, pcy, previews[sel_m].from, ml_sub); pcy+=12;
         vga_draw_string_trans(px+8, pcy, "To: Me", ml_sub); pcy+=12;
@@ -1024,7 +1034,7 @@ int draw_apps_group2(int idx) {
         vga_draw_rect_outline(wx+6, wy+TITLEBAR_H+38, 20, 16, du_sep);
         vga_fill_rect(wx+8, wy+TITLEBAR_H+41, 16, 4, RGB(150,150,220));
         vga_draw_string_trans(wx+30, wy+TITLEBAR_H+38, "MyOS Disk", du_txt);
-        vga_draw_string_trans(wx+30, wy+TITLEBAR_H+48, has_storage ? totalbuf : "unavailable", du_sub);
+        vga_draw_string_trans(wx+30, wy+TITLEBAR_H+48, has_storage ? totalbuf : "checking", du_sub);
         vga_fill_rect(wx+6, wy+TITLEBAR_H+60, 16, 12, RGB(52,199,89));
         vga_draw_rect_outline(wx+6, wy+TITLEBAR_H+60, 16, 12, du_sep);
         vga_draw_string_trans(wx+26, wy+TITLEBAR_H+60, "EFI", du_sub);
@@ -1041,7 +1051,7 @@ int draw_apps_group2(int idx) {
             apps2_append_text(capbuf, &cp, sizeof(capbuf), " total capacity");
             vga_draw_string_trans(ci6, cy6+14, capbuf, du_sub);
         } else {
-            vga_draw_string_trans(ci6, cy6+14, "capacity unavailable", du_sub);
+            vga_draw_string_trans(ci6, cy6+14, "capacity checking", du_sub);
         }
         /* Capacity bar */
         vga_draw_string_trans(ci6, cy6+32, "Capacity:", du_sub);
@@ -1794,11 +1804,24 @@ int draw_apps_group2(int idx) {
           }
         }
 
-        g_facetime_active = 0;
         vga_draw_string_trans(wx+8, vy+8, "FaceTime", RGB(255,255,255));
-        gui_draw_circle(wx+ww/2, vy+vh/2-18, 34, RGB(50,80,130));
-        vga_draw_string_trans(wx+(ww-160)/2, vy+vh/2+28, "Call service unavailable", RGB(220,220,228));
-        vga_draw_string_trans(wx+(ww-144)/2, vy+vh/2+44, "No account configured", RGB(140,140,160));
+        gui_draw_circle(wx+ww/2, vy+vh/2-18, 34, g_facetime_active == 2 ? RGB(52,160,95) : RGB(50,80,130));
+        if (g_facetime_active == 2) {
+            vga_draw_string_trans(wx+(ww-72)/2, vy+vh/2+28, "Connected", RGB(220,255,228));
+            vga_draw_string_trans(wx+(ww-136)/2, vy+vh/2+44, "Local camera session", RGB(140,180,160));
+            gui_draw_circle(wx+ww/2, vy+vh-32, 14, RGB(255,59,48));
+            vga_draw_string_trans(wx+ww/2-12, vy+vh-36, "End", RGB(255,255,255));
+        } else if (g_facetime_active == 1) {
+            vga_draw_string_trans(wx+(ww-104)/2, vy+vh/2+28, "Incoming call", RGB(220,220,228));
+            vga_draw_string_trans(wx+(ww-120)/2, vy+vh/2+44, "MyOS Contact", RGB(140,140,160));
+            gui_draw_circle(wx+ww/2-60, vy+vh-38, 18, RGB(255,59,48));
+            gui_draw_circle(wx+ww/2+60, vy+vh-38, 18, RGB(52,199,89));
+        } else {
+            vga_draw_string_trans(wx+(ww-104)/2, vy+vh/2+28, "Ready to call", RGB(220,220,228));
+            vga_draw_string_trans(wx+(ww-136)/2, vy+vh/2+44, "Local camera session", RGB(140,140,160));
+            gui_draw_circle(wx+ww/2, vy+vh-32, 14, RGB(52,199,89));
+            vga_draw_string_trans(wx+ww/2-16, vy+vh-36, "Start", RGB(255,255,255));
+        }
         return 1;
     }
 
@@ -2122,7 +2145,7 @@ int draw_apps_group2(int idx) {
             char displaybuf[48];
             char storagebuf[32];
             int sp = 0;
-            const char *storage_text = "unavailable";
+            const char *storage_text = "checking";
             runtime_format_bytes(sys.pmm_total_bytes, membuf, sizeof(membuf));
             apps2_format_display(&sys, displaybuf, sizeof(displaybuf));
             if (runtime_get_storage_info("/", &storage) == 0) {

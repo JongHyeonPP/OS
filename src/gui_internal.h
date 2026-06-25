@@ -175,8 +175,11 @@ extern int g_bt_visible;
 extern int g_kbshort_visible;
 extern int g_kbshort_page;
 extern int g_timemachine_visible;
+extern int g_tm_snapshot_count;
+extern uint32_t g_tm_last_snapshot_tick;
 extern int g_colormeter_visible;
 extern int g_notifhist_visible;
+extern int g_notifhist_clear_count;
 
 extern int g_wifi_visible;
 extern int g_wifi_connecting;
@@ -196,6 +199,8 @@ extern int g_calendar_visible;
 extern int g_calendar_month;
 extern int g_calendar_year;
 extern int g_airplay_visible;
+extern int g_airplay_scan_count;
+extern uint32_t g_airplay_last_scan_tick;
 
 /* Siri */
 extern int      g_siri_visible;
@@ -232,6 +237,7 @@ extern int      g_wt_visible;
 extern int      g_wt_sel;
 extern int      g_wt_done;
 extern uint32_t g_wt_tick;
+extern char     g_wt_result[128];
 
 /* Quick Note */
 extern int  g_qn_visible;
@@ -331,6 +337,8 @@ extern int g_widgets_visible;
 extern int g_am_tab;
 extern int g_reminders_done;
 extern int g_reminders_sel_list;
+extern int g_reminders_extra_lists;
+extern int g_reminders_extra_items;
 extern int g_music_eq_visible;
 extern int g_pref_darkmode;
 extern int g_screen_time_tab;
@@ -338,6 +346,8 @@ extern int g_passwords_sel;
 extern int g_passwords_entry;
 extern int g_numbers_sel_row;
 extern int g_numbers_sel_col;
+extern int g_calendar_added_events;
+extern int g_calendar_added_day;
 
 /* Toast */
 extern char     g_toast_msg[64];
@@ -507,6 +517,7 @@ extern int g_print_page_from;
 extern int g_print_page_to;
 extern int g_print_color;
 extern int g_print_quality;
+extern int g_print_jobs;
 
 /* Per-space wallpaper */
 extern int g_space_wallpaper[4];
@@ -521,6 +532,8 @@ extern int  g_mail_subject_len;
 extern char g_mail_body[256];
 extern int  g_mail_body_len;
 extern int  g_mail_sel_msg;
+extern int  g_mail_sent_count;
+extern char g_mail_last_sent_subject[64];
 
 /* Maps interactive */
 extern int g_maps_zoom;
@@ -679,6 +692,7 @@ void safari_normalize_state(void);
 int safari_is_home_url(const char *url);
 void safari_load_url(const char *url);
 void safari_load_current_tab(void);
+int writing_tools_apply(int tool);
 
 /* Drawing helpers called across files */
 void draw_toggle(int x, int y, int on);

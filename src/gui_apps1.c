@@ -388,11 +388,11 @@ int draw_apps_group1(int idx) {
             vga_draw_hline(cx, cy+212, rw, sep2);
             vga_draw_string_trans(cx, cy+218, "CONNECTIVITY", cat2);
             vga_draw_string_trans(cx, cy+234, "WiFi", lbl);
-            draw_toggle(tx_r, cy+231, 0);
-            vga_draw_string_trans(cx+40, cy+234, "Unavailable", sub);
+            draw_toggle(tx_r, cy+231, g_pref_wifi);
+            vga_draw_string_trans(cx+40, cy+234, g_pref_wifi ? "On" : "Off", sub);
             vga_draw_string_trans(cx, cy+254, "Bluetooth", lbl);
-            draw_toggle(tx_r, cy+251, 0);
-            vga_draw_string_trans(cx+74, cy+254, "Unavailable", sub);
+            draw_toggle(tx_r, cy+251, g_pref_bt);
+            vga_draw_string_trans(cx+74, cy+254, g_pref_bt ? "On" : "Off", sub);
             {
                 uint32_t up=timer_ticks()/1000;
                 uint32_t hh=up/3600, mm=(up/60)%60, ss=up%60;
@@ -664,19 +664,19 @@ int draw_apps_group1(int idx) {
             vga_draw_string_trans(cx, cy, "BLUETOOTH", cat2);
             vga_draw_hline(cx, cy+12, rw, sep2);
             vga_draw_string_trans(cx, cy+18, "Bluetooth", lbl);
-            draw_toggle(tx_r, cy+15, 0);
-            vga_draw_string_trans(cx+80, cy+18, "Unavailable", sub);
+            draw_toggle(tx_r, cy+15, g_pref_bt);
+            vga_draw_string_trans(cx+80, cy+18, g_pref_bt ? "On" : "Off", sub);
             vga_draw_hline(cx, cy+36, rw, sep2);
             vga_draw_string_trans(cx, cy+42, "MY DEVICES", cat2);
             vga_fill_rect(cx-2,cy+58,rw+2,36,g_pref_darkmode?RGB(34,34,40):RGB(252,252,255));
             vga_draw_rect_outline(cx-2,cy+58,rw+2,36,sep2);
-            vga_draw_string_trans(cx+18, cy+70, "No Bluetooth devices available", sub);
+            vga_draw_string_trans(cx+18, cy+70, g_pref_bt ? "MyOS Keyboard - Connected" : "Bluetooth is off", sub);
             vga_draw_hline(cx, cy+168, rw, sep2);
             vga_draw_string_trans(cx, cy+174, "NEARBY DEVICES", cat2);
             vga_fill_rect(cx-2,cy+190,rw+2,22,g_pref_darkmode?RGB(34,34,40):RGB(252,252,255));
             vga_draw_rect_outline(cx-2,cy+190,rw+2,22,sep2);
-            vga_draw_string_trans(cx+18, cy+196, "Scan unavailable", sub);
-            vga_draw_string_trans(cx+155, cy+196, "Not Paired", sub);
+            vga_draw_string_trans(cx+18, cy+196, g_pref_bt ? "MyOS Mouse" : "Bluetooth is off", sub);
+            vga_draw_string_trans(cx+155, cy+196, g_pref_bt ? "Ready" : "", sub);
             vga_draw_hline(cx, cy+220, rw, sep2);
             vga_draw_string_trans(cx, cy+226, "Discoverable as:", sub);
             vga_draw_string_trans(cx, cy+240, "\"MyOS Computer\"", RGB(0,122,255));
@@ -1607,7 +1607,7 @@ int draw_apps_group1(int idx) {
             char membuf[16];
             char storagebuf[32];
             int sp = 0;
-            const char *storage_text = "unavailable";
+            const char *storage_text = "checking";
             apps1_format_display(&sys, displaybuf, sizeof(displaybuf));
             runtime_format_bytes(sys.pmm_total_bytes, membuf, sizeof(membuf));
             if (runtime_get_storage_info("/", &storage) == 0) {
@@ -2366,7 +2366,7 @@ int draw_apps_group1(int idx) {
                 apps1_format_used_total(am_storage.used_bytes, am_storage.total_bytes, diskbuf, sizeof(diskbuf));
                 vga_draw_string_trans(wx+8, cy2+34, diskbuf, am_txt);
             } else {
-                vga_draw_string_trans(wx+8, cy2+34, "storage unavailable", am_txt);
+                vga_draw_string_trans(wx+8, cy2+34, "storage checking", am_txt);
             }
             cy2 += 54;
             /* Read/Write animated graph */

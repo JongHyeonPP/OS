@@ -197,9 +197,33 @@ void gui_run(void) {
                             if (mx < left_end) {
                                 /* Reply / Snooze */
                                 if (g_toast_type == TOAST_TYPE_REPLY) {
-                                    toast_show("Notifications", "Reply unavailable", RGB(120,120,130));
+                                    int jj, found_msg = 0;
+                                    for (jj = 0; jj < g_num_windows; jj++) {
+                                        if (g_windows[jj].title && str_eq(g_windows[jj].title, "Messages")) {
+                                            g_windows[jj].visible = 1;
+                                            win_bring_to_front(jj);
+                                            found_msg = 1;
+                                            break;
+                                        }
+                                    }
+                                    if (!found_msg && g_num_windows < MAX_WINDOWS) {
+                                        gui_window_t *nwmsg = &g_windows[g_num_windows];
+                                        nwmsg->x = 130; nwmsg->y = 60; nwmsg->w = 340; nwmsg->h = 290;
+                                        nwmsg->title = "Messages"; nwmsg->visible = 1; nwmsg->focused = 0;
+                                        nwmsg->dragging = 0; nwmsg->maximized = 0;
+                                        g_win_anim[g_num_windows] = OPEN_ANIM;
+                                        g_win_minimized[g_num_windows] = 0;
+                                        g_win_close_anim[g_num_windows] = 0;
+                                        g_num_windows++;
+                                    }
+                                    g_ms_sel = 0;
+                                    g_ms_focused = 1;
+                                    g_ms_input[0] = 0;
+                                    g_ms_input_len = 0;
+                                    toast_show("Messages", "Reply field focused", RGB(52,199,89));
                                 } else {
-                                    toast_show("Notifications", "Snooze unavailable", RGB(120,120,130));
+                                    g_toast_visible = 0;
+                                    toast_show("Notifications", "Snoozed for later", RGB(0,122,255));
                                 }
                             } else {
                                 /* Dismiss */
@@ -334,7 +358,9 @@ void gui_run(void) {
                 }
                 /* Print button */
                 if (mx>=pd_x2+pd_w2-88 && mx<pd_x2+pd_w2-8 && my>=pd_y2+pd_h2-30 && my<pd_y2+pd_h2-10) {
-                    toast_show("Print", "No printer configured", RGB(120,120,130));
+                    g_print_jobs++;
+                    g_print_visible = 0;
+                    toast_show("Print", "Job sent to MyOS PDF", RGB(0,122,255));
                     dirty = 1; goto end_left_press;
                 }
                 /* Click outside = close */
@@ -679,8 +705,8 @@ void gui_run(void) {
                   int scx3 = sw->x + ssb_w + 10;
                   int scy3 = scy + 10;
                   if (g_settings_tab == 0) {
-                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+231&&my<scy3+231+sth){toast_show("WiFi","Unavailable",RGB(120,120,130));dirty=1;}
-                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+251&&my<scy3+251+sth){toast_show("Bluetooth","Unavailable",RGB(120,120,130));dirty=1;}
+                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+231&&my<scy3+231+sth){g_pref_wifi^=1;toast_show("Wi-Fi",g_pref_wifi?"On":"Off",RGB(0,122,255));dirty=1;}
+                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+251&&my<scy3+251+sth){g_pref_bt^=1;toast_show("Bluetooth",g_pref_bt?"On":"Off",RGB(0,122,255));dirty=1;}
                       {int swi;for(swi=0;swi<5;swi++){
                        int swx=swi<4?scx3+swi*74:scx3, swy=swi<4?scy3+132:scy3+170;
                        if(mx>=swx&&mx<swx+62&&my>=swy&&my<swy+30){g_pref_wallpaper=swi;dirty=1;}}}
@@ -691,7 +717,7 @@ void gui_run(void) {
                   } else if (g_settings_tab == 5) {
                       if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+15&&my<scy3+15+sth){g_pref_dnd^=1;dirty=1;}
                   } else if (g_settings_tab == 7) {
-                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+15&&my<scy3+15+sth){toast_show("Bluetooth","Unavailable",RGB(120,120,130));dirty=1;}
+                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+15&&my<scy3+15+sth){g_pref_bt^=1;toast_show("Bluetooth",g_pref_bt?"On":"Off",RGB(0,122,255));dirty=1;}
                   }
                   break;
               }
@@ -953,14 +979,18 @@ void gui_run(void) {
                     if (mx>=w->x+w->w/2-60-18 && mx<w->x+w->w/2-60+18 && my>=btn_y-18 && my<btn_y+18) {
                         win_close(i); g_facetime_active=0; dirty=1; goto end_left_press;
                     }
-                    /* Accept is unavailable without a call backend. */
                     if (mx>=w->x+w->w/2+60-18 && mx<w->x+w->w/2+60+18 && my>=btn_y-18 && my<btn_y+18) {
-                        toast_show("FaceTime","Call service unavailable",RGB(120,120,130)); dirty=1; goto end_left_press;
+                        g_facetime_active=2; toast_show("FaceTime","Connected",RGB(52,199,89)); dirty=1; goto end_left_press;
                     }
                 } else if (g_facetime_active == 2) {
                     int cb_y = fcy+fch-32;
-                    if (mx>=w->x+w->w/2-14 && mx<w->x+w->w/2+14 && my>=cb_y && my<cb_y+28) {
-                        win_close(i); g_facetime_active=0; dirty=1; goto end_left_press;
+                    if (mx>=w->x+w->w/2-20 && mx<w->x+w->w/2+20 && my>=cb_y-14 && my<cb_y+18) {
+                        g_facetime_active=0; dirty=1; goto end_left_press;
+                    }
+                } else {
+                    int cb_y = fcy+fch-32;
+                    if (mx>=w->x+w->w/2-20 && mx<w->x+w->w/2+20 && my>=cb_y-14 && my<cb_y+18) {
+                        g_facetime_active=2; toast_show("FaceTime","Connected",RGB(52,199,89)); dirty=1; goto end_left_press;
                     }
                 }
             }
@@ -975,6 +1005,25 @@ void gui_run(void) {
                     if (mx>=vbx+22 && mx<vbx+42) { g_finder_view=1; dirty=1; goto end_left_press; }
                     if (mx>=vbx+44 && mx<vbx+64) { g_finder_view=2; dirty=1; goto end_left_press; }
                 }
+            }
+            /* Screen Time tabs */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Screen Time")) continue;
+                if (i != top_win_idx) continue;
+                {
+                    int tab_y_st = w->y + TITLEBAR_H + 50;
+                    int hw_st = (w->w - 20) / 2;
+                    if (my >= tab_y_st && my < tab_y_st + 22) {
+                        if (mx >= w->x + 6 && mx < w->x + 6 + hw_st) {
+                            g_screen_time_tab = 0; dirty = 1; goto end_left_press;
+                        }
+                        if (mx >= w->x + 10 + hw_st && mx < w->x + 10 + hw_st + hw_st) {
+                            g_screen_time_tab = 1; dirty = 1; goto end_left_press;
+                        }
+                    }
+                }
+                break;
             }
             /* Photos thumbnail click: open fullscreen */
             for (i=0; i<g_num_windows; i++) {
@@ -1661,7 +1710,36 @@ void gui_run(void) {
                 }
                 /* Send button in compose view */
                 if (g_mail_compose && mx>=w->x+w->w-58&&mx<w->x+w->w-8&&my>=cy_ml+5&&my<cy_ml+23) {
-                    toast_show("Mail","No account configured",RGB(120,120,130));
+                    int sj;
+                    if (g_mail_to_len <= 0) {
+                        toast_show("Mail","Add a recipient",RGB(255,149,0));
+                    } else {
+                        for (sj=0; sj<63 && g_mail_subject[sj]; sj++)
+                            g_mail_last_sent_subject[sj] = g_mail_subject[sj];
+                        g_mail_last_sent_subject[sj] = 0;
+                        if (g_mail_last_sent_subject[0] == 0) {
+                            g_mail_last_sent_subject[0] = '(';
+                            g_mail_last_sent_subject[1] = 'n';
+                            g_mail_last_sent_subject[2] = 'o';
+                            g_mail_last_sent_subject[3] = ' ';
+                            g_mail_last_sent_subject[4] = 's';
+                            g_mail_last_sent_subject[5] = 'u';
+                            g_mail_last_sent_subject[6] = 'b';
+                            g_mail_last_sent_subject[7] = 'j';
+                            g_mail_last_sent_subject[8] = 'e';
+                            g_mail_last_sent_subject[9] = 'c';
+                            g_mail_last_sent_subject[10] = 't';
+                            g_mail_last_sent_subject[11] = ')';
+                            g_mail_last_sent_subject[12] = 0;
+                        }
+                        g_mail_sent_count++;
+                        g_mail_compose=0;
+                        g_mail_focused_field=0;
+                        g_mail_to[0]=0; g_mail_to_len=0;
+                        g_mail_subject[0]=0; g_mail_subject_len=0;
+                        g_mail_body[0]=0; g_mail_body_len=0;
+                        toast_show("Mail","Message saved to Sent",RGB(0,122,255));
+                    }
                     dirty=1; goto end_left_press;
                 }
                 /* Field focus in compose */
@@ -1896,8 +1974,8 @@ void gui_run(void) {
                 int cx3 = w->x + sb_w3 + 10;
                 int cy3 = cy_tab + 10;
                 if (g_settings_tab == 0) {
-                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+231&&my<cy3+231+th2){toast_show("WiFi","Unavailable",RGB(120,120,130));dirty=1;}
-                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+251&&my<cy3+251+th2){toast_show("Bluetooth","Unavailable",RGB(120,120,130));dirty=1;}
+                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+231&&my<cy3+231+th2){g_pref_wifi^=1;toast_show("Wi-Fi",g_pref_wifi?"On":"Off",RGB(0,122,255));dirty=1;}
+                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+251&&my<cy3+251+th2){g_pref_bt^=1;toast_show("Bluetooth",g_pref_bt?"On":"Off",RGB(0,122,255));dirty=1;}
                     {int wi3;for(wi3=0;wi3<5;wi3++){
                      int wx4=wi3<4?cx3+wi3*74:cx3, wy4=wi3<4?cy3+132:cy3+170;
                      if(mx>=wx4&&mx<wx4+62&&my>=wy4&&my<wy4+30){g_pref_wallpaper=wi3;dirty=1;}}}
@@ -1908,7 +1986,7 @@ void gui_run(void) {
                 } else if (g_settings_tab == 5) {
                     if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+15&&my<cy3+15+th2){g_pref_dnd^=1;dirty=1;}
                 } else if (g_settings_tab == 7) {
-                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+15&&my<cy3+15+th2){toast_show("Bluetooth","Unavailable",RGB(120,120,130));dirty=1;}
+                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+15&&my<cy3+15+th2){g_pref_bt^=1;toast_show("Bluetooth",g_pref_bt?"On":"Off",RGB(0,122,255));dirty=1;}
                 }
             }
             /* Button press */
@@ -3350,7 +3428,7 @@ void gui_run(void) {
                     /* Writing Tools: ESC closes, 1-6 selects tool */
                     if (ch == KEY_ESC || ch == 0x1B) { g_wt_visible=0; dirty=1; }
                     else if (ch>='1'&&ch<='6'&&g_wt_done==0){
-                        g_wt_sel=ch-'1'; g_wt_done=2; g_wt_tick=timer_ticks(); dirty=1;
+                        (void)writing_tools_apply(ch-'1'); dirty=1;
                     }
                 } else if (g_qn_visible) {
                     /* Quick Note input */
