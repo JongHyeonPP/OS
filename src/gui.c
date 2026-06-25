@@ -123,6 +123,7 @@ int g_kbshort_page = 0;
 /* Time Machine */
 int g_timemachine_visible = 0;
 int g_tm_snapshot_count = 0;
+int g_tm_selected_snapshot = 0;
 uint32_t g_tm_last_snapshot_tick = 0;
 int g_tm_restored = 0;
 int g_tm_cancelled = 0;
@@ -2307,6 +2308,7 @@ int g_finder_view = 0;
  * Photos state
  * ======================================================================= */
 int g_photos_sel        = 0;
+int g_photos_section    = 0;
 int g_photos_fullscreen = 0;
 int g_photos_edit_mode  = 0; /* 0=view, 1=edit tools visible */
 int g_photos_brightness = 50; /* 0-100 */
@@ -2861,6 +2863,7 @@ int g_pref_vpn       = 0;
 int g_pref_notifs    = 1;
 int g_pref_sound     __attribute__((unused)) = 1;
 int g_pref_wallpaper = 0; /* 0=blue gradient, 1=sunset, 2=forest, 3=space */
+int g_pref_accent = 0;
 int g_pref_resolution = 1;
 int g_pref_alert_sound = 0;
 
@@ -3105,6 +3108,7 @@ int g_feedback_submissions = 0;
 int g_cleanmymac_scan_count = 0;
 int g_keynote_mode = 0;
 int g_keynote_slide_count = 1;
+int g_keynote_slide = 0;
 int g_keynote_editing = 0;
 int g_imovie_tab = 1;
 int g_imovie_import_count = 0;
@@ -3164,6 +3168,7 @@ int g_onepassword_search_focused = 0;
 int g_raycast_search_focused = 0;
 int g_finder_search_focused = 0;
 int g_photos_search_focused = 0;
+int g_color_picker_tab = 0;
 int g_maps_search_focused = 0;
 int g_alfred_search_focused = 0;
 int g_script_running = 0;

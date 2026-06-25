@@ -599,15 +599,17 @@ int draw_apps_group3(int idx) {
         vga_draw_vline(wx+kn_sl_w, kn_content_y, kn_content_h, kn_sep);
         { int si_kn;
           int shown_kn = g_keynote_slide_count;
+          int active_kn_slide = g_keynote_slide;
           if (shown_kn < 1) shown_kn = 1;
           if (shown_kn > 5) shown_kn = 5;
+          if (active_kn_slide < 0 || active_kn_slide >= shown_kn) active_kn_slide = 0;
           for (si_kn=0; si_kn<shown_kn; si_kn++) {
               char slide_label[16];
               int sp = 0;
               slide_label[0] = 0;
               apps3_append_text(slide_label, &sp, sizeof(slide_label), "Slide ");
               apps3_append_uint(slide_label, &sp, sizeof(slide_label), (uint32_t)(si_kn + 1));
-              vga_draw_string_trans(wx+8, kn_content_y+12+si_kn*14, slide_label, si_kn==0?RGB(255,149,0):kn_sub);
+              vga_draw_string_trans(wx+8, kn_content_y+12+si_kn*14, slide_label, si_kn==active_kn_slide?RGB(255,149,0):kn_sub);
           } }
         /* Main slide canvas */
         int cv_x = wx+kn_sl_w+1;

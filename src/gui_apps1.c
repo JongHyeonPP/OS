@@ -85,7 +85,7 @@ int draw_apps_group1(int idx) {
         /* View mode buttons (icon/list/column/gallery) */
         { int vx=wx+56, vy=cy+7, bw=15, bh=16, vi;
           for (vi=0;vi<4;vi++) {
-              int sel=(vi==0);
+              int sel=(vi==g_finder_view);
               vga_fill_rect(vx+vi*bw, vy, bw, bh, sel?(g_pref_darkmode?RGB(78,78,98):RGB(190,190,210)):fn_tb);
               if (vi==0) {
                   vga_fill_rect(vx+3, vy+4, 3,3, fn_txt); vga_fill_rect(vx+9, vy+4, 3,3, fn_txt);
@@ -432,14 +432,16 @@ int draw_apps_group1(int idx) {
                     RGB(0,122,255),RGB(255,59,48),RGB(52,199,89),
                     RGB(255,149,0),RGB(142,68,173),RGB(255,45,85),RGB(100,100,100)};
                 static const char *acc_n2[7]={"Blue","Red","Green","Orange","Purple","Pink","Graphite"};
+                int active_acc = g_pref_accent;
+                if (active_acc < 0 || active_acc > 6) active_acc = 0;
                 int ai;
                 for (ai=0;ai<7;ai++) {
                     gui_draw_circle(cx+ai*24+12, cy+126, 10, accs2[ai]);
-                    if (ai==0)
+                    if (ai==active_acc)
                         gui_draw_circle_outline(cx+ai*24+12, cy+126, 11,
                             g_pref_darkmode?RGB(240,240,250):RGB(20,20,20));
                 }
-                vga_draw_string_trans(cx, cy+140, acc_n2[0], sub);
+                vga_draw_string_trans(cx, cy+140, acc_n2[active_acc], sub);
             }
             vga_draw_hline(cx, cy+152, rw, sep2);
             vga_draw_string_trans(cx, cy+158, "DOCK & MENU BAR", cat2);
@@ -1253,12 +1255,18 @@ int draw_apps_group1(int idx) {
         uint32_t ph_tb    = g_pref_darkmode ? RGB(40,40,44)    : RGB(246,246,248);
         /* Main background */
         vga_fill_rect(wx+1, ph_top, ww-2, ph_h, ph_bg);
+        static const char *ph_section_names[] = {
+            "Library","For You","Albums","Recents","Favorites","Hidden","Seoul Trip","Nature","Screens"
+        };
+        int active_ph_section = g_photos_section;
+        if (active_ph_section < 0 || active_ph_section > 8) active_ph_section = 0;
+        int active_ph_top = active_ph_section == 1 ? 1 : (active_ph_section >= 2 ? 2 : 0);
         /* Top toolbar */
         vga_fill_rect(wx+1, ph_top, ww-2, 24, ph_tb);
         vga_draw_hline(wx+1, ph_top+24, ww-2, ph_sb_bd);
-        vga_draw_string_trans(wx+8,   ph_top+8, "Library",   RGB(0,122,255));
-        vga_draw_string_trans(wx+72,  ph_top+8, "For You",   ph_sub);
-        vga_draw_string_trans(wx+132, ph_top+8, "Albums",    ph_sub);
+        vga_draw_string_trans(wx+8,   ph_top+8, "Library",   active_ph_top==0?RGB(0,122,255):ph_sub);
+        vga_draw_string_trans(wx+72,  ph_top+8, "For You",   active_ph_top==1?RGB(0,122,255):ph_sub);
+        vga_draw_string_trans(wx+132, ph_top+8, "Albums",    active_ph_top==2?RGB(0,122,255):ph_sub);
         vga_draw_string_trans(wx+190, ph_top+8, g_photos_search_focused ? "Search*" : "Search",
                               g_photos_search_focused ? RGB(0,122,255) : ph_sub);
         /* Sidebar (80px) */
@@ -1269,9 +1277,10 @@ int draw_apps_group1(int idx) {
         { int sy = ph_top+30;
           vga_draw_string_trans(wx+6, sy, "LIBRARY", ph_hdr); sy+=12;
           static const char *lib_items[] = {"Library","Recents","Favorites","Hidden"};
+          static const int lib_map[] = {0,3,4,5};
           int li2;
           for(li2=0;li2<4;li2++) {
-              int is_sel=(li2==0);
+              int is_sel=(active_ph_section==lib_map[li2]);
               if(is_sel) { gui_draw_rounded_rect(wx+2, sy-1, sb_w-3, 14, 4, g_pref_darkmode?RGB(50,50,55):RGB(220,220,228)); }
               uint32_t itc = is_sel?ph_sel:ph_txt;
               vga_draw_string_trans(wx+8, sy+2, lib_items[li2], itc);
@@ -1282,7 +1291,9 @@ int draw_apps_group1(int idx) {
           static const char *alb_items[] = {"Seoul Trip","Nature","Screens"};
           int ai;
           for(ai=0;ai<3;ai++) {
-              vga_draw_string_trans(wx+8, sy+2, alb_items[ai], ph_txt);
+              int is_album = active_ph_section == 6 + ai;
+              if(is_album) { gui_draw_rounded_rect(wx+2, sy-1, sb_w-3, 14, 4, g_pref_darkmode?RGB(50,50,55):RGB(220,220,228)); }
+              vga_draw_string_trans(wx+8, sy+2, alb_items[ai], is_album?ph_sel:ph_txt);
               sy+=16;
           }
         }
@@ -1291,10 +1302,14 @@ int draw_apps_group1(int idx) {
         int grid_y = ph_top+24+2;
         int grid_w = ww-2-sb_w-8;
         int photo_count = 8;
-        { char monthbuf[32];
-          get_current_month_year_str(monthbuf);
-          vga_draw_string_trans(grid_x, grid_y+2, monthbuf, ph_txt); }
-        vga_draw_string_trans(grid_x+grid_w-48, grid_y+2, "All", ph_sub);
+        if (active_ph_section == 0) {
+            char monthbuf[32];
+            get_current_month_year_str(monthbuf);
+            vga_draw_string_trans(grid_x, grid_y+2, monthbuf, ph_txt);
+        } else {
+            vga_draw_string_trans(grid_x, grid_y+2, ph_section_names[active_ph_section], ph_txt);
+        }
+        vga_draw_string_trans(grid_x+grid_w-48, grid_y+2, active_ph_top==2 ? "Albums" : "All", ph_sub);
         grid_y += 14;
         /* Photo grid: 4 columns */
         {

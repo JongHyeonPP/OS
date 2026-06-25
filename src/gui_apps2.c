@@ -1800,7 +1800,7 @@ int draw_apps_group2(int idx) {
           for (ti_i=0; ti_i<6; ti_i++) {
               int ty = cy_tm + tl_offs[ti_i];
               if (ty > cy_tm+ch_tm-20) break;
-              gui_draw_circle(tl_x+12, ty, 3, ti_i==0?RGB(255,255,255):RGB(100,120,200));
+              gui_draw_circle(tl_x+12, ty, 3, ti_i==g_tm_selected_snapshot?RGB(255,255,255):RGB(100,120,200));
           }
         }
         /* Bottom control bar */
@@ -2107,10 +2107,12 @@ int draw_apps_group2(int idx) {
         /* Mode tabs: Wheel | Sliders | Palette */
         static const char *cp_tabs[] = { "Wheel", "Sliders", "Palette" };
         int cpt_x = wx+4, cpt_y = wy+TITLEBAR_H+6;
+        int active_cp = g_color_picker_tab;
+        if (active_cp < 0 || active_cp > 2) active_cp = 0;
         int ct;
         for (ct=0; ct<3; ct++) {
             int tw = (int)(str_len(cp_tabs[ct])*8+8);
-            int is_sel = (ct==0);
+            int is_sel = (ct==active_cp);
             if (is_sel) { vga_fill_rect(cpt_x, cpt_y-2, tw, 16, cp_acc); gui_draw_rounded_rect_outline(cpt_x, cpt_y-2, tw, 16, 2, cp_acc); }
             else        { vga_fill_rect(cpt_x, cpt_y-2, tw, 16, cp_hd); gui_draw_rounded_rect_outline(cpt_x, cpt_y-2, tw, 16, 2, cp_sep); }
             vga_draw_string_trans(cpt_x+4, cpt_y+2, cp_tabs[ct], is_sel ? RGB(255,255,255) : cp_sub);
