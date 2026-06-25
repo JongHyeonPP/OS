@@ -1975,6 +1975,248 @@ static int safari_chacha20_poly1305_decrypt(const uint8_t key[32], const uint8_t
     return cipher_len;
 }
 
+
+static const uint8_t safari_aes_sbox[256] = {
+    0x63,0x7C,0x77,0x7B,0xF2,0x6B,0x6F,0xC5,0x30,0x01,0x67,0x2B,0xFE,0xD7,0xAB,0x76,
+    0xCA,0x82,0xC9,0x7D,0xFA,0x59,0x47,0xF0,0xAD,0xD4,0xA2,0xAF,0x9C,0xA4,0x72,0xC0,
+    0xB7,0xFD,0x93,0x26,0x36,0x3F,0xF7,0xCC,0x34,0xA5,0xE5,0xF1,0x71,0xD8,0x31,0x15,
+    0x04,0xC7,0x23,0xC3,0x18,0x96,0x05,0x9A,0x07,0x12,0x80,0xE2,0xEB,0x27,0xB2,0x75,
+    0x09,0x83,0x2C,0x1A,0x1B,0x6E,0x5A,0xA0,0x52,0x3B,0xD6,0xB3,0x29,0xE3,0x2F,0x84,
+    0x53,0xD1,0x00,0xED,0x20,0xFC,0xB1,0x5B,0x6A,0xCB,0xBE,0x39,0x4A,0x4C,0x58,0xCF,
+    0xD0,0xEF,0xAA,0xFB,0x43,0x4D,0x33,0x85,0x45,0xF9,0x02,0x7F,0x50,0x3C,0x9F,0xA8,
+    0x51,0xA3,0x40,0x8F,0x92,0x9D,0x38,0xF5,0xBC,0xB6,0xDA,0x21,0x10,0xFF,0xF3,0xD2,
+    0xCD,0x0C,0x13,0xEC,0x5F,0x97,0x44,0x17,0xC4,0xA7,0x7E,0x3D,0x64,0x5D,0x19,0x73,
+    0x60,0x81,0x4F,0xDC,0x22,0x2A,0x90,0x88,0x46,0xEE,0xB8,0x14,0xDE,0x5E,0x0B,0xDB,
+    0xE0,0x32,0x3A,0x0A,0x49,0x06,0x24,0x5C,0xC2,0xD3,0xAC,0x62,0x91,0x95,0xE4,0x79,
+    0xE7,0xC8,0x37,0x6D,0x8D,0xD5,0x4E,0xA9,0x6C,0x56,0xF4,0xEA,0x65,0x7A,0xAE,0x08,
+    0xBA,0x78,0x25,0x2E,0x1C,0xA6,0xB4,0xC6,0xE8,0xDD,0x74,0x1F,0x4B,0xBD,0x8B,0x8A,
+    0x70,0x3E,0xB5,0x66,0x48,0x03,0xF6,0x0E,0x61,0x35,0x57,0xB9,0x86,0xC1,0x1D,0x9E,
+    0xE1,0xF8,0x98,0x11,0x69,0xD9,0x8E,0x94,0x9B,0x1E,0x87,0xE9,0xCE,0x55,0x28,0xDF,
+    0x8C,0xA1,0x89,0x0D,0xBF,0xE6,0x42,0x68,0x41,0x99,0x2D,0x0F,0xB0,0x54,0xBB,0x16
+};
+
+static uint8_t safari_aes_xtime(uint8_t x) {
+    return (uint8_t)((x << 1) ^ ((x & 0x80U) ? 0x1BU : 0));
+}
+
+static void safari_aes_add_round_key(uint8_t state[16], const uint8_t *rk) {
+    int i;
+    for (i = 0; i < 16; i++) state[i] ^= rk[i];
+}
+
+static void safari_aes_sub_bytes(uint8_t state[16]) {
+    int i;
+    for (i = 0; i < 16; i++) state[i] = safari_aes_sbox[state[i]];
+}
+
+static void safari_aes_shift_rows(uint8_t state[16]) {
+    uint8_t t;
+    t = state[1]; state[1] = state[5]; state[5] = state[9]; state[9] = state[13]; state[13] = t;
+    t = state[2]; state[2] = state[10]; state[10] = t;
+    t = state[6]; state[6] = state[14]; state[14] = t;
+    t = state[15]; state[15] = state[11]; state[11] = state[7]; state[7] = state[3]; state[3] = t;
+}
+
+static void safari_aes_mix_columns(uint8_t state[16]) {
+    int c;
+    for (c = 0; c < 4; c++) {
+        uint8_t *s = state + c * 4;
+        uint8_t a0 = s[0], a1 = s[1], a2 = s[2], a3 = s[3];
+        uint8_t t = (uint8_t)(a0 ^ a1 ^ a2 ^ a3);
+        uint8_t u = a0;
+        s[0] ^= t ^ safari_aes_xtime((uint8_t)(a0 ^ a1));
+        s[1] ^= t ^ safari_aes_xtime((uint8_t)(a1 ^ a2));
+        s[2] ^= t ^ safari_aes_xtime((uint8_t)(a2 ^ a3));
+        s[3] ^= t ^ safari_aes_xtime((uint8_t)(a3 ^ u));
+    }
+}
+
+static void safari_aes128_key_expand(const uint8_t key[16], uint8_t rk[176]) {
+    static const uint8_t rcon[10] = {0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1B,0x36};
+    uint8_t temp[4];
+    int i;
+    for (i = 0; i < 16; i++) rk[i] = key[i];
+    for (i = 16; i < 176; i += 4) {
+        temp[0] = rk[i - 4];
+        temp[1] = rk[i - 3];
+        temp[2] = rk[i - 2];
+        temp[3] = rk[i - 1];
+        if ((i % 16) == 0) {
+            uint8_t t = temp[0];
+            temp[0] = (uint8_t)(safari_aes_sbox[temp[1]] ^ rcon[i / 16 - 1]);
+            temp[1] = safari_aes_sbox[temp[2]];
+            temp[2] = safari_aes_sbox[temp[3]];
+            temp[3] = safari_aes_sbox[t];
+        }
+        rk[i + 0] = (uint8_t)(rk[i - 16] ^ temp[0]);
+        rk[i + 1] = (uint8_t)(rk[i - 15] ^ temp[1]);
+        rk[i + 2] = (uint8_t)(rk[i - 14] ^ temp[2]);
+        rk[i + 3] = (uint8_t)(rk[i - 13] ^ temp[3]);
+    }
+}
+
+static void safari_aes128_encrypt_block(const uint8_t key[16],
+                                        const uint8_t in[16],
+                                        uint8_t out[16]) {
+    uint8_t state[16];
+    uint8_t rk[176];
+    int round;
+    int i;
+    safari_aes128_key_expand(key, rk);
+    for (i = 0; i < 16; i++) state[i] = in[i];
+    safari_aes_add_round_key(state, rk);
+    for (round = 1; round < 10; round++) {
+        safari_aes_sub_bytes(state);
+        safari_aes_shift_rows(state);
+        safari_aes_mix_columns(state);
+        safari_aes_add_round_key(state, rk + round * 16);
+    }
+    safari_aes_sub_bytes(state);
+    safari_aes_shift_rows(state);
+    safari_aes_add_round_key(state, rk + 160);
+    for (i = 0; i < 16; i++) out[i] = state[i];
+}
+
+static void safari_gcm_xor_block(uint8_t a[16], const uint8_t b[16]) {
+    int i;
+    for (i = 0; i < 16; i++) a[i] ^= b[i];
+}
+
+static void safari_gcm_shift_right(uint8_t v[16]) {
+    int i;
+    uint8_t carry = 0;
+    for (i = 0; i < 16; i++) {
+        uint8_t next = (uint8_t)(v[i] & 1U);
+        v[i] = (uint8_t)((v[i] >> 1) | (carry ? 0x80U : 0));
+        carry = next;
+    }
+}
+
+static void safari_gcm_mul(uint8_t x[16], const uint8_t h[16]) {
+    uint8_t z[16];
+    uint8_t v[16];
+    int i, j;
+    for (i = 0; i < 16; i++) {
+        z[i] = 0;
+        v[i] = h[i];
+    }
+    for (i = 0; i < 16; i++) {
+        for (j = 7; j >= 0; j--) {
+            if ((x[i] >> j) & 1U)
+                safari_gcm_xor_block(z, v);
+            {
+                int lsb = v[15] & 1U;
+                safari_gcm_shift_right(v);
+                if (lsb) v[0] ^= 0xE1U;
+            }
+        }
+    }
+    for (i = 0; i < 16; i++) x[i] = z[i];
+}
+
+static void safari_gcm_ghash_update(uint8_t y[16], const uint8_t h[16],
+                                    const uint8_t *data, int len) {
+    uint8_t block[16];
+    int i;
+    int pos = 0;
+    while (pos < len) {
+        int n = len - pos;
+        if (n > 16) n = 16;
+        for (i = 0; i < 16; i++) block[i] = 0;
+        for (i = 0; i < n; i++) block[i] = data[pos + i];
+        safari_gcm_xor_block(y, block);
+        safari_gcm_mul(y, h);
+        pos += n;
+    }
+}
+
+static void safari_gcm_inc32(uint8_t counter[16]) {
+    uint32_t low = safari_load_be32(counter + 12);
+    low++;
+    counter[12] = (uint8_t)(low >> 24);
+    counter[13] = (uint8_t)(low >> 16);
+    counter[14] = (uint8_t)(low >> 8);
+    counter[15] = (uint8_t)low;
+}
+
+static void safari_aes128_gcm_tag(const uint8_t key[16], const uint8_t nonce[12],
+                                  const uint8_t *aad, int aad_len,
+                                  const uint8_t *cipher, int cipher_len,
+                                  uint8_t tag[16]) {
+    uint8_t h[16];
+    uint8_t y[16];
+    uint8_t j0[16];
+    uint8_t e0[16];
+    uint8_t len_block[16];
+    uint8_t zero[16];
+    int i;
+    for (i = 0; i < 16; i++) zero[i] = 0;
+    safari_aes128_encrypt_block(key, zero, h);
+    for (i = 0; i < 12; i++) j0[i] = nonce[i];
+    j0[12] = 0; j0[13] = 0; j0[14] = 0; j0[15] = 1;
+    for (i = 0; i < 16; i++) y[i] = 0;
+    if (aad && aad_len > 0) safari_gcm_ghash_update(y, h, aad, aad_len);
+    if (cipher && cipher_len > 0) safari_gcm_ghash_update(y, h, cipher, cipher_len);
+    for (i = 0; i < 16; i++) len_block[i] = 0;
+    safari_store_be64(len_block, (uint64_t)aad_len * 8U);
+    safari_store_be64(len_block + 8, (uint64_t)cipher_len * 8U);
+    safari_gcm_xor_block(y, len_block);
+    safari_gcm_mul(y, h);
+    safari_aes128_encrypt_block(key, j0, e0);
+    for (i = 0; i < 16; i++) tag[i] = (uint8_t)(e0[i] ^ y[i]);
+}
+
+static int safari_aes128_gcm_encrypt(const uint8_t key[16], const uint8_t nonce[12],
+                                     const uint8_t *aad, int aad_len,
+                                     const uint8_t *plain, int plain_len,
+                                     uint8_t *cipher, uint8_t tag[16]) {
+    uint8_t counter[16];
+    uint8_t stream[16];
+    int i;
+    int pos = 0;
+    if (!key || !nonce || !plain || !cipher || !tag || plain_len < 0) return -1;
+    for (i = 0; i < 12; i++) counter[i] = nonce[i];
+    counter[12] = 0; counter[13] = 0; counter[14] = 0; counter[15] = 1;
+    while (pos < plain_len) {
+        int n = plain_len - pos;
+        if (n > 16) n = 16;
+        safari_gcm_inc32(counter);
+        safari_aes128_encrypt_block(key, counter, stream);
+        for (i = 0; i < n; i++)
+            cipher[pos + i] = (uint8_t)(plain[pos + i] ^ stream[i]);
+        pos += n;
+    }
+    safari_aes128_gcm_tag(key, nonce, aad, aad_len, cipher, plain_len, tag);
+    return 0;
+}
+
+static int safari_aes128_gcm_decrypt(const uint8_t key[16], const uint8_t nonce[12],
+                                     const uint8_t *aad, int aad_len,
+                                     const uint8_t *cipher, int cipher_len,
+                                     const uint8_t tag[16], uint8_t *plain) {
+    uint8_t calc[16];
+    uint8_t counter[16];
+    uint8_t stream[16];
+    int i;
+    int pos = 0;
+    if (!key || !nonce || !cipher || !tag || !plain || cipher_len < 0) return -1;
+    safari_aes128_gcm_tag(key, nonce, aad, aad_len, cipher, cipher_len, calc);
+    if (!safari_bytes_equal(calc, tag, 16)) return -1;
+    for (i = 0; i < 12; i++) counter[i] = nonce[i];
+    counter[12] = 0; counter[13] = 0; counter[14] = 0; counter[15] = 1;
+    while (pos < cipher_len) {
+        int n = cipher_len - pos;
+        if (n > 16) n = 16;
+        safari_gcm_inc32(counter);
+        safari_aes128_encrypt_block(key, counter, stream);
+        for (i = 0; i < n; i++)
+            plain[pos + i] = (uint8_t)(cipher[pos + i] ^ stream[i]);
+        pos += n;
+    }
+    return cipher_len;
+}
+
+
 static int safari_tls13_aead_selftest(void) {
     static int checked = 0;
     static int ok = 0;
@@ -1998,6 +2240,26 @@ static int safari_tls13_aead_selftest(void) {
         0xA8,0x06,0x1D,0xC1,0x30,0x51,0x36,0xC6,
         0xC2,0x2B,0x8B,0xAF,0x0C,0x01,0x27,0xA9
     };
+    static const uint8_t aes_key[16] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
+    };
+    static const uint8_t aes_plain[16] = {
+        0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+        0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE,0xFF
+    };
+    static const uint8_t aes_cipher_expected[16] = {
+        0x69,0xC4,0xE0,0xD8,0x6A,0x7B,0x04,0x30,
+        0xD8,0xCD,0xB7,0x80,0x70,0xB4,0xC5,0x5A
+    };
+    static const uint8_t gcm_cipher_expected[16] = {
+        0x03,0x88,0xDA,0xCE,0x60,0xB6,0xA3,0x92,
+        0xF3,0x28,0xC2,0xB9,0x71,0xB2,0xFE,0x78
+    };
+    static const uint8_t gcm_tag_expected[16] = {
+        0xAB,0x6E,0x47,0xD4,0x2C,0xEC,0x13,0xBD,
+        0xF5,0x3A,0x67,0xB2,0x12,0x57,0xBD,0xDF
+    };
     uint8_t key[32];
     uint8_t nonce[12];
     uint8_t block[64];
@@ -2007,6 +2269,12 @@ static int safari_tls13_aead_selftest(void) {
     uint8_t cipher[17];
     uint8_t decoded[17];
     uint8_t tag[16];
+    uint8_t aes_out[16];
+    uint8_t gcm_key[16];
+    uint8_t gcm_nonce[12];
+    uint8_t gcm_plain[16];
+    uint8_t gcm_cipher[16];
+    uint8_t gcm_decoded[16];
     int i;
     if (checked) return ok;
     checked = 1;
@@ -2026,6 +2294,24 @@ static int safari_tls13_aead_selftest(void) {
                                          cipher, sizeof(cipher), tag, decoded) != sizeof(decoded))
         return 0;
     if (!safari_bytes_equal(decoded, plain, sizeof(plain))) return 0;
+    safari_aes128_encrypt_block(aes_key, aes_plain, aes_out);
+    if (!safari_bytes_equal(aes_out, aes_cipher_expected, 16)) return 0;
+    for (i = 0; i < 16; i++) {
+        gcm_key[i] = 0;
+        gcm_plain[i] = 0;
+    }
+    for (i = 0; i < 12; i++) gcm_nonce[i] = 0;
+    if (safari_aes128_gcm_encrypt(gcm_key, gcm_nonce, 0, 0,
+                                  gcm_plain, sizeof(gcm_plain),
+                                  gcm_cipher, tag) != 0)
+        return 0;
+    if (!safari_bytes_equal(gcm_cipher, gcm_cipher_expected, 16)) return 0;
+    if (!safari_bytes_equal(tag, gcm_tag_expected, 16)) return 0;
+    if (safari_aes128_gcm_decrypt(gcm_key, gcm_nonce, 0, 0,
+                                  gcm_cipher, sizeof(gcm_cipher),
+                                  tag, gcm_decoded) != sizeof(gcm_decoded))
+        return 0;
+    if (!safari_bytes_equal(gcm_decoded, gcm_plain, sizeof(gcm_plain))) return 0;
     ok = 1;
     return 1;
 }
@@ -2223,6 +2509,7 @@ typedef struct {
     int ready;
     int handshake_ready;
     int app_ready;
+    uint16_t cipher;
     char cert_subject[96];
     char cert_issuer[96];
     char cert_name[96];
@@ -2245,6 +2532,7 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
                                         safari_tls13_probe_state_t *tls_state) {
     static const uint16_t ciphers[] = {
         0x1303U, /* TLS_CHACHA20_POLY1305_SHA256 */
+        0x1301U, /* TLS_AES_128_GCM_SHA256 */
         0xC02FU, /* TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 */
         0xC02BU, /* TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 */
         0xC030U, /* TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 */
@@ -2273,6 +2561,7 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
         tls_state->ready = 0;
         tls_state->handshake_ready = 0;
         tls_state->app_ready = 0;
+        tls_state->cipher = 0;
         tls_state->cert_subject[0] = 0;
         tls_state->cert_issuer[0] = 0;
         tls_state->cert_name[0] = 0;
@@ -2400,6 +2689,7 @@ static const char *safari_tls_version_name(uint16_t version) {
 
 static const char *safari_tls_cipher_name(uint16_t cipher) {
     if (cipher == 0x1303U) return "CHACHA20_POLY1305_SHA256";
+    if (cipher == 0x1301U) return "AES_128_GCM_SHA256";
     if (cipher == 0xC02FU) return "ECDHE_RSA_AES_128_GCM_SHA256";
     if (cipher == 0xC02BU) return "ECDHE_ECDSA_AES_128_GCM_SHA256";
     if (cipher == 0xC030U) return "ECDHE_RSA_AES_256_GCM_SHA384";
@@ -2556,6 +2846,17 @@ static int safari_tls13_first_encrypted_record(const uint8_t *buf, int len,
 }
 
 
+
+static int safari_tls13_cipher_supported(uint16_t cipher) {
+    return cipher == 0x1303U || cipher == 0x1301U;
+}
+
+static int safari_tls13_cipher_key_len(uint16_t cipher) {
+    if (cipher == 0x1301U) return 16;
+    if (cipher == 0x1303U) return 32;
+    return 0;
+}
+
 static void safari_tls13_make_nonce(const uint8_t iv[12], uint32_t seq, uint8_t nonce[12]) {
     int i;
     for (i = 0; i < 12; i++) nonce[i] = iv[i];
@@ -2565,7 +2866,7 @@ static void safari_tls13_make_nonce(const uint8_t iv[12], uint32_t seq, uint8_t 
     nonce[11] ^= (uint8_t)seq;
 }
 
-static int safari_tls13_open_record(const uint8_t key[32], const uint8_t iv[12], uint32_t seq,
+static int safari_tls13_open_record(uint16_t cipher, const uint8_t key[32], const uint8_t iv[12], uint32_t seq,
                                     const uint8_t *record, int record_len,
                                     uint8_t *plain, int plain_max,
                                     uint8_t *inner_type) {
@@ -2581,11 +2882,21 @@ static int safari_tls13_open_record(const uint8_t key[32], const uint8_t iv[12],
     cipher_len = (int)enc_len - 16;
     if (cipher_len > plain_max) return -1;
     safari_tls13_make_nonce(iv, seq, nonce);
-    plain_len = safari_chacha20_poly1305_decrypt(key, nonce,
-                                                 record, 5,
-                                                 record + 5, cipher_len,
-                                                 record + 5 + cipher_len,
-                                                 plain);
+    if (cipher == 0x1303U) {
+        plain_len = safari_chacha20_poly1305_decrypt(key, nonce,
+                                                     record, 5,
+                                                     record + 5, cipher_len,
+                                                     record + 5 + cipher_len,
+                                                     plain);
+    } else if (cipher == 0x1301U) {
+        plain_len = safari_aes128_gcm_decrypt(key, nonce,
+                                              record, 5,
+                                              record + 5, cipher_len,
+                                              record + 5 + cipher_len,
+                                              plain);
+    } else {
+        return -1;
+    }
     if (plain_len <= 0) return -1;
     inner_len = plain_len;
     while (inner_len > 0 && plain[inner_len - 1] == 0) inner_len--;
@@ -2594,7 +2905,7 @@ static int safari_tls13_open_record(const uint8_t key[32], const uint8_t iv[12],
     return inner_len - 1;
 }
 
-static int safari_tls13_seal_record(const uint8_t key[32], const uint8_t iv[12], uint32_t seq,
+static int safari_tls13_seal_record(uint16_t cipher, const uint8_t key[32], const uint8_t iv[12], uint32_t seq,
                                     uint8_t inner_type,
                                     const uint8_t *plain, int plain_len,
                                     uint8_t *record, int max) {
@@ -2613,11 +2924,21 @@ static int safari_tls13_seal_record(const uint8_t key[32], const uint8_t iv[12],
     record[2] = 0x03U;
     safari_tls_put16_at(record, 3, (uint16_t)enc_len);
     safari_tls13_make_nonce(iv, seq, nonce);
-    if (safari_chacha20_poly1305_encrypt(key, nonce,
-                                         record, 5,
-                                         inner, plain_len + 1,
-                                         record + 5, tag) != 0)
+    if (cipher == 0x1303U) {
+        if (safari_chacha20_poly1305_encrypt(key, nonce,
+                                             record, 5,
+                                             inner, plain_len + 1,
+                                             record + 5, tag) != 0)
+            return -1;
+    } else if (cipher == 0x1301U) {
+        if (safari_aes128_gcm_encrypt(key, nonce,
+                                      record, 5,
+                                      inner, plain_len + 1,
+                                      record + 5, tag) != 0)
+            return -1;
+    } else {
         return -1;
+    }
     for (i = 0; i < 16; i++) record[5 + plain_len + 1 + i] = tag[i];
     return enc_len + 5;
 }
@@ -2651,14 +2972,19 @@ static int safari_tls13_record_selftest(void) {
     for (i = 0; i < 32; i++) key[i] = (uint8_t)(0x20 + i);
     for (i = 0; i < 12; i++) iv[i] = (uint8_t)(0xA0 + i);
     for (i = 0; i < 17; i++) plain[i] = (uint8_t)('A' + i);
-    rec_len = safari_tls13_seal_record(key, iv, 7U, 23U, plain, 17, rec, sizeof(rec));
+    rec_len = safari_tls13_seal_record(0x1303U, key, iv, 7U, 23U, plain, 17, rec, sizeof(rec));
     if (rec_len <= 0) return 0;
-    open_len = safari_tls13_open_record(key, iv, 7U, rec, rec_len, opened, sizeof(opened), &inner);
+    open_len = safari_tls13_open_record(0x1303U, key, iv, 7U, rec, rec_len, opened, sizeof(opened), &inner);
     if (open_len != 17 || inner != 23U) return 0;
     if (!safari_bytes_equal(opened, plain, 17)) return 0;
     rec[rec_len - 1] ^= 1U;
-    if (safari_tls13_open_record(key, iv, 7U, rec, rec_len, opened, sizeof(opened), &inner) >= 0)
+    if (safari_tls13_open_record(0x1303U, key, iv, 7U, rec, rec_len, opened, sizeof(opened), &inner) >= 0)
         return 0;
+    rec_len = safari_tls13_seal_record(0x1301U, key, iv, 9U, 23U, plain, 17, rec, sizeof(rec));
+    if (rec_len <= 0) return 0;
+    open_len = safari_tls13_open_record(0x1301U, key, iv, 9U, rec, rec_len, opened, sizeof(opened), &inner);
+    if (open_len != 17 || inner != 23U) return 0;
+    if (!safari_bytes_equal(opened, plain, 17)) return 0;
     ok = 1;
     return 1;
 }
@@ -2677,8 +3003,12 @@ static int safari_tls13_derive_handshake_keys(safari_tls13_probe_state_t *state,
     uint8_t server_secret[32];
     safari_sha256_ctx_t transcript;
     int i;
+    int key_len;
     int nonzero = 0;
     if (!state || !sh || !buf || sh->key_share_len != 32) return -1;
+    if (!safari_tls13_cipher_supported(sh->cipher)) return -1;
+    key_len = safari_tls13_cipher_key_len(sh->cipher);
+    if (key_len <= 0) return -1;
     safari_x25519_scalarmult(shared, state->private_key, sh->key_share);
     for (i = 0; i < 32; i++) {
         if (shared[i]) nonzero = 1;
@@ -2690,6 +3020,7 @@ static int safari_tls13_derive_handshake_keys(safari_tls13_probe_state_t *state,
                                        derived_secret, 32) != 0)
         return -1;
     safari_hkdf_extract(derived_secret, 32, shared, 32, handshake_secret);
+    state->cipher = sh->cipher;
     for (i = 0; i < 32; i++) state->handshake_secret[i] = handshake_secret[i];
     safari_sha256_init(&transcript);
     safari_sha256_update(&transcript, state->client_hello, state->client_hello_len);
@@ -2705,12 +3036,14 @@ static int safari_tls13_derive_handshake_keys(safari_tls13_probe_state_t *state,
         state->client_hs_secret[i] = client_secret[i];
         state->server_hs_secret[i] = server_secret[i];
     }
-    if (safari_tls13_hkdf_expand_label(client_secret, "key", 0, 0, state->client_hs_key, 32) != 0)
+    if (safari_tls13_hkdf_expand_label(client_secret, "key", 0, 0, state->client_hs_key, key_len) != 0)
         return -1;
+    for (i = key_len; i < 32; i++) state->client_hs_key[i] = 0;
     if (safari_tls13_hkdf_expand_label(client_secret, "iv", 0, 0, state->client_hs_iv, 12) != 0)
         return -1;
-    if (safari_tls13_hkdf_expand_label(server_secret, "key", 0, 0, state->server_hs_key, 32) != 0)
+    if (safari_tls13_hkdf_expand_label(server_secret, "key", 0, 0, state->server_hs_key, key_len) != 0)
         return -1;
+    for (i = key_len; i < 32; i++) state->server_hs_key[i] = 0;
     if (safari_tls13_hkdf_expand_label(server_secret, "iv", 0, 0, state->server_hs_iv, 12) != 0)
         return -1;
     state->client_hs_seq = 0;
@@ -2734,18 +3067,18 @@ static void safari_tls13_append_decrypt_note(const safari_tls13_probe_state_t *s
     uint8_t server_secret[32];
     uint8_t key[32];
     uint8_t iv[12];
-    uint8_t nonce[12];
+    uint8_t inner_type_tmp = 0;
     safari_sha256_ctx_t transcript;
     int rec_off;
     int rec_len;
-    int cipher_len;
     int plain_len;
     int inner_len;
     int i;
+    int key_len;
     int nonzero = 0;
     if (!state || !state->ready || !buf || len <= 0 || !out || !pos) return;
     if (safari_tls13_parse_server_hello(buf, len, &sh) != 0) return;
-    if (sh.version != 0x0304U || sh.cipher != 0x1303U ||
+    if (sh.version != 0x0304U || !safari_tls13_cipher_supported(sh.cipher) ||
         sh.key_share_group != 0x001DU || sh.key_share_len != 32)
         return;
     if (safari_tls13_first_encrypted_record(buf, len, &sh, &rec_off, &rec_len) != 0) {
@@ -2753,6 +3086,8 @@ static void safari_tls13_append_decrypt_note(const safari_tls13_probe_state_t *s
         return;
     }
     if (rec_len <= 16 || rec_off + 5 + rec_len > len) return;
+    key_len = safari_tls13_cipher_key_len(sh.cipher);
+    if (key_len <= 0) return;
     safari_x25519_scalarmult(shared, state->private_key, sh.key_share);
     for (i = 0; i < 32; i++) {
         if (shared[i]) nonzero = 1;
@@ -2774,29 +3109,26 @@ static void safari_tls13_append_decrypt_note(const safari_tls13_probe_state_t *s
     if (safari_tls13_hkdf_expand_label(handshake_secret, "s hs traffic",
                                        transcript_hash, 32, server_secret, 32) != 0)
         return;
-    if (safari_tls13_hkdf_expand_label(server_secret, "key", 0, 0, key, 32) != 0)
+    if (safari_tls13_hkdf_expand_label(server_secret, "key", 0, 0, key, key_len) != 0)
         return;
+    for (i = key_len; i < 32; i++) key[i] = 0;
     if (safari_tls13_hkdf_expand_label(server_secret, "iv", 0, 0, iv, 12) != 0)
         return;
-    for (i = 0; i < 12; i++) nonce[i] = iv[i];
-    cipher_len = rec_len - 16;
-    plain_len = safari_chacha20_poly1305_decrypt(key, nonce,
-                                                 buf + rec_off, 5,
-                                                 buf + rec_off + 5, cipher_len,
-                                                 buf + rec_off + 5 + cipher_len,
-                                                 plain);
+    plain_len = safari_tls13_open_record(sh.cipher, key, iv, 0,
+                                             buf + rec_off, 5 + rec_len,
+                                             plain, SAFARI_RESPONSE_MAX,
+                                             &inner_type_tmp);
     if (plain_len <= 0) {
         safari_append(out, pos, max, "TLS 1.3 encrypted handshake record was present but AEAD verify failed.\n");
         return;
     }
     inner_len = plain_len;
-    while (inner_len > 0 && plain[inner_len - 1] == 0) inner_len--;
     if (inner_len <= 0) return;
     safari_append(out, pos, max, "TLS 1.3 encrypted handshake decrypted: ");
-    if (plain[inner_len - 1] == 22U) {
+    if (inner_type_tmp == 22U) {
         int hp = 0;
         int wrote = 0;
-        int content_len = inner_len - 1;
+        int content_len = inner_len;
         while (hp + 4 <= content_len) {
             uint8_t htype = plain[hp];
             uint32_t hlen = ((uint32_t)plain[hp + 1] << 16) |
@@ -2812,7 +3144,7 @@ static void safari_tls13_append_decrypt_note(const safari_tls13_probe_state_t *s
         if (!wrote) safari_append(out, pos, max, "handshake fragment");
     } else {
         safari_append(out, pos, max, "inner content type ");
-        safari_append_uint(out, pos, max, plain[inner_len - 1]);
+        safari_append_uint(out, pos, max, inner_type_tmp);
     }
     safari_append(out, pos, max, "\n");
 }
@@ -3515,7 +3847,7 @@ static int safari_tls13_complete_server_handshake(safari_tls13_probe_state_t *st
         !client_finished_record || !client_finished_len)
         return -1;
     if (safari_tls13_parse_server_hello(buf, len, &sh) != 0) return -1;
-    if (sh.version != 0x0304U || sh.cipher != 0x1303U ||
+    if (sh.version != 0x0304U || !safari_tls13_cipher_supported(sh.cipher) ||
         sh.key_share_group != 0x001DU || sh.key_share_len != 32)
         return -1;
     work = *state;
@@ -3534,7 +3866,7 @@ static int safari_tls13_complete_server_handshake(safari_tls13_probe_state_t *st
         }
         if (rec_type == 23U && off > sh.msg_off) {
             uint8_t inner_type = 0;
-            int plain_len = safari_tls13_open_record(work.server_hs_key, work.server_hs_iv,
+            int plain_len = safari_tls13_open_record(work.cipher, work.server_hs_key, work.server_hs_iv,
                                                      work.server_hs_seq,
                                                      buf + off, rec_end - off,
                                                      plain, SAFARI_RESPONSE_MAX,
@@ -3590,7 +3922,7 @@ static int safari_tls13_complete_server_handshake(safari_tls13_probe_state_t *st
     if (safari_tls13_append_handshake(fin_msg, &fin_msg_len, sizeof(fin_msg),
                                       20U, verify, 32) != 0)
         return -1;
-    *client_finished_len = safari_tls13_seal_record(work.client_hs_key, work.client_hs_iv,
+    *client_finished_len = safari_tls13_seal_record(work.cipher, work.client_hs_key, work.client_hs_iv,
                                                     work.client_hs_seq++,
                                                     22U, fin_msg, fin_msg_len,
                                                     client_finished_record,
@@ -3612,12 +3944,22 @@ static int safari_tls13_complete_server_handshake(safari_tls13_probe_state_t *st
     if (safari_tls13_hkdf_expand_label(master_secret, "s ap traffic",
                                        transcript_hash, 32, server_app_secret, 32) != 0)
         return -1;
-    if (safari_tls13_hkdf_expand_label(client_app_secret, "key", 0, 0, work.client_app_key, 32) != 0)
-        return -1;
+    {
+        int key_len = safari_tls13_cipher_key_len(work.cipher);
+        if (key_len <= 0) return -1;
+        if (safari_tls13_hkdf_expand_label(client_app_secret, "key", 0, 0, work.client_app_key, key_len) != 0)
+            return -1;
+        for (i = key_len; i < 32; i++) work.client_app_key[i] = 0;
+    }
     if (safari_tls13_hkdf_expand_label(client_app_secret, "iv", 0, 0, work.client_app_iv, 12) != 0)
         return -1;
-    if (safari_tls13_hkdf_expand_label(server_app_secret, "key", 0, 0, work.server_app_key, 32) != 0)
-        return -1;
+    {
+        int key_len = safari_tls13_cipher_key_len(work.cipher);
+        if (key_len <= 0) return -1;
+        if (safari_tls13_hkdf_expand_label(server_app_secret, "key", 0, 0, work.server_app_key, key_len) != 0)
+            return -1;
+        for (i = key_len; i < 32; i++) work.server_app_key[i] = 0;
+    }
     if (safari_tls13_hkdf_expand_label(server_app_secret, "iv", 0, 0, work.server_app_iv, 12) != 0)
         return -1;
     for (i = 0; i < 32; i++) {
@@ -3628,6 +3970,7 @@ static int safari_tls13_complete_server_handshake(safari_tls13_probe_state_t *st
         state->client_app_iv[i] = work.client_app_iv[i];
         state->server_app_iv[i] = work.server_app_iv[i];
     }
+    state->cipher = work.cipher;
     state->client_hs_seq = work.client_hs_seq;
     state->server_hs_seq = work.server_hs_seq;
     state->client_app_seq = 0;
@@ -3654,7 +3997,7 @@ static int safari_tls13_append_received_record(safari_tls13_probe_state_t *state
     int i;
     if (!state || !state->app_ready || !record || !response || !total || !closed)
         return -1;
-    plain_len = safari_tls13_open_record(state->server_app_key, state->server_app_iv,
+    plain_len = safari_tls13_open_record(state->cipher, state->server_app_key, state->server_app_iv,
                                          state->server_app_seq,
                                          record, record_len,
                                          plain, SAFARI_RESPONSE_MAX,
@@ -3803,7 +4146,7 @@ static int safari_fetch_https_tls13(const safari_request_t *req, const char *met
     request[0] = 0;
     safari_append_http_request(request, &req_pos, sizeof(request), req, method, request_body, 1);
     {
-        int rec_len = safari_tls13_seal_record(state.client_app_key, state.client_app_iv,
+        int rec_len = safari_tls13_seal_record(state.cipher, state.client_app_key, state.client_app_iv,
                                                state.client_app_seq++,
                                                23U, (const uint8_t *)request, req_pos,
                                                outrec, sizeof(outrec));
