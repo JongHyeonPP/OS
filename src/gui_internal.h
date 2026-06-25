@@ -677,6 +677,7 @@ extern uint32_t g_transporter_upload_start_tick;
 extern int g_transporter_upload_count;
 extern int g_screen_recording_active;
 extern int g_screen_recording_count;
+extern int g_sidecar_connected;
 extern int g_translate_favorites;
 extern int g_math_notes_created;
 extern int g_feedback_submissions;

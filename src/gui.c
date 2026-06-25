@@ -3091,6 +3091,7 @@ uint32_t g_transporter_upload_start_tick = 0;
 int g_transporter_upload_count = 0;
 int g_screen_recording_active = 0;
 int g_screen_recording_count = 0;
+int g_sidecar_connected = 1;
 int g_translate_favorites = 0;
 int g_math_notes_created = 0;
 int g_feedback_submissions = 0;

@@ -422,17 +422,18 @@ int draw_apps_group4(int idx) {
         uint32_t sc_txt = g_pref_darkmode ? RGB(218,218,226) : RGB(20,20,28);
         uint32_t sc_sub = g_pref_darkmode ? RGB(140,140,150) : RGB(100,100,110);
         uint32_t sc_sep = g_pref_darkmode ? RGB(50,50,58) : RGB(210,210,218);
+        uint32_t sc_screen = g_sidecar_connected ? RGB(30,120,255) : (g_pref_darkmode ? RGB(55,55,62) : RGB(190,194,202));
         vga_fill_rect(wx+1, cy, ww-2, wh-TITLEBAR_H, sc_bg);
         /* iPad graphic */
         gui_draw_rounded_rect(wx+ww/2-45, cy+10, 90, 110, 8, sc_txt);
         gui_draw_rounded_rect(wx+ww/2-40, cy+14, 80, 90, 5, RGB(20,20,28));
-        vga_fill_rect(wx+ww/2-40, cy+14, 80, 90, RGB(30,120,255));
-        vga_draw_string_trans(wx+ww/2-20, cy+55, "iPad Pro", RGB(255,255,255));
+        vga_fill_rect(wx+ww/2-40, cy+14, 80, 90, sc_screen);
+        vga_draw_string_trans(wx+ww/2-20, cy+55, g_sidecar_connected ? "iPad Pro" : "Offline", RGB(255,255,255));
         /* Home button indicator */
         gui_draw_circle(wx+ww/2, cy+112, 5, RGB(80,80,90));
         /* Status */
-        vga_draw_string_trans(wx+ww/2-34, cy+130, "iPad Connected", sc_txt);
-        vga_draw_string_trans(wx+20, cy+150, "iPad Pro (12.9-inch)", sc_sub);
+        vga_draw_string_trans(wx+ww/2-48, cy+130, g_sidecar_connected ? "iPad Connected" : "iPad Disconnected", sc_txt);
+        vga_draw_string_trans(wx+20, cy+150, g_sidecar_connected ? "iPad Pro (12.9-inch)" : "Click Connect to start Sidecar", sc_sub);
         vga_draw_hline(wx+20, cy+165, ww-40, sc_sep);
         vga_draw_string_trans(wx+20, cy+170, "Display As:", sc_sub);
         gui_draw_rounded_rect(wx+90, cy+166, 80, 14, 4, g_pref_darkmode?RGB(44,44,52):RGB(220,220,228));
@@ -440,6 +441,9 @@ int draw_apps_group4(int idx) {
         vga_draw_string_trans(wx+20, cy+188, "Sidebar:", sc_sub);
         gui_draw_rounded_rect(wx+90, cy+184, 60, 14, 4, RGB(0,122,255));
         vga_draw_string_trans(wx+94, cy+187, "Left", RGB(255,255,255));
+        gui_draw_rounded_rect(wx+ww/2-50, cy+wh-TITLEBAR_H-28, 100, 18, 5,
+                              g_sidecar_connected ? RGB(255,59,48) : RGB(0,122,255));
+        vga_draw_string_trans(wx+ww/2-38, cy+wh-TITLEBAR_H-23, g_sidecar_connected ? "Disconnect" : "Connect", RGB(255,255,255));
         return 1;
     }
 

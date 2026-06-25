@@ -1579,6 +1579,23 @@ void gui_run(void) {
                 }
                 break;
             }
+            /* Sidecar connect/disconnect */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Sidecar")) continue;
+                if (i != top_win_idx) continue;
+                {
+                    int cy_sc = w->y + TITLEBAR_H;
+                    int by_sc = cy_sc + w->h - TITLEBAR_H - 28;
+                    if (mx>=w->x+w->w/2-50 && mx<w->x+w->w/2+50 &&
+                        my>=by_sc && my<by_sc+18) {
+                        g_sidecar_connected ^= 1;
+                        toast_show("Sidecar", g_sidecar_connected ? "Connected" : "Disconnected", RGB(0,122,255));
+                        dirty=1; goto end_left_press;
+                    }
+                }
+                break;
+            }
             /* Translate favorite and Math Notes new note */
             for (i = 0; i < g_num_windows; i++) {
                 gui_window_t *w = &g_windows[i];
