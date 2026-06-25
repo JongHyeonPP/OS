@@ -2864,7 +2864,8 @@ static int term_open_app_named(const char *name) {
     int i;
     if (!term_app_is_known(name)) return -1;
     for (i = 0; i < g_num_windows; i++) {
-        if (g_windows[i].title && str_eq(g_windows[i].title, name)) {
+        if (g_windows[i].title && (str_eq(g_windows[i].title, name) ||
+            (str_eq(name, "Finder") && str_eq(g_windows[i].title, "MyOS Finder")))) {
             g_windows[i].visible = 1;
             term_focus_opened_app(name);
             win_bring_to_front(i);
