@@ -5294,9 +5294,39 @@ static void safari_add_link(const safari_request_t *req, const char *href, const
                 label && label[0] ? label : resolved);
 }
 
+static int safari_extract_base_request(const safari_request_t *req, const char *body,
+                                       safari_request_t *base_req) {
+    const char *p = body;
+    if (!req || !body || !base_req) return 0;
+    while (p && *p) {
+        if (safari_starts_with_ci(p, "</head")) break;
+        if (safari_tag_is(p, "base")) {
+            const char *tag_end = p;
+            char href[SAFARI_URL_MAX];
+            char resolved[SAFARI_URL_MAX];
+            while (*tag_end && *tag_end != '>') tag_end++;
+            if (!*tag_end) break;
+            href[0] = 0;
+            if (safari_tag_attr(p, tag_end, "href", href, sizeof(href)) == 0 && href[0]) {
+                safari_resolve_location(req, href, resolved, sizeof(resolved));
+                if (resolved[0] && safari_parse_url(resolved, base_req) == 0)
+                    return 1;
+            }
+            p = tag_end + 1;
+            continue;
+        }
+        p++;
+    }
+    return 0;
+}
+
 static void safari_extract_links(const safari_request_t *req, const char *body) {
     const char *p = body;
+    safari_request_t base_req;
+    const safari_request_t *resolve_req = req;
     safari_clear_links();
+    if (safari_extract_base_request(req, body, &base_req))
+        resolve_req = &base_req;
     while (p && *p && g_safari_link_count < SAFARI_MAX_LINKS) {
         if (safari_starts_with_ci(p, "<a") && (p[2] == ' ' || p[2] == '\t' || p[2] == '>')) {
             const char *tag_end = p;
@@ -5311,7 +5341,7 @@ static void safari_extract_links(const safari_request_t *req, const char *body) 
                 text_end = text_start;
                 while (*text_end && !safari_starts_with_ci(text_end, "</a")) text_end++;
                 safari_anchor_text(text_start, text_end, label, sizeof(label));
-                safari_add_link(req, href, label);
+                safari_add_link(resolve_req, href, label);
                 p = *text_end ? text_end : tag_end + 1;
                 continue;
             }
@@ -5359,8 +5389,12 @@ static void safari_append_form_pair(char *query, int *pos, int max, const char *
 
 static void safari_extract_forms(const safari_request_t *req, const char *body) {
     const char *p = body;
+    safari_request_t base_req;
+    const safari_request_t *resolve_req = req;
     int next_group_id = 0;
     safari_clear_forms();
+    if (safari_extract_base_request(req, body, &base_req))
+        resolve_req = &base_req;
     while (p && *p && g_safari_form_count < SAFARI_MAX_FORMS) {
         if (safari_tag_is(p, "form")) {
             const char *tag_end = p;
@@ -5388,7 +5422,7 @@ static void safari_extract_forms(const safari_request_t *req, const char *body) 
             submit_hint[0] = 0;
             query[0] = 0;
             if (safari_tag_attr(p, tag_end, "action", action, sizeof(action)) == 0)
-                safari_resolve_location(req, action, resolved, sizeof(resolved));
+                safari_resolve_location(resolve_req, action, resolved, sizeof(resolved));
             else
                 safari_request_current_url(req, resolved, sizeof(resolved));
             if (safari_tag_attr(p, tag_end, "method", method, sizeof(method)) < 0)
