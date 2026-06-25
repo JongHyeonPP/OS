@@ -1461,17 +1461,17 @@ int draw_apps_group1(int idx) {
             vga_draw_string_trans(sbx+22, sby+8, "Enter web address", sp_sub);
 
             int fy = sby + sbh + 14;
-            vga_draw_string_trans(wx+12, fy, "FAVOURITES", sp_sub);
+            vga_draw_string_trans(wx+12, fy, "HTTP SITES", sp_sub);
             fy += 12;
             static const struct { const char *name; uint32_t col; char letter; } fav_sites[] = {
-                { "Google",   RGB(66,133,244),  'G' },
-                { "YouTube",  RGB(255,0,0),     'Y' },
-                { "GitHub",   RGB(36,41,46),    'G' },
-                { "Amazon",   RGB(255,153,0),   'A' },
-                { "Twitter",  RGB(29,161,242),  'T' },
-                { "Reddit",   RGB(255,69,0),    'R' },
-                { "Netflix",  RGB(229,9,20),    'N' },
-                { "Wikipedia",RGB(80,80,80),    'W' },
+                { "Example",  RGB(66,133,244),  'E' },
+                { "NeverSSL", RGB(255,149,0),   'N' },
+                { "CERN",     RGB(36,41,46),    'C' },
+                { "Example.org", RGB(52,199,89), 'O' },
+                { "Localhost",RGB(0,122,255),   'L' },
+                { "Hosts",    RGB(88,86,214),   'H' },
+                { "Routes",   RGB(255,45,85),   'R' },
+                { "MyOS",     RGB(80,80,80),    'M' },
             };
             int n_fav = 8, fav_cols = 4;
             int fav_sz = (ww-24)/fav_cols - 4;

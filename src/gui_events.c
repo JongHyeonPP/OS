@@ -1062,8 +1062,8 @@ void gui_run(void) {
                         }
                         {
                             static const char *fav_urls2[] = {
-                                "http://google.com/", "http://youtube.com/", "http://github.com/", "http://amazon.com/",
-                                "http://twitter.com/", "http://reddit.com/", "http://netflix.com/", "http://wikipedia.org/"
+                                "http://example.com/", "http://neverssl.com/", "http://info.cern.ch/", "http://example.org/",
+                                "http://localhost/", "http://localhost/etc/hosts", "http://localhost/proc/net/route", "about:home"
                             };
                             int fy2 = sby2 + sbh2 + 14 + 12;
                             int fav_cols2 = 4;
