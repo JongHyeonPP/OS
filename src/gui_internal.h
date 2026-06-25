@@ -192,7 +192,6 @@ extern int g_calendar_visible;
 extern int g_calendar_month;
 extern int g_calendar_year;
 extern int g_airplay_visible;
-extern int g_maps_visible;
 
 /* Siri */
 extern int      g_siri_visible;
@@ -294,7 +293,6 @@ extern int  g_safari_active_tab;
 extern char g_safari_tab_urls[SAFARI_MAX_TABS][64];
 extern char g_safari_tab_titles[SAFARI_MAX_TABS][24];
 
-/* Maps */
 extern int g_maps_view;
 
 /* Finder */
@@ -823,7 +821,6 @@ void mission_control_draw(void);
 void stage_manager_draw(void);
 void mission_control_draw(void);
 void stage_manager_draw(void);
-void maps_draw(void);
 int  new_overlays_click(int mx, int my);
 
 /* Scene and draw functions (in gui.c) */

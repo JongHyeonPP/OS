@@ -2580,7 +2580,6 @@ void gui_run(void) {
                     } else if (g_reminders_visible) { g_reminders_visible=0; dirty=1;
                     } else if (g_calendar_visible) { g_calendar_visible=0; dirty=1;
                     } else if (g_airplay_visible) { g_airplay_visible=0; dirty=1;
-                    } else if (g_maps_visible) { g_maps_visible=0; dirty=1;
                     } else if (g_airdrop_visible) {
                         g_airdrop_visible = 0; dirty = 1;
                     } else if (g_ql_visible) {

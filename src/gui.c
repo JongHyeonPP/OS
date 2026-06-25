@@ -158,8 +158,6 @@ int g_calendar_year = 0;
 /* AirPlay */
 int g_airplay_visible = 0;
 
-/* Maps */
-int g_maps_visible = 0;
 
 /* Siri overlay */
 int      g_siri_visible  = 0;
