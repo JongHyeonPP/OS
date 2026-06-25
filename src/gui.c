@@ -4227,6 +4227,7 @@ static void safari_load_url_internal(const char *url, const char *method,
     int parsed;
     int n;
     int sp = 0;
+    int https_tls13_loaded = 0;
     const char *http_method = (method && method[0]) ? method : "GET";
     const char *http_body = request_body ? request_body : "";
     safari_normalize_state();
@@ -4271,7 +4272,10 @@ static void safari_load_url_internal(const char *url, const char *method,
         n = safari_fetch_https_tls13(&req, http_method, http_body,
                                      response, SAFARI_RESPONSE_MAX,
                                      err, sizeof(err));
-        if (n >= 0) goto have_response;
+        if (n >= 0) {
+            https_tls13_loaded = 1;
+            goto have_response;
+        }
         safari_reset_page_view();
         g_safari_page_state = 2;
         g_safari_page_status_code = 0;
@@ -4376,6 +4380,9 @@ have_response:
     safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, " (");
     safari_append_ipv4(g_safari_page_status, &sp, SAFARI_STATUS_MAX, req.ipv4);
     safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, ")");
+    if (https_tls13_loaded)
+        safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX,
+                      " TLS 1.3; certificate not validated");
     safari_set_tab_title(title);
     if (record_history) safari_history_push_url(g_safari_page_url);
 }
