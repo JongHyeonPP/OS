@@ -1804,7 +1804,7 @@ void gui_run(void) {
                 gui_window_t *w = &g_windows[i];
                 if (!w->visible || !w->title || !str_eq(w->title,"Network Utility")) continue;
                 if (i != top_win_idx) continue;
-                { static const char *tabs_nu[]={"Info","Ping","Traceroute","Lookup","Port Scan"};
+                { static const char *tabs_nu[]={"Info","Ping","Route","Resolver","Port Scan"};
                   int cy_nu = w->y + TITLEBAR_H;
                   int tx_nu = w->x + 4;
                   int ti_nu;

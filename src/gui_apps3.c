@@ -1728,7 +1728,7 @@ int draw_apps_group3(int idx) {
         }
         vga_fill_rect(wx+1, content_y, ww-2, content_h, nu_bg);
         /* Tab bar */
-        { static const char *tabs2[]={"Info","Ping","Traceroute","Lookup","Port Scan"};
+        { static const char *tabs2[]={"Info","Ping","Route","Resolver","Port Scan"};
           int ti4, tx2=wx+4, ty4=content_y+4;
           vga_fill_rect(wx+1, ty4-2, ww-2, 20, g_pref_darkmode?RGB(32,32,38):RGB(228,228,232));
           vga_draw_hline(wx+1, ty4+18, ww-2, nu_sep);
@@ -1846,7 +1846,7 @@ int draw_apps_group3(int idx) {
             runtime_format_ipv4(dns_ip, dns, sizeof(dns));
             vga_fill_rect(wx+6, pa_y, ww-12, 112, nu_card);
             vga_draw_rect_outline(wx+6, pa_y, ww-12, 112, nu_sep);
-            vga_draw_string_trans(wx+12, pa_y+8, "Traceroute", nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+8, "Route Summary", nu_txt);
             vga_draw_string_trans(wx+12, pa_y+30, "1  local interface", nu_sub); vga_draw_string_trans(wx+150, pa_y+30, local, nu_txt);
             vga_draw_string_trans(wx+12, pa_y+48, "2  default gateway", nu_sub); vga_draw_string_trans(wx+150, pa_y+48, gw_ip ? gateway : "not configured", nu_txt);
             vga_draw_string_trans(wx+12, pa_y+66, "3  resolver", nu_sub); vga_draw_string_trans(wx+150, pa_y+66, dns_ip ? dns : "not configured", nu_txt);
@@ -1860,10 +1860,10 @@ int draw_apps_group3(int idx) {
             runtime_format_ipv4(dns_ip, dns, sizeof(dns));
             vga_fill_rect(wx+6, pa_y, ww-12, 100, nu_card);
             vga_draw_rect_outline(wx+6, pa_y, ww-12, 100, nu_sep);
-            vga_draw_string_trans(wx+12, pa_y+8, "Lookup", nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+8, "Resolver", nu_txt);
             vga_draw_string_trans(wx+12, pa_y+30, "Name:", nu_sub); vga_draw_string_trans(wx+80, pa_y+30, sys.nodename, nu_txt);
             vga_draw_string_trans(wx+12, pa_y+48, "Server:", nu_sub); vga_draw_string_trans(wx+80, pa_y+48, dns_ip ? dns : "not configured", nu_txt);
-            vga_draw_string_trans(wx+12, pa_y+66, "Records shown from runtime network state", nu_sub);
+            vga_draw_string_trans(wx+12, pa_y+66, "Runtime resolver state", nu_sub);
             return 1;
         }
         {
