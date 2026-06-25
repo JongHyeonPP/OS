@@ -622,43 +622,52 @@ static int safari_dns_skip_name(const uint8_t *packet, int len, int *off) {
 }
 
 static int safari_dns_parse_a_response(const uint8_t *packet, int len, uint16_t id,
-                                       uint32_t *out, char *cname, int cname_max) {
+                                       const char *host, uint32_t *out, char *cname, int cname_max) {
     int off = 12;
     uint16_t qd;
     uint16_t an;
+    uint16_t ns;
+    uint16_t ar;
     uint16_t flags;
-    uint16_t i;
+    uint32_t i;
+    uint32_t rr_count;
     int have_cname = 0;
-    if (!packet || len < 12 || !out) return -1;
+    if (!packet || len < 12 || !out || !host) return -1;
     if (cname && cname_max > 0) cname[0] = 0;
     if (safari_dns_get16(packet, 0) != id) return -1;
     flags = safari_dns_get16(packet, 2);
     if ((flags & 0x8000U) == 0 || (flags & 0x000FU) != 0) return -1;
     qd = safari_dns_get16(packet, 4);
     an = safari_dns_get16(packet, 6);
+    ns = safari_dns_get16(packet, 8);
+    ar = safari_dns_get16(packet, 10);
     for (i = 0; i < qd; i++) {
         if (safari_dns_skip_name(packet, len, &off) < 0 || off + 4 > len) return -1;
         off += 4;
     }
-    for (i = 0; i < an; i++) {
+    rr_count = (uint32_t)an + (uint32_t)ns + (uint32_t)ar;
+    for (i = 0; i < rr_count; i++) {
+        char rr_name[SAFARI_URL_MAX];
         uint16_t type;
         uint16_t cls;
         uint16_t rdlen;
-        if (safari_dns_skip_name(packet, len, &off) < 0 || off + 10 > len) return -1;
+        if (safari_dns_read_name(packet, len, &off, rr_name, sizeof(rr_name)) < 0 || off + 10 > len)
+            return -1;
         type = safari_dns_get16(packet, off);
         cls = safari_dns_get16(packet, off + 2);
         rdlen = safari_dns_get16(packet, off + 8);
         off += 10;
         if (off + rdlen > len) return -1;
-        if (type == 1U && cls == 1U && rdlen == 4U) {
-            *out = ((uint32_t)packet[off] << 24) | ((uint32_t)packet[off + 1] << 16) |
-                   ((uint32_t)packet[off + 2] << 8) | packet[off + 3];
-            return 0;
-        }
-        if (type == 5U && cls == 1U && cname && cname_max > 0) {
+        if (type == 5U && cls == 1U && cname && cname_max > 0 && str_eq(rr_name, host)) {
             int name_off = off;
             if (safari_dns_read_name(packet, len, &name_off, cname, cname_max) == 0 && cname[0])
                 have_cname = 1;
+        }
+        if (type == 1U && cls == 1U && rdlen == 4U &&
+            (str_eq(rr_name, host) || (cname && cname[0] && str_eq(rr_name, cname)))) {
+            *out = ((uint32_t)packet[off] << 24) | ((uint32_t)packet[off + 1] << 16) |
+                   ((uint32_t)packet[off + 2] << 8) | packet[off + 3];
+            return 0;
         }
         off += rdlen;
     }
@@ -699,7 +708,7 @@ static int safari_dns_query4_depth(const char *host, uint32_t *out, int depth) {
             if (src_ip != dns || src_port != 53) continue;
             {
                 char cname[SAFARI_URL_MAX];
-                int parsed_dns = safari_dns_parse_a_response(response, n, id, out, cname, sizeof(cname));
+                int parsed_dns = safari_dns_parse_a_response(response, n, id, host, out, cname, sizeof(cname));
                 if (parsed_dns == 0) {
                     vfs_close(fd);
                     return 0;
