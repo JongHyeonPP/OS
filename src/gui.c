@@ -1750,6 +1750,285 @@ static int safari_tls13_hash_selftest(void) {
     return 1;
 }
 
+
+static uint32_t safari_load_le32(const uint8_t *p) {
+    return (uint32_t)p[0] |
+           ((uint32_t)p[1] << 8) |
+           ((uint32_t)p[2] << 16) |
+           ((uint32_t)p[3] << 24);
+}
+
+static void safari_store_le32(uint8_t *p, uint32_t v) {
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
+    p[2] = (uint8_t)(v >> 16);
+    p[3] = (uint8_t)(v >> 24);
+}
+
+static void safari_store_le64(uint8_t *p, uint64_t v) {
+    int i;
+    for (i = 0; i < 8; i++) {
+        p[i] = (uint8_t)v;
+        v >>= 8;
+    }
+}
+
+static void safari_chacha_qr(uint32_t *a, uint32_t *b, uint32_t *c, uint32_t *d) {
+    *a += *b; *d ^= *a; *d = (*d << 16) | (*d >> 16);
+    *c += *d; *b ^= *c; *b = (*b << 12) | (*b >> 20);
+    *a += *b; *d ^= *a; *d = (*d << 8) | (*d >> 24);
+    *c += *d; *b ^= *c; *b = (*b << 7) | (*b >> 25);
+}
+
+static void safari_chacha20_block(const uint8_t key[32], uint32_t counter,
+                                  const uint8_t nonce[12], uint8_t out[64]) {
+    uint32_t x[16];
+    uint32_t w[16];
+    int i;
+    x[0] = 0x61707865U; x[1] = 0x3320646EU; x[2] = 0x79622D32U; x[3] = 0x6B206574U;
+    for (i = 0; i < 8; i++) x[4 + i] = safari_load_le32(key + i * 4);
+    x[12] = counter;
+    x[13] = safari_load_le32(nonce + 0);
+    x[14] = safari_load_le32(nonce + 4);
+    x[15] = safari_load_le32(nonce + 8);
+    for (i = 0; i < 16; i++) w[i] = x[i];
+    for (i = 0; i < 10; i++) {
+        safari_chacha_qr(&w[0], &w[4], &w[8], &w[12]);
+        safari_chacha_qr(&w[1], &w[5], &w[9], &w[13]);
+        safari_chacha_qr(&w[2], &w[6], &w[10], &w[14]);
+        safari_chacha_qr(&w[3], &w[7], &w[11], &w[15]);
+        safari_chacha_qr(&w[0], &w[5], &w[10], &w[15]);
+        safari_chacha_qr(&w[1], &w[6], &w[11], &w[12]);
+        safari_chacha_qr(&w[2], &w[7], &w[8], &w[13]);
+        safari_chacha_qr(&w[3], &w[4], &w[9], &w[14]);
+    }
+    for (i = 0; i < 16; i++)
+        safari_store_le32(out + i * 4, w[i] + x[i]);
+}
+
+static void safari_chacha20_xor(const uint8_t key[32], const uint8_t nonce[12],
+                                uint32_t counter, const uint8_t *in,
+                                uint8_t *out, int len) {
+    uint8_t block[64];
+    int i;
+    int pos = 0;
+    if (!key || !nonce || !in || !out || len < 0) return;
+    while (pos < len) {
+        safari_chacha20_block(key, counter++, nonce, block);
+        for (i = 0; i < 64 && pos < len; i++, pos++)
+            out[pos] = (uint8_t)(in[pos] ^ block[i]);
+    }
+}
+
+static void safari_poly1305_mac(const uint8_t *m, int bytes,
+                                const uint8_t key[32], uint8_t out[16]) {
+    const uint32_t mask26 = 0x3FFFFFFU;
+    uint32_t t0;
+    uint32_t t1;
+    uint32_t t2;
+    uint32_t t3;
+    uint32_t r0;
+    uint32_t r1;
+    uint32_t r2;
+    uint32_t r3;
+    uint32_t r4;
+    uint32_t s1;
+    uint32_t s2;
+    uint32_t s3;
+    uint32_t s4;
+    uint32_t h0 = 0;
+    uint32_t h1 = 0;
+    uint32_t h2 = 0;
+    uint32_t h3 = 0;
+    uint32_t h4 = 0;
+    uint8_t block[16];
+    int i;
+    t0 = safari_load_le32(key + 0);
+    t1 = safari_load_le32(key + 4);
+    t2 = safari_load_le32(key + 8);
+    t3 = safari_load_le32(key + 12);
+    r0 = t0 & mask26;
+    r1 = ((t0 >> 26) | (t1 << 6)) & 0x3FFFF03U;
+    r2 = ((t1 >> 20) | (t2 << 12)) & 0x3FFC0FFU;
+    r3 = ((t2 >> 14) | (t3 << 18)) & 0x3F03FFFU;
+    r4 = (t3 >> 8) & 0x00FFFFFU;
+    s1 = r1 * 5U; s2 = r2 * 5U; s3 = r3 * 5U; s4 = r4 * 5U;
+    while (bytes > 0) {
+        int n = bytes >= 16 ? 16 : bytes;
+        uint32_t hibit = (n == 16) ? (1U << 24) : 0;
+        uint64_t d0;
+        uint64_t d1;
+        uint64_t d2;
+        uint64_t d3;
+        uint64_t d4;
+        uint32_t c;
+        for (i = 0; i < 16; i++) block[i] = 0;
+        for (i = 0; i < n; i++) block[i] = m[i];
+        if (n < 16) block[n] = 1U;
+        t0 = safari_load_le32(block + 0);
+        t1 = safari_load_le32(block + 4);
+        t2 = safari_load_le32(block + 8);
+        t3 = safari_load_le32(block + 12);
+        h0 += t0 & mask26;
+        h1 += ((t0 >> 26) | (t1 << 6)) & mask26;
+        h2 += ((t1 >> 20) | (t2 << 12)) & mask26;
+        h3 += ((t2 >> 14) | (t3 << 18)) & mask26;
+        h4 += (t3 >> 8) | hibit;
+        d0 = ((uint64_t)h0 * r0) + ((uint64_t)h1 * s4) + ((uint64_t)h2 * s3) + ((uint64_t)h3 * s2) + ((uint64_t)h4 * s1);
+        d1 = ((uint64_t)h0 * r1) + ((uint64_t)h1 * r0) + ((uint64_t)h2 * s4) + ((uint64_t)h3 * s3) + ((uint64_t)h4 * s2);
+        d2 = ((uint64_t)h0 * r2) + ((uint64_t)h1 * r1) + ((uint64_t)h2 * r0) + ((uint64_t)h3 * s4) + ((uint64_t)h4 * s3);
+        d3 = ((uint64_t)h0 * r3) + ((uint64_t)h1 * r2) + ((uint64_t)h2 * r1) + ((uint64_t)h3 * r0) + ((uint64_t)h4 * s4);
+        d4 = ((uint64_t)h0 * r4) + ((uint64_t)h1 * r3) + ((uint64_t)h2 * r2) + ((uint64_t)h3 * r1) + ((uint64_t)h4 * r0);
+        c = (uint32_t)(d0 >> 26); h0 = (uint32_t)d0 & mask26; d1 += c;
+        c = (uint32_t)(d1 >> 26); h1 = (uint32_t)d1 & mask26; d2 += c;
+        c = (uint32_t)(d2 >> 26); h2 = (uint32_t)d2 & mask26; d3 += c;
+        c = (uint32_t)(d3 >> 26); h3 = (uint32_t)d3 & mask26; d4 += c;
+        c = (uint32_t)(d4 >> 26); h4 = (uint32_t)d4 & mask26; h0 += c * 5U;
+        c = h0 >> 26; h0 &= mask26; h1 += c;
+        m += n;
+        bytes -= n;
+    }
+    {
+        uint32_t c;
+        uint32_t g0;
+        uint32_t g1;
+        uint32_t g2;
+        uint32_t g3;
+        uint32_t g4;
+        uint32_t mask;
+        uint64_t f;
+        c = h1 >> 26; h1 &= mask26; h2 += c;
+        c = h2 >> 26; h2 &= mask26; h3 += c;
+        c = h3 >> 26; h3 &= mask26; h4 += c;
+        c = h4 >> 26; h4 &= mask26; h0 += c * 5U;
+        c = h0 >> 26; h0 &= mask26; h1 += c;
+        g0 = h0 + 5U; c = g0 >> 26; g0 &= mask26;
+        g1 = h1 + c; c = g1 >> 26; g1 &= mask26;
+        g2 = h2 + c; c = g2 >> 26; g2 &= mask26;
+        g3 = h3 + c; c = g3 >> 26; g3 &= mask26;
+        g4 = h4 + c - (1U << 26);
+        mask = (g4 >> 31) - 1U;
+        g0 &= mask; g1 &= mask; g2 &= mask; g3 &= mask; g4 &= mask;
+        mask = ~mask;
+        h0 = (h0 & mask) | g0;
+        h1 = (h1 & mask) | g1;
+        h2 = (h2 & mask) | g2;
+        h3 = (h3 & mask) | g3;
+        h4 = (h4 & mask) | g4;
+        f = ((uint64_t)h0 | ((uint64_t)h1 << 26)) + safari_load_le32(key + 16);
+        safari_store_le32(out + 0, (uint32_t)f);
+        f = ((uint64_t)(h1 >> 6) | ((uint64_t)h2 << 20)) + safari_load_le32(key + 20) + (f >> 32);
+        safari_store_le32(out + 4, (uint32_t)f);
+        f = ((uint64_t)(h2 >> 12) | ((uint64_t)h3 << 14)) + safari_load_le32(key + 24) + (f >> 32);
+        safari_store_le32(out + 8, (uint32_t)f);
+        f = ((uint64_t)(h3 >> 18) | ((uint64_t)h4 << 8)) + safari_load_le32(key + 28) + (f >> 32);
+        safari_store_le32(out + 12, (uint32_t)f);
+    }
+}
+
+static int safari_chacha20_poly1305_tag(const uint8_t key[32], const uint8_t nonce[12],
+                                        const uint8_t *aad, int aad_len,
+                                        const uint8_t *cipher, int cipher_len,
+                                        uint8_t tag[16]) {
+    static uint8_t mac_buf[SAFARI_RESPONSE_MAX + 128];
+    uint8_t block0[64];
+    int pos = 0;
+    int i;
+    if (!key || !nonce || !tag || aad_len < 0 || cipher_len < 0 ||
+        aad_len + cipher_len + 32 > (int)sizeof(mac_buf))
+        return -1;
+    safari_chacha20_block(key, 0, nonce, block0);
+    if (aad && aad_len > 0) {
+        for (i = 0; i < aad_len; i++) mac_buf[pos++] = aad[i];
+    }
+    while (pos & 15) mac_buf[pos++] = 0;
+    if (cipher && cipher_len > 0) {
+        for (i = 0; i < cipher_len; i++) mac_buf[pos++] = cipher[i];
+    }
+    while (pos & 15) mac_buf[pos++] = 0;
+    safari_store_le64(mac_buf + pos, (uint64_t)aad_len); pos += 8;
+    safari_store_le64(mac_buf + pos, (uint64_t)cipher_len); pos += 8;
+    safari_poly1305_mac(mac_buf, pos, block0, tag);
+    return 0;
+}
+
+static int safari_chacha20_poly1305_encrypt(const uint8_t key[32], const uint8_t nonce[12],
+                                            const uint8_t *aad, int aad_len,
+                                            const uint8_t *plain, int plain_len,
+                                            uint8_t *cipher, uint8_t tag[16]) {
+    if (!plain || !cipher || !tag || plain_len < 0) return -1;
+    safari_chacha20_xor(key, nonce, 1, plain, cipher, plain_len);
+    return safari_chacha20_poly1305_tag(key, nonce, aad, aad_len, cipher, plain_len, tag);
+}
+
+static int safari_chacha20_poly1305_decrypt(const uint8_t key[32], const uint8_t nonce[12],
+                                            const uint8_t *aad, int aad_len,
+                                            const uint8_t *cipher, int cipher_len,
+                                            const uint8_t tag[16], uint8_t *plain) {
+    uint8_t calc[16];
+    if (!cipher || !tag || !plain || cipher_len < 0) return -1;
+    if (safari_chacha20_poly1305_tag(key, nonce, aad, aad_len, cipher, cipher_len, calc) != 0)
+        return -1;
+    if (!safari_bytes_equal(calc, tag, 16)) return -1;
+    safari_chacha20_xor(key, nonce, 1, cipher, plain, cipher_len);
+    return cipher_len;
+}
+
+static int safari_tls13_aead_selftest(void) {
+    static int checked = 0;
+    static int ok = 0;
+    static const uint8_t chacha_expected[64] = {
+        0x10,0xF1,0xE7,0xE4,0xD1,0x3B,0x59,0x15,
+        0x50,0x0F,0xDD,0x1F,0xA3,0x20,0x71,0xC4,
+        0xC7,0xD1,0xF4,0xC7,0x33,0xC0,0x68,0x03,
+        0x04,0x22,0xAA,0x9A,0xC3,0xD4,0x6C,0x4E,
+        0xD2,0x82,0x64,0x46,0x07,0x9F,0xAA,0x09,
+        0x14,0xC2,0xD7,0x05,0xD9,0x8B,0x02,0xA2,
+        0xB5,0x12,0x9C,0xD1,0xDE,0x16,0x4E,0xB9,
+        0xCB,0xD0,0x83,0xE8,0xA2,0x50,0x3C,0x4E
+    };
+    static const uint8_t poly_key[32] = {
+        0x85,0xD6,0xBE,0x78,0x57,0x55,0x6D,0x33,
+        0x7F,0x44,0x52,0xFE,0x42,0xD5,0x06,0xA8,
+        0x01,0x03,0x80,0x8A,0xFB,0x0D,0xB2,0xFD,
+        0x4A,0xBF,0xF6,0xAF,0x41,0x49,0xF5,0x1B
+    };
+    static const uint8_t poly_expected[16] = {
+        0xA8,0x06,0x1D,0xC1,0x30,0x51,0x36,0xC6,
+        0xC2,0x2B,0x8B,0xAF,0x0C,0x01,0x27,0xA9
+    };
+    uint8_t key[32];
+    uint8_t nonce[12];
+    uint8_t block[64];
+    uint8_t poly[16];
+    uint8_t aad[5] = { 1, 2, 3, 4, 5 };
+    uint8_t plain[17] = "MyOS TLS record";
+    uint8_t cipher[17];
+    uint8_t decoded[17];
+    uint8_t tag[16];
+    int i;
+    if (checked) return ok;
+    checked = 1;
+    for (i = 0; i < 32; i++) key[i] = (uint8_t)i;
+    nonce[0] = 0; nonce[1] = 0; nonce[2] = 0; nonce[3] = 9;
+    nonce[4] = 0; nonce[5] = 0; nonce[6] = 0; nonce[7] = 0x4A;
+    nonce[8] = 0; nonce[9] = 0; nonce[10] = 0; nonce[11] = 0;
+    safari_chacha20_block(key, 1, nonce, block);
+    if (!safari_bytes_equal(block, chacha_expected, 64)) return 0;
+    safari_poly1305_mac((const uint8_t *)"Cryptographic Forum Research Group", 34, poly_key, poly);
+    if (!safari_bytes_equal(poly, poly_expected, 16)) return 0;
+    for (i = 0; i < 12; i++) nonce[i] = (uint8_t)(0xA0 + i);
+    if (safari_chacha20_poly1305_encrypt(key, nonce, aad, sizeof(aad),
+                                         plain, sizeof(plain), cipher, tag) != 0)
+        return 0;
+    if (safari_chacha20_poly1305_decrypt(key, nonce, aad, sizeof(aad),
+                                         cipher, sizeof(cipher), tag, decoded) != sizeof(decoded))
+        return 0;
+    if (!safari_bytes_equal(decoded, plain, sizeof(plain))) return 0;
+    ok = 1;
+    return 1;
+}
+
 typedef int64_t safari_x25519_fe_t[16];
 
 static void safari_x25519_set(safari_x25519_fe_t out, const safari_x25519_fe_t in) {
@@ -1944,6 +2223,7 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
     host_len = str_len(req->host);
     if (host_len <= 0 || host_len > 253) return -1;
     if (!safari_tls13_hash_selftest()) return -1;
+    if (!safari_tls13_aead_selftest()) return -1;
     safari_tls_random(rnd, sizeof(rnd));
     safari_tls_random(x25519_private, sizeof(x25519_private));
     safari_x25519_public_from_private(x25519_private, x25519_public);
