@@ -643,7 +643,7 @@ int draw_apps_group1(int idx) {
                   vga_fill_rect(cx+62+si2*10, cy+120-bh2, 8, bh2, bc2);
               }
             }
-            vga_draw_string_trans(cx+118, cy+110, "n/a", sub);
+            vga_draw_string_trans(cx+118, cy+110, "wired", sub);
             vga_draw_hline(cx, cy+130, rw, sep2);
             vga_draw_string_trans(cx, cy+136, "STATISTICS", cat2);
             vga_draw_string_trans(cx, cy+152, "TX Packets:", lbl);
