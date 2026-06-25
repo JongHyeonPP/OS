@@ -685,10 +685,26 @@ void nc_draw(void) {
             gui_draw_rounded_rect(nx+10, sy+4, 18, 18, 5, RGB(30,120,255));
             vga_draw_string_trans(nx+14, sy+10, "A", RGB(255,255,255));
             vga_draw_string_trans(nx+32, sy+5, "App Store", nc_txt);
-            { char agebuf[16]; runtime_format_relative_time(3600, agebuf, sizeof(agebuf));
-              vga_draw_string_trans(nx+NC_W-44, sy+5, agebuf, nc_sub); }
-            vga_draw_hline(nx+8, sy+24, cw2-4, nc_cbd);
-            vga_draw_string_trans(nx+10, sy+28, "Updates available", nc_sub);
+            {
+                int app_count = 0;
+                int ai;
+                char countbuf[8];
+                char linebuf[40];
+                int lp = 0;
+                for (ai = 0; ai < 6; ai++) {
+                    if ((g_appstore_downloads >> ai) & 1) app_count++;
+                }
+                int_to_str(app_count, countbuf);
+                vga_draw_string_trans(nx+NC_W-58, sy+5, app_count > 0 ? "Installed" : "Ready", nc_sub);
+                vga_draw_hline(nx+8, sy+24, cw2-4, nc_cbd);
+                if (app_count > 0) {
+                    overlay_append_text(linebuf, &lp, sizeof(linebuf), "Installed apps: ");
+                    overlay_append_text(linebuf, &lp, sizeof(linebuf), countbuf);
+                } else {
+                    overlay_append_text(linebuf, &lp, sizeof(linebuf), "No downloads yet");
+                }
+                vga_draw_string_trans(nx+10, sy+28, linebuf, nc_sub);
+            }
             sy += ch2 + 4;
         }
     }
