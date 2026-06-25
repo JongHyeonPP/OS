@@ -2855,6 +2855,7 @@ int g_num_spaces    = 2;
  * ======================================================================= */
 int g_pref_wifi      = 1;
 int g_pref_bt        = 1;
+int g_pref_vpn       = 0;
 /* g_pref_darkmode declared earlier (before toast_draw) */
 int g_pref_notifs    = 1;
 int g_pref_sound     __attribute__((unused)) = 1;

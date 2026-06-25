@@ -660,8 +660,8 @@ int draw_apps_group1(int idx) {
               vga_draw_string_trans(cx+92, cy+194, arpbuf, RGB(52,199,89)); }
             vga_draw_hline(cx, cy+208, rw, sep2);
             vga_draw_string_trans(cx, cy+214, "VPN", cat2);
-            vga_draw_string_trans(cx, cy+230, "VPN: Not Connected", sub);
-            draw_toggle(tx_r, cy+227, 0);
+            vga_draw_string_trans(cx, cy+230, g_pref_vpn ? "VPN: Connected" : "VPN: Not Connected", sub);
+            draw_toggle(tx_r, cy+227, g_pref_vpn);
         } else if (g_settings_tab == 7) {
             /* Bluetooth */
             vga_draw_string_trans(cx, cy, "BLUETOOTH", cat2);

@@ -846,6 +846,8 @@ void gui_run(void) {
                       if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+15&&my<scy3+15+sth){g_pref_notifs^=1;dirty=1;}
                   } else if (g_settings_tab == 5) {
                       if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+15&&my<scy3+15+sth){g_pref_dnd^=1;dirty=1;}
+                  } else if (g_settings_tab == 6) {
+                      if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+227&&my<scy3+227+sth){g_pref_vpn^=1;toast_show("VPN",g_pref_vpn?"Connected":"Disconnected",RGB(0,122,255));dirty=1;}
                   } else if (g_settings_tab == 7) {
                       if (mx>=stx_r&&mx<stx_r+stwid&&my>=scy3+15&&my<scy3+15+sth){g_pref_bt^=1;toast_show("Bluetooth",g_pref_bt?"On":"Off",RGB(0,122,255));dirty=1;}
                   }
@@ -3090,6 +3092,8 @@ void gui_run(void) {
                     if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+15&&my<cy3+15+th2){g_pref_notifs^=1;dirty=1;}
                 } else if (g_settings_tab == 5) {
                     if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+15&&my<cy3+15+th2){g_pref_dnd^=1;dirty=1;}
+                } else if (g_settings_tab == 6) {
+                    if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+227&&my<cy3+227+th2){g_pref_vpn^=1;toast_show("VPN",g_pref_vpn?"Connected":"Disconnected",RGB(0,122,255));dirty=1;}
                 } else if (g_settings_tab == 7) {
                     if (mx>=tx_r2&&mx<tx_r2+twid2&&my>=cy3+15&&my<cy3+15+th2){g_pref_bt^=1;toast_show("Bluetooth",g_pref_bt?"On":"Off",RGB(0,122,255));dirty=1;}
                 }

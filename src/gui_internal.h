@@ -432,6 +432,7 @@ extern int g_num_spaces;
 /* System prefs */
 extern int g_pref_wifi;
 extern int g_pref_bt;
+extern int g_pref_vpn;
 extern int g_pref_notifs;
 extern int g_pref_wallpaper;
 
