@@ -5158,14 +5158,24 @@ static void safari_extract_forms(const safari_request_t *req, const char *body) 
     }
 }
 
-static int safari_url_contains_query(const char *url) {
-    int i;
-    if (!url) return 0;
-    for (i = 0; url[i]; i++) {
-        if (url[i] == '?') return 1;
-        if (url[i] == '#') return 0;
+static void safari_append_query_to_url(char *url, int max, const char *query) {
+    char fragment[SAFARI_URL_MAX];
+    int end = 0;
+    int pos;
+    int has_query = 0;
+    if (!url || max <= 0 || !query || !query[0]) return;
+    fragment[0] = 0;
+    while (url[end] && url[end] != '#') {
+        if (url[end] == '?') has_query = 1;
+        end++;
     }
-    return 0;
+    if (url[end] == '#')
+        safari_copy(fragment, sizeof(fragment), url + end);
+    url[end] = 0;
+    pos = end;
+    safari_append(url, &pos, max, has_query ? "&" : "?");
+    safari_append(url, &pos, max, query);
+    safari_append(url, &pos, max, fragment);
 }
 
 void safari_focus_form(int index) {
@@ -5179,11 +5189,9 @@ void safari_focus_form(int index) {
 void safari_submit_form(int index) {
     char target[SAFARI_URL_MAX];
     char encoded_pair[SAFARI_FORM_QUERY_MAX];
-    int pos;
     int qpos = 0;
     if (index < 0 || index >= g_safari_form_count) return;
     safari_copy(target, sizeof(target), g_safari_form_actions[index]);
-    pos = str_len(target);
     encoded_pair[0] = 0;
     if (g_safari_form_query_prefix[index][0])
         safari_append(encoded_pair, &qpos, sizeof(encoded_pair), g_safari_form_query_prefix[index]);
@@ -5196,10 +5204,8 @@ void safari_submit_form(int index) {
         safari_load_url_internal(target, "POST", encoded_pair, 1, 0);
         return;
     }
-    if (encoded_pair[0]) {
-        safari_append(target, &pos, sizeof(target), safari_url_contains_query(target) ? "&" : "?");
-        safari_append(target, &pos, sizeof(target), encoded_pair);
-    }
+    if (encoded_pair[0])
+        safari_append_query_to_url(target, sizeof(target), encoded_pair);
     safari_load_url(target);
 }
 
