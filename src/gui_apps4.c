@@ -133,10 +133,11 @@ int draw_apps_group4(int idx) {
           static const char *tools[]={"Select","Add","Behaviors","Filters","Generators","3D"};
           int ti7;
           for (ti7=0;ti7<6;ti7++){
+              int is_tool = ti7 == g_motion_tool;
               gui_draw_rounded_rect(tx7, content_y+4, str_len(tools[ti7])*8+8, 16, 3,
-                  ti7==0?mo_acc:mo_tb);
+                  is_tool?mo_acc:mo_tb);
               vga_draw_string_trans(tx7+4, content_y+8, tools[ti7],
-                  ti7==0?RGB(10,10,14):mo_sub);
+                  is_tool?RGB(10,10,14):mo_sub);
               tx7 += str_len(tools[ti7])*8+12;
           }
           { const char *play_label = g_motion_playing ? "|| Pause" : "|> Play";
@@ -154,8 +155,10 @@ int draw_apps_group4(int idx) {
               int ly7=content_y+40+li7*18;
               if (ly7+14>content_y+content_h-4) break;
               /* Eye icon */
+              int is_layer = li7 == g_motion_layer;
+              if (is_layer) vga_fill_rect(wx+2, ly7, mo_lw-4, 14, RGB(35,52,58));
               vga_draw_string_trans(wx+4, ly7+3, layer_vis[li7]?"o":" ", layer_vis[li7]?mo_acc:mo_sep);
-              vga_draw_string_trans(wx+14, ly7+3, layers[li7], li7==1?mo_acc:mo_txt);
+              vga_draw_string_trans(wx+14, ly7+3, layers[li7], is_layer?mo_acc:mo_txt);
           }
         }
         /* Canvas (center) */
@@ -457,6 +460,7 @@ int draw_apps_group4(int idx) {
         uint32_t uc_txt = g_pref_darkmode ? RGB(218,218,226) : RGB(20,20,28);
         uint32_t uc_sub = g_pref_darkmode ? RGB(140,140,150) : RGB(100,100,110);
         uint32_t uc_sep = g_pref_darkmode ? RGB(50,50,58) : RGB(210,210,218);
+        uint32_t uc_accent = g_universal_connected ? RGB(52,199,89) : RGB(0,122,255);
         vga_fill_rect(wx+1, cy, ww-2, wh-TITLEBAR_H, uc_bg);
         /* Graphic: Mac + iPad side by side */
         /* Mac */
@@ -464,19 +468,31 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+32, cy+22, 86, 60, RGB(40,120,200));
         vga_draw_string_trans(wx+50, cy+48, "My Mac", RGB(255,255,255));
         gui_draw_rounded_rect(wx+20, cy+90, 110, 8, 3, RGB(80,80,90));
-        /* No external display is paired. */
-        vga_draw_string_trans(wx+ww/2-6, cy+50, "--", uc_sub);
+        vga_draw_string_trans(wx+ww/2-6, cy+50, g_universal_connected ? "==" : "--",
+                              g_universal_connected ? uc_accent : uc_sub);
         /* iPad */
         gui_draw_rounded_rect(wx+ww-120, cy+20, 80, 100, 6, uc_txt);
         vga_fill_rect(wx+ww-118, cy+22, 76, 80, RGB(30,30,180));
         vga_draw_string_trans(wx+ww-108, cy+58, "iPad", RGB(255,255,255));
         /* Status */
         vga_draw_hline(wx+10, cy+110, ww-20, uc_sep);
-        vga_draw_string_trans(wx+10, cy+118, "Local pairing ready", uc_sub);
+        vga_draw_string_trans(wx+10, cy+118,
+                              g_universal_connected ? "Pointer linked to iPad" : "Local pairing ready", uc_sub);
         vga_draw_string_trans(wx+10, cy+134, "Nearby Devices:", uc_txt);
-        gui_draw_rounded_rect(wx+10, cy+150, ww-20, 20, 4, g_pref_darkmode?RGB(44,44,52):RGB(220,220,228));
-        vga_draw_string_trans(wx+16, cy+156, "iPad - Ready", uc_txt);
-        gui_draw_circle(wx+ww-24, cy+160, 4, RGB(52,199,89));
+        gui_draw_rounded_rect(wx+10, cy+150, ww-20, 20, 4,
+                              g_universal_connected ? (g_pref_darkmode?RGB(34,60,42):RGB(215,244,224)) :
+                                                       (g_pref_darkmode?RGB(44,44,52):RGB(220,220,228)));
+        vga_draw_string_trans(wx+16, cy+156, g_universal_connected ? "iPad - Connected" : "iPad - Ready", uc_txt);
+        gui_draw_circle(wx+ww-24, cy+160, 4, g_universal_connected ? RGB(52,199,89) : RGB(142,142,147));
+        { const char *uc_btn = g_universal_connected ? "Disconnect" : "Connect";
+          int uc_btn_w = 110;
+          int uc_btn_x = wx + (ww - uc_btn_w) / 2;
+          int uc_btn_y = cy + wh - TITLEBAR_H - 36;
+          uint32_t uc_btn_col = g_universal_connected ? RGB(255,59,48) : uc_accent;
+          vga_fill_rect(uc_btn_x, uc_btn_y, uc_btn_w, 22, uc_btn_col);
+          gui_draw_rounded_rect_outline(uc_btn_x, uc_btn_y, uc_btn_w, 22, 5, uc_btn_col);
+          vga_draw_string_trans(uc_btn_x+(uc_btn_w-str_len(uc_btn)*8)/2, uc_btn_y+7, uc_btn, RGB(255,255,255));
+        }
         return 1;
     }
 
@@ -1352,10 +1368,13 @@ int draw_apps_group4(int idx) {
         int si2; for(si2=0;si2<10;si2++) {
             int sx2=wx+10+(si2%5)*((ww-20)/5);
             int sy2=cy+30+(si2/5)*50;
-            gui_draw_rounded_rect(sx2,sy2,32,32,6,g_pref_darkmode?RGB(40,40,46):RGB(235,235,240));
-            vga_draw_string_trans(sx2+8,sy2+12,sym_names[si2][0]=='s'?"*":"o",sf_acc);
-            vga_draw_string_trans(sx2,sy2+36,sym_names[si2],g_pref_darkmode?RGB(120,120,130):RGB(100,100,110));
+            int is_sym = si2 == g_sfsymbols_selected;
+            gui_draw_rounded_rect(sx2,sy2,32,32,6,is_sym?sf_acc:(g_pref_darkmode?RGB(40,40,46):RGB(235,235,240)));
+            vga_draw_string_trans(sx2+8,sy2+12,sym_names[si2][0]=='s'?"*":"o",is_sym?RGB(255,255,255):sf_acc);
+            vga_draw_string_trans(sx2,sy2+36,sym_names[si2],is_sym?sf_acc:(g_pref_darkmode?RGB(120,120,130):RGB(100,100,110)));
         }
+        if (g_sfsymbols_selected >= 0 && g_sfsymbols_selected < 10)
+            vga_draw_string_trans(wx+10, cy+wh-TITLEBAR_H-16, sym_names[g_sfsymbols_selected], sf_acc);
         return 1;
     }
     /* ---- Transporter ---- */

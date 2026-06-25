@@ -482,6 +482,13 @@ void gui_run(void) {
             if (g_print_visible) {
                 int pd_w2=340, pd_h2=260;
                 int pd_x2=(VGA_WIDTH-pd_w2)/2, pd_y2=(VGA_HEIGHT-pd_h2)/2;
+                int pd_prev_x2 = pd_x2 + 8, pd_prev_w2 = 90;
+                int pd_set_x2 = pd_prev_x2 + pd_prev_w2 + 8;
+                int pd_sy2 = pd_y2 + 38;
+                int pd_copies_y2 = pd_sy2 + 34;
+                int pd_pages_y2 = pd_copies_y2 + 34;
+                int pd_color_y2 = pd_pages_y2 + 32;
+                int pd_quality_y2 = pd_color_y2 + 28;
                 /* Cancel button */
                 if (mx>=pd_x2+8 && mx<pd_x2+78 && my>=pd_y2+pd_h2-30 && my<pd_y2+pd_h2-10) {
                     g_print_visible = 0; dirty = 1; goto end_left_press;
@@ -491,6 +498,48 @@ void gui_run(void) {
                     g_print_jobs++;
                     g_print_visible = 0;
                     toast_show("Print", "Job sent to MyOS PDF", RGB(0,122,255));
+                    dirty = 1; goto end_left_press;
+                }
+                if (mx>=pd_set_x2 && mx<pd_x2+pd_w2-16 && my>=pd_sy2+12 && my<pd_sy2+28) {
+                    toast_show("Print", "MyOS PDF Printer selected", RGB(0,122,255));
+                    dirty = 1; goto end_left_press;
+                }
+                if (my>=pd_copies_y2+12 && my<pd_copies_y2+28) {
+                    if (mx>=pd_set_x2+40 && mx<pd_set_x2+56) {
+                        if (g_print_copies > 1) g_print_copies--;
+                        toast_show("Print", "Copies updated", RGB(0,122,255));
+                        dirty = 1; goto end_left_press;
+                    }
+                    if (mx>=pd_set_x2+64 && mx<pd_set_x2+82) {
+                        if (g_print_copies < 9) g_print_copies++;
+                        toast_show("Print", "Copies updated", RGB(0,122,255));
+                        dirty = 1; goto end_left_press;
+                    }
+                }
+                if (my>=pd_pages_y2+10 && my<pd_pages_y2+25) {
+                    if (mx>=pd_set_x2+60 && mx<pd_set_x2+80) {
+                        g_print_page_from++;
+                        if (g_print_page_from > g_print_page_to) g_print_page_from = 1;
+                        toast_show("Print", "Start page updated", RGB(0,122,255));
+                        dirty = 1; goto end_left_press;
+                    }
+                    if (mx>=pd_set_x2+100 && mx<pd_set_x2+120) {
+                        g_print_page_to++;
+                        if (g_print_page_to > 9) g_print_page_to = g_print_page_from;
+                        if (g_print_page_to < g_print_page_from) g_print_page_to = g_print_page_from;
+                        toast_show("Print", "End page updated", RGB(0,122,255));
+                        dirty = 1; goto end_left_press;
+                    }
+                }
+                if (mx>=pd_set_x2 && mx<pd_set_x2+80 && my>=pd_color_y2+10 && my<pd_color_y2+26) {
+                    g_print_color ^= 1;
+                    toast_show("Print", g_print_color ? "Color mode" : "Black and white", RGB(0,122,255));
+                    dirty = 1; goto end_left_press;
+                }
+                if (mx>=pd_set_x2 && mx<pd_set_x2+88 && my>=pd_quality_y2+10 && my<pd_quality_y2+26) {
+                    g_print_quality++;
+                    if (g_print_quality > 2) g_print_quality = 0;
+                    toast_show("Print", "Quality updated", RGB(0,122,255));
                     dirty = 1; goto end_left_press;
                 }
                 /* Click outside = close */
@@ -1598,6 +1647,77 @@ void gui_run(void) {
                 }
                 break;
             }
+            /* Game Center tabs */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"GameCenter")) continue;
+                if (i != top_win_idx) continue;
+                { static const char *tabs_gc[] = {"Games","Achievements","Friends","Challenges"};
+                  int cy_gc = w->y + TITLEBAR_H;
+                  int tab_x_gc = w->x + 4;
+                  int ti_gc;
+                  if (my>=cy_gc+46 && my<cy_gc+64) {
+                      for (ti_gc=0; ti_gc<4; ti_gc++) {
+                          int tw_gc = str_len(tabs_gc[ti_gc])*8+10;
+                          if (mx>=tab_x_gc && mx<tab_x_gc+tw_gc) {
+                              g_gamecenter_tab = ti_gc;
+                              toast_show("GameCenter", tabs_gc[ti_gc], RGB(52,199,89));
+                              dirty=1; goto end_left_press;
+                          }
+                          tab_x_gc += tw_gc + 4;
+                      }
+                  }
+                }
+                break;
+            }
+            /* Network Utility tabs and ping action */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Network Utility")) continue;
+                if (i != top_win_idx) continue;
+                { static const char *tabs_nu[]={"Info","Ping","Traceroute","Lookup","Port Scan"};
+                  int cy_nu = w->y + TITLEBAR_H;
+                  int tx_nu = w->x + 4;
+                  int ti_nu;
+                  if (my>=cy_nu+4 && my<cy_nu+20) {
+                      for (ti_nu=0; ti_nu<5; ti_nu++) {
+                          int tw_nu = str_len(tabs_nu[ti_nu])*8+10;
+                          if (mx>=tx_nu && mx<tx_nu+tw_nu) {
+                              g_netutil_tab = ti_nu;
+                              toast_show("Network Utility", tabs_nu[ti_nu], RGB(0,122,255));
+                              dirty=1; goto end_left_press;
+                          }
+                          tx_nu += tw_nu + 4;
+                      }
+                  }
+                  if (g_netutil_tab == 1 &&
+                      mx>=w->x+w->w-76 && mx<w->x+w->w-8 &&
+                      my>=cy_nu+28 && my<cy_nu+44) {
+                      if (g_netutil_ping_count < 999) g_netutil_ping_count++;
+                      toast_show("Network Utility","Ping sent",RGB(0,122,255));
+                      dirty=1; goto end_left_press;
+                  }
+                }
+                break;
+            }
+            /* Universal Control connect/disconnect */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Universal Control")) continue;
+                if (i != top_win_idx) continue;
+                { int cy_uc = w->y + TITLEBAR_H;
+                  int btn_w_uc = 110;
+                  int btn_x_uc = w->x + (w->w - btn_w_uc) / 2;
+                  int btn_y_uc = cy_uc + w->h - TITLEBAR_H - 36;
+                  if ((mx>=w->x+10 && mx<w->x+w->w-10 && my>=cy_uc+150 && my<cy_uc+170) ||
+                      (mx>=btn_x_uc && mx<btn_x_uc+btn_w_uc && my>=btn_y_uc && my<btn_y_uc+22)) {
+                      g_universal_connected ^= 1;
+                      toast_show("Universal Control", g_universal_connected ? "Connected to iPad" : "Disconnected", RGB(0,122,255));
+                      dirty=1; goto end_left_press;
+                  }
+                }
+                break;
+            }
             /* Translate favorite and Math Notes new note */
             for (i = 0; i < g_num_windows; i++) {
                 gui_window_t *w = &g_windows[i];
@@ -1826,6 +1946,28 @@ void gui_run(void) {
                 if (i != top_win_idx) continue;
                 if (str_eq(w->title,"Motion")) {
                     int cy_mo = w->y + TITLEBAR_H;
+                    { static const char *tools_mo[]={"Select","Add","Behaviors","Filters","Generators","3D"};
+                      int tx_mo=w->x+4, ti_mo;
+                      if (my>=cy_mo+4 && my<cy_mo+22) {
+                          for (ti_mo=0; ti_mo<6; ti_mo++) {
+                              int tw_mo=str_len(tools_mo[ti_mo])*8+8;
+                              if (mx>=tx_mo && mx<tx_mo+tw_mo) {
+                                  g_motion_tool=ti_mo;
+                                  toast_show("Motion","Tool selected",RGB(30,200,220));
+                                  dirty=1; goto end_left_press;
+                              }
+                              tx_mo += str_len(tools_mo[ti_mo])*8+12;
+                          }
+                      }
+                    }
+                    if (mx>=w->x+2 && mx<w->x+80 && my>=cy_mo+40 && my<cy_mo+40+6*18) {
+                        int layer_i=(my-(cy_mo+40))/18;
+                        if (layer_i>=0 && layer_i<6) {
+                            g_motion_layer=layer_i;
+                            toast_show("Motion","Layer selected",RGB(30,200,220));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
                     if (mx>=w->x+w->w-78 && mx<w->x+w->w-4 && my>=cy_mo+4 && my<cy_mo+22) {
                         g_motion_playing ^= 1;
                         toast_show("Motion",g_motion_playing?"Playback started":"Playback paused",RGB(30,200,220));
@@ -2596,10 +2738,45 @@ void gui_run(void) {
                     int sb_w_fb=w->w*2/5;
                     if (mx>=w->x+4 && mx<w->x+sb_w_fb-2 && my>=cy_fb+26 && my<cy_fb+40) {
                         g_fontbook_search_focused=1; dirty=1; goto end_left_press;
+                    }
+                    if (mx>=w->x+2 && mx<w->x+sb_w_fb && my>=cy_fb+44 && my<cy_fb+44+9*18) {
+                        int font_i = (my - (cy_fb+44)) / 18;
+                        if (font_i >= 0 && font_i < 9) {
+                            g_fontbook_selected = font_i;
+                            g_fontbook_search_focused=0;
+                            toast_show("Font Book","Font selected",RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
                     } else if (g_fontbook_search_focused) { g_fontbook_search_focused=0; dirty=1; }
                 } else if (str_eq(w->title,"Console")) {
                     int cy_co=w->y+TITLEBAR_H;
                     int sf_x_co=w->x+w->w-100;
+                    { static const char *levels_co[]={"All","Errors","Warnings","Info"};
+                      int bx_co=w->x+4, li_co;
+                      if (my>=cy_co+4 && my<cy_co+18) {
+                          for (li_co=0; li_co<4; li_co++) {
+                              int lw_co=str_len(levels_co[li_co])*8+8;
+                              if (mx>=bx_co && mx<bx_co+lw_co) {
+                                  g_console_level_filter=li_co;
+                                  g_console_filter_focused=0;
+                                  toast_show("Console","Level filter changed",RGB(0,122,255));
+                                  dirty=1; goto end_left_press;
+                              }
+                              bx_co += str_len(levels_co[li_co])*8+12;
+                          }
+                      }
+                    }
+                    { int dev_w_co=w->w/4;
+                      if (mx>=w->x+2 && mx<w->x+dev_w_co && my>=cy_co+40 && my<cy_co+40+5*16) {
+                          int dev_i=(my-(cy_co+40))/16;
+                          if (dev_i>=0 && dev_i<5) {
+                              g_console_device_filter=dev_i;
+                              g_console_filter_focused=0;
+                              toast_show("Console","Device filter changed",RGB(0,122,255));
+                              dirty=1; goto end_left_press;
+                          }
+                      }
+                    }
                     if (mx>=sf_x_co && mx<sf_x_co+94 && my>=cy_co+4 && my<cy_co+18) {
                         g_console_filter_focused=1; dirty=1; goto end_left_press;
                     } else if (g_console_filter_focused) { g_console_filter_focused=0; dirty=1; }
@@ -2607,6 +2784,18 @@ void gui_run(void) {
                     int cy_sf=w->y+TITLEBAR_H;
                     if (mx>=w->x+8 && mx<w->x+w->w-82 && my>=cy_sf+6 && my<cy_sf+22) {
                         g_sfsymbols_search_focused=1; dirty=1; goto end_left_press;
+                    }
+                    if (mx>=w->x+10 && mx<w->x+w->w-10 && my>=cy_sf+30 && my<cy_sf+130) {
+                        int cell_w_sf=(w->w-20)/5;
+                        int col_sf=cell_w_sf>0 ? (mx-(w->x+10))/cell_w_sf : 0;
+                        int row_sf=(my-(cy_sf+30))/50;
+                        int sym_i=row_sf*5+col_sf;
+                        if (sym_i>=0 && sym_i<10) {
+                            g_sfsymbols_selected=sym_i;
+                            g_sfsymbols_search_focused=0;
+                            toast_show("SF Symbols","Symbol selected",RGB(52,199,89));
+                            dirty=1; goto end_left_press;
+                        }
                     } else if (g_sfsymbols_search_focused) { g_sfsymbols_search_focused=0; dirty=1; }
                 } else if (str_eq(w->title,"1Password")) {
                     int sy_pw=w->y+TITLEBAR_H+26;

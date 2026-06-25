@@ -1149,55 +1149,90 @@ int draw_apps_group3(int idx) {
         int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
         int content_y = wy + TITLEBAR_H;
         int content_h = wh - TITLEBAR_H;
-        /* Background */
+        int active_gc = g_gamecenter_tab;
         uint32_t gc_bg  = g_pref_darkmode ? RGB(20,20,24)   : RGB(242,242,247);
         uint32_t gc_card= g_pref_darkmode ? RGB(30,30,36)   : RGB(255,255,255);
         uint32_t gc_txt = g_pref_darkmode ? RGB(220,220,228) : RGB(20,20,30);
         uint32_t gc_sub = g_pref_darkmode ? RGB(140,140,150) : RGB(100,100,110);
         uint32_t gc_grn = RGB(52,199,89);
         uint32_t gc_sep = g_pref_darkmode ? RGB(50,50,58)   : RGB(200,200,208);
+        if (active_gc < 0 || active_gc > 3) active_gc = 0;
         vga_fill_rect(wx+1, content_y, ww-2, content_h, gc_bg);
-        /* Header: avatar + username */
         gui_draw_circle(wx+30, content_y+24, 18, gc_grn);
         vga_draw_string_trans(wx+22, content_y+20, "PC", RGB(255,255,255));
         vga_draw_string_trans(wx+54, content_y+16, "Player One", gc_txt);
         vga_draw_string_trans(wx+54, content_y+28, "Level 42  |  1,337 pts", gc_sub);
-        /* Tab bar: Games / Achievements / Friends / Challenges */
         { static const char *tabs[] = {"Games","Achievements","Friends","Challenges"};
           int ti, tab_x = wx+4, tab_y = content_y+46;
           vga_fill_rect(wx+1, tab_y, ww-2, 18, g_pref_darkmode?RGB(28,28,34):RGB(235,235,240));
           vga_draw_hline(wx+1, tab_y+18, ww-2, gc_sep);
           for (ti=0;ti<4;ti++) {
               int tw=str_len(tabs[ti])*8+10;
-              vga_draw_string_trans(tab_x+5, tab_y+5, tabs[ti], ti==1?gc_grn:gc_sub);
-              if (ti==1) vga_draw_hline(tab_x, tab_y+17, tw, gc_grn);
+              int is_active = ti == active_gc;
+              vga_draw_string_trans(tab_x+5, tab_y+5, tabs[ti], is_active?gc_grn:gc_sub);
+              if (is_active) vga_draw_hline(tab_x, tab_y+17, tw, gc_grn);
               tab_x += tw + 4;
           }
         }
-        /* Achievements list */
-        { static const char *ach[]  = {"First Boot","100 Launches","Speed Run","Night Owl","Pixel Perfect"};
-          static const char *desc[] = {"Booted MyOS","Opened 100 apps","Sub-60s startup","Used after midnight","Drew every pixel"};
-          static int pts[]          = {50,200,500,75,300};
-          static int done[]         = {1,1,0,1,0};
-          int ai, ay = content_y+70;
-          for (ai=0;ai<5;ai++) {
-              if (ay+36 > content_y+content_h-4) break;
-              vga_fill_rect(wx+4, ay, ww-8, 32, gc_card);
-              vga_draw_rect_outline(wx+4, ay, ww-8, 32, gc_sep);
-              /* Icon */
-              uint32_t ic_col = done[ai] ? gc_grn : RGB(160,160,170);
-              gui_draw_rounded_rect(wx+8, ay+6, 20, 20, 4, ic_col);
-              vga_draw_string_trans(wx+13, ay+12, done[ai]?"*":"?", RGB(255,255,255));
-              /* Title + desc */
-              vga_draw_string_trans(wx+34, ay+6,  ach[ai],  gc_txt);
-              vga_draw_string_trans(wx+34, ay+18, desc[ai], gc_sub);
-              /* Points */
-              char pbuf[8]; int_to_str(pts[ai], pbuf);
-              vga_draw_string_trans(wx+ww-40, ay+12, pbuf, done[ai]?gc_grn:gc_sub);
-              ay += 36;
-          }
+        if (active_gc == 0) {
+            static const char *games[] = {"MyOS Racer", "2048", "Breakout", "Minesweeper"};
+            int gi, gy = content_y+72;
+            for (gi=0; gi<4; gi++) {
+                vga_fill_rect(wx+4, gy, ww-8, 32, gc_card);
+                vga_draw_rect_outline(wx+4, gy, ww-8, 32, gc_sep);
+                vga_draw_string_trans(wx+12, gy+7, games[gi], gc_txt);
+                vga_draw_string_trans(wx+ww-78, gy+7, gi == 0 ? "Playing" : "Ready", gi == 0 ? gc_grn : gc_sub);
+                gy += 36;
+            }
+            return 1;
         }
-        return 1;
+        if (active_gc == 1) {
+            static const char *ach[]  = {"First Boot","100 Launches","Speed Run","Night Owl","Pixel Perfect"};
+            static const char *desc[] = {"Booted MyOS","Opened 100 apps","Sub-60s startup","Used after midnight","Drew every pixel"};
+            static int pts[]          = {50,200,500,75,300};
+            static int done[]         = {1,1,0,1,0};
+            int ai, ay = content_y+70;
+            for (ai=0;ai<5;ai++) {
+                if (ay+36 > content_y+content_h-4) break;
+                uint32_t ic_col = done[ai] ? gc_grn : RGB(160,160,170);
+                char pbuf[8];
+                vga_fill_rect(wx+4, ay, ww-8, 32, gc_card);
+                vga_draw_rect_outline(wx+4, ay, ww-8, 32, gc_sep);
+                gui_draw_rounded_rect(wx+8, ay+6, 20, 20, 4, ic_col);
+                vga_draw_string_trans(wx+13, ay+12, done[ai]?"*":"?", RGB(255,255,255));
+                vga_draw_string_trans(wx+34, ay+6,  ach[ai],  gc_txt);
+                vga_draw_string_trans(wx+34, ay+18, desc[ai], gc_sub);
+                int_to_str(pts[ai], pbuf);
+                vga_draw_string_trans(wx+ww-40, ay+12, pbuf, done[ai]?gc_grn:gc_sub);
+                ay += 36;
+            }
+            return 1;
+        }
+        if (active_gc == 2) {
+            static const char *friends[] = {"Jordan", "Mina", "Alex", "Sam"};
+            int fi, fy = content_y+72;
+            for (fi=0; fi<4; fi++) {
+                vga_fill_rect(wx+4, fy, ww-8, 30, gc_card);
+                vga_draw_rect_outline(wx+4, fy, ww-8, 30, gc_sep);
+                gui_draw_circle(wx+18, fy+15, 9, fi == 0 ? gc_grn : RGB(142,142,147));
+                vga_draw_string_trans(wx+34, fy+7, friends[fi], gc_txt);
+                vga_draw_string_trans(wx+ww-70, fy+7, fi == 0 ? "Online" : "Away", fi == 0 ? gc_grn : gc_sub);
+                fy += 34;
+            }
+            return 1;
+        }
+        {
+            static const char *chals[] = {"Win one race", "Beat 2048", "Clear Breakout"};
+            int ci, cy_gc = content_y+72;
+            for (ci=0; ci<3; ci++) {
+                vga_fill_rect(wx+4, cy_gc, ww-8, 34, gc_card);
+                vga_draw_rect_outline(wx+4, cy_gc, ww-8, 34, gc_sep);
+                vga_draw_string_trans(wx+12, cy_gc+7, chals[ci], gc_txt);
+                vga_draw_string_trans(wx+12, cy_gc+20, ci == 0 ? "In progress" : "Open", gc_sub);
+                cy_gc += 38;
+            }
+            return 1;
+        }
     }
 
     /* ---- Automator ---- */
@@ -1315,10 +1350,13 @@ int draw_apps_group3(int idx) {
         /* Font list */
         { static const char *fonts[]={"Arial","Courier","Georgia","Helvetica","Impact","Monaco","Palatino","Times New Roman","Verdana"};
           int fi2, fy=content_y+44;
+          int selected_fb = g_fontbook_selected;
+          if (selected_fb < 0 || selected_fb >= 9) selected_fb = 3;
           for (fi2=0;fi2<9;fi2++){
+              int is_sel = fi2 == selected_fb;
               if (fy+16>content_y+content_h-4) break;
-              if (fi2==3) vga_fill_rect(wx+2, fy, sb_w-2, 16, g_pref_darkmode?RGB(44,44,52):RGB(218,218,225));
-              vga_draw_string_trans(wx+8, fy+4, fonts[fi2], fi2==3?fb_acc:fb_txt);
+              if (is_sel) vga_fill_rect(wx+2, fy, sb_w-2, 16, g_pref_darkmode?RGB(44,44,52):RGB(218,218,225));
+              vga_draw_string_trans(wx+8, fy+4, fonts[fi2], is_sel?fb_acc:fb_txt);
               fy += 18;
           }
         }
@@ -1326,8 +1364,16 @@ int draw_apps_group3(int idx) {
         int pv_x = wx + sb_w + 4;
         int pv_w = ww - sb_w - 6;
         vga_fill_rect(pv_x, content_y+23, pv_w, content_h-23, fb_card);
-        vga_draw_string_trans(pv_x+4, content_y+27, "Helvetica", fb_txt);
-        vga_draw_string_trans(pv_x+4, content_y+37, "9 faces", fb_sub);
+        { static const char *fonts[]={"Arial","Courier","Georgia","Helvetica","Impact","Monaco","Palatino","Times New Roman","Verdana"};
+          int selected_fb = g_fontbook_selected;
+          char face_line[16];
+          int flp = 0;
+          if (selected_fb < 0 || selected_fb >= 9) selected_fb = 3;
+          face_line[0] = 0;
+          apps3_append_uint(face_line, &flp, sizeof(face_line), (uint32_t)(selected_fb + 6));
+          apps3_append_text(face_line, &flp, sizeof(face_line), " faces");
+          vga_draw_string_trans(pv_x+4, content_y+27, fonts[selected_fb], fb_txt);
+          vga_draw_string_trans(pv_x+4, content_y+37, face_line, fb_sub); }
         vga_draw_hline(pv_x, content_y+48, pv_w, fb_sep);
         /* Preview text at different sizes */
         { const char *prev = "Aa Bb Cc";
@@ -1377,9 +1423,10 @@ int draw_apps_group3(int idx) {
           int li3, bx=wx+4;
           lc[0]=RGB(80,80,88); lc[1]=co_err; lc[2]=co_wrn; lc[3]=co_inf;
           for (li3=0;li3<4;li3++){
+              int is_level = li3 == g_console_level_filter;
               gui_draw_rounded_rect(bx, content_y+4, str_len(levels[li3])*8+8, 14, 3,
-                  li3==0?RGB(0,122,255):co_tb);
-              vga_draw_string_trans(bx+4, content_y+7, levels[li3], li3==0?RGB(255,255,255):lc[li3]);
+                  is_level?RGB(0,122,255):co_tb);
+              vga_draw_string_trans(bx+4, content_y+7, levels[li3], is_level?RGB(255,255,255):lc[li3]);
               bx += str_len(levels[li3])*8+12;
           }
           /* Search */
@@ -1399,8 +1446,9 @@ int draw_apps_group3(int idx) {
           int di, dy=content_y+40;
           for (di=0;di<5;di++){
               if (dy+14>content_y+content_h-4) break;
-              if (di==0) vga_fill_rect(wx+2, dy, dev_w-2, 14, g_pref_darkmode?RGB(40,40,48):RGB(218,218,228));
-              vga_draw_string_trans(wx+6, dy+3, devs[di], di==0?RGB(0,122,255):co_txt);
+              int is_dev = di == g_console_device_filter;
+              if (is_dev) vga_fill_rect(wx+2, dy, dev_w-2, 14, g_pref_darkmode?RGB(40,40,48):RGB(218,218,228));
+              vga_draw_string_trans(wx+6, dy+3, devs[di], is_dev?RGB(0,122,255):co_txt);
               dy += 16;
           }
         }
@@ -1451,16 +1499,24 @@ int draw_apps_group3(int idx) {
           };
           int li4, ly=content_y+26;
           int n_logs = 9;
+          int shown_logs = 0;
+          static const char *dev_filters[] = {"", "kernel", "launchd", "gui", "network"};
           for (li4=0;li4<n_logs;li4++){
+              int show_log = 1;
+              if (g_console_level_filter > 0 && logs[li4].lvl != g_console_level_filter - 1) show_log = 0;
+              if (g_console_device_filter > 0 && !str_eq(logs[li4].proc, dev_filters[g_console_device_filter])) show_log = 0;
+              if (!show_log) continue;
               if (ly+12>content_y+content_h-4) break;
               uint32_t lvl_col = logs[li4].lvl==0?co_err:(logs[li4].lvl==1?co_wrn:co_inf);
               vga_draw_string_trans(log_x, ly, logs[li4].ts, co_sub);
               vga_draw_string_trans(log_x+52, ly, logs[li4].proc, co_sub);
               vga_draw_string_trans(log_x+100, ly, logs[li4].msg, lvl_col);
-              if ((li4%2)==0 && !g_pref_darkmode)
+              if ((shown_logs%2)==0 && !g_pref_darkmode)
                   vga_fill_rect_alpha(log_x, ly, log_w, 12, RGB(0,0,0), 8);
+              shown_logs++;
               ly += 14;
           }
+          if (shown_logs == 0) vga_draw_string_trans(log_x, ly, "No matching logs", co_sub);
           /* Last line blinking cursor */
           { uint32_t t3=timer_ticks();
             if ((t3/400)%2==0) vga_fill_rect(log_x, ly, 6, 10, RGB(0,122,255));
@@ -1626,6 +1682,9 @@ int draw_apps_group3(int idx) {
         int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
         int content_y = wy + TITLEBAR_H;
         int content_h = wh - TITLEBAR_H;
+        int active_tab = g_netutil_tab;
+        uint32_t gw_ip = 0;
+        int ri_nu;
         uint32_t nu_bg   = g_pref_darkmode ? RGB(24,24,28)   : RGB(242,242,246);
         uint32_t nu_card = g_pref_darkmode ? RGB(34,34,40)   : RGB(255,255,255);
         uint32_t nu_txt  = g_pref_darkmode ? RGB(218,218,226) : RGB(20,20,28);
@@ -1633,6 +1692,13 @@ int draw_apps_group3(int idx) {
         uint32_t nu_acc  = RGB(0,122,255);
         uint32_t nu_sep  = g_pref_darkmode ? RGB(52,52,60)   : RGB(200,200,208);
         uint32_t nu_grn  = RGB(48,209,88);
+        const netif_t *net = runtime_primary_netif();
+        uint32_t dns_ip = runtime_dns_server4();
+        if (active_tab < 0 || active_tab > 4) active_tab = 0;
+        for (ri_nu = 0; ri_nu < (int)net_route_count(); ri_nu++) {
+            const net_route_t *route = net_route_at((uint32_t)ri_nu);
+            if (route && route->dest == 0 && route->mask == 0) { gw_ip = route->gateway; break; }
+        }
         vga_fill_rect(wx+1, content_y, ww-2, content_h, nu_bg);
         /* Tab bar */
         { static const char *tabs2[]={"Info","Ping","Traceroute","Lookup","Port Scan"};
@@ -1641,74 +1707,146 @@ int draw_apps_group3(int idx) {
           vga_draw_hline(wx+1, ty4+18, ww-2, nu_sep);
           for (ti4=0;ti4<5;ti4++){
               int tw2=str_len(tabs2[ti4])*8+10;
-              uint32_t tc2=ti4==1?nu_acc:nu_sub;
-              gui_draw_rounded_rect(tx2, ty4, tw2, 16, 3, ti4==1?(g_pref_darkmode?RGB(40,60,100):RGB(200,220,255)):nu_bg);
+              int is_active = ti4 == active_tab;
+              uint32_t tc2=is_active?nu_acc:nu_sub;
+              gui_draw_rounded_rect(tx2, ty4, tw2, 16, 3, is_active?(g_pref_darkmode?RGB(40,60,100):RGB(200,220,255)):nu_bg);
               vga_draw_string_trans(tx2+5, ty4+4, tabs2[ti4], tc2);
               tx2 += tw2+4;
           }
         }
-        /* Ping content area */
         int pa_y = content_y + 28;
-        /* Target host field */
-        vga_draw_string_trans(wx+6, pa_y+4, "Target Host:", nu_sub);
-        vga_fill_rect(wx+80, pa_y, ww-160, 16, nu_card);
-        vga_draw_rect_outline(wx+80, pa_y, ww-160, 16, nu_sep);
-        { runtime_system_info_t sys;
-          runtime_get_system_info(&sys);
-          vga_draw_string_trans(wx+84, pa_y+4, sys.nodename, nu_txt); }
-        gui_draw_rounded_rect(wx+ww-76, pa_y, 68, 16, 3, nu_acc);
-        vga_draw_string_trans(wx+ww-72, pa_y+4, "Ping Now", RGB(255,255,255));
-        /* Ping results graph */
-        pa_y += 22;
-        vga_draw_string_trans(wx+6, pa_y+2, "Ping Results (ms):", nu_txt);
-        pa_y += 16;
-        /* Graph background */
-        vga_fill_rect(wx+6, pa_y, ww-12, 80, nu_card);
-        vga_draw_rect_outline(wx+6, pa_y, ww-12, 80, nu_sep);
-        /* Grid lines */
-        { int gi;
-          for (gi=1;gi<4;gi++){
-              vga_draw_hline(wx+6, pa_y+gi*20, ww-12, nu_sep);
-              char gbuf2[4]; int_to_str(gi*25, gbuf2);
-              vga_draw_string_trans(wx+ww-24, pa_y+gi*20-8, gbuf2, nu_sub);
-          }
+        if (active_tab == 0) {
+            char ipbuf[16], gwbuf[16], dnsbuf[16], macbuf[20], txbuf[16], rxbuf[16];
+            runtime_format_ipv4(net ? net->ipv4 : 0, ipbuf, sizeof(ipbuf));
+            runtime_format_ipv4(gw_ip, gwbuf, sizeof(gwbuf));
+            runtime_format_ipv4(dns_ip, dnsbuf, sizeof(dnsbuf));
+            if (net) {
+                runtime_format_mac(net->mac, macbuf, sizeof(macbuf));
+            } else {
+                int mp = 0;
+                macbuf[0] = 0;
+                apps3_append_text(macbuf, &mp, sizeof(macbuf), "none");
+            }
+            runtime_format_uint(net ? net->tx_packets : 0, txbuf, sizeof(txbuf));
+            runtime_format_uint(net ? net->rx_packets : 0, rxbuf, sizeof(rxbuf));
+            vga_fill_rect(wx+6, pa_y, ww-12, 148, nu_card);
+            vga_draw_rect_outline(wx+6, pa_y, ww-12, 148, nu_sep);
+            vga_draw_string_trans(wx+12, pa_y+8,  net && net->name ? net->name : "No active interface", nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+28, net && net->up ? "Status: up" : "Status: down", net && net->up ? nu_grn : RGB(255,149,0));
+            vga_draw_string_trans(wx+12, pa_y+46, "IPv4:", nu_sub); vga_draw_string_trans(wx+80, pa_y+46, ipbuf, nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+64, "Gateway:", nu_sub); vga_draw_string_trans(wx+80, pa_y+64, gw_ip ? gwbuf : "not configured", nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+82, "DNS:", nu_sub); vga_draw_string_trans(wx+80, pa_y+82, dns_ip ? dnsbuf : "not configured", nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+100, "MAC:", nu_sub); vga_draw_string_trans(wx+80, pa_y+100, macbuf, nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+118, "TX/RX:", nu_sub);
+            vga_draw_string_trans(wx+80, pa_y+118, txbuf, nu_txt);
+            vga_draw_string_trans(wx+128, pa_y+118, rxbuf, nu_txt);
+            return 1;
         }
-        /* Ping bars */
-        { static const int pings[]={12,15,8,22,10,18,14,11,25,13,9,16,20,7,14};
-          int pi3, n=15;
-          for (pi3=0;pi3<n;pi3++){
-              int bar_x=wx+10+pi3*(ww-20)/n;
-              int bar_h=pings[pi3]*70/25;
-              if (bar_h<2) bar_h=2;
-              vga_fill_rect(bar_x, pa_y+78-bar_h, (ww-20)/n-2, bar_h, nu_acc);
-          }
+        if (active_tab == 1) {
+            /* Target host field */
+            vga_draw_string_trans(wx+6, pa_y+4, "Target Host:", nu_sub);
+            vga_fill_rect(wx+80, pa_y, ww-160, 16, nu_card);
+            vga_draw_rect_outline(wx+80, pa_y, ww-160, 16, nu_sep);
+            { runtime_system_info_t sys;
+              runtime_get_system_info(&sys);
+              vga_draw_string_trans(wx+84, pa_y+4, sys.nodename, nu_txt); }
+            gui_draw_rounded_rect(wx+ww-76, pa_y, 68, 16, 3, nu_acc);
+            vga_draw_string_trans(wx+ww-72, pa_y+4, "Ping Now", RGB(255,255,255));
+            pa_y += 22;
+            { char runbuf[28]; int rpos = 0;
+              runbuf[0] = 0;
+              apps3_append_text(runbuf, &rpos, sizeof(runbuf), "Runs: ");
+              apps3_append_uint(runbuf, &rpos, sizeof(runbuf), (uint32_t)g_netutil_ping_count);
+              vga_draw_string_trans(wx+6, pa_y+2, "Ping Results (ms):", nu_txt);
+              vga_draw_string_trans(wx+ww-76, pa_y+2, runbuf, nu_sub); }
+            pa_y += 16;
+            vga_fill_rect(wx+6, pa_y, ww-12, 80, nu_card);
+            vga_draw_rect_outline(wx+6, pa_y, ww-12, 80, nu_sep);
+            { int gi;
+              for (gi=1;gi<4;gi++){
+                  vga_draw_hline(wx+6, pa_y+gi*20, ww-12, nu_sep);
+                  char gbuf2[4]; int_to_str(gi*25, gbuf2);
+                  vga_draw_string_trans(wx+ww-24, pa_y+gi*20-8, gbuf2, nu_sub);
+              }
+            }
+            { static const int pings[]={12,15,8,22,10,18,14,11,25,13,9,16,20,7,14};
+              int pi3, n=15;
+              for (pi3=0;pi3<n;pi3++){
+                  int sample = pings[pi3] + (g_netutil_ping_count ? (g_netutil_ping_count + pi3 * 3) % 7 : 0);
+                  int bar_x=wx+10+pi3*(ww-20)/n;
+                  int bar_h;
+                  if (sample > 25) sample = 25;
+                  bar_h=sample*70/25;
+                  if (bar_h<2) bar_h=2;
+                  vga_fill_rect(bar_x, pa_y+78-bar_h, (ww-20)/n-2, bar_h, nu_acc);
+              }
+            }
+            pa_y += 86;
+            vga_fill_rect(wx+6, pa_y, ww-12, 50, nu_card);
+            vga_draw_rect_outline(wx+6, pa_y, ww-12, 50, nu_sep);
+            { uint32_t sent = net ? net->tx_packets + (uint32_t)g_netutil_ping_count : (uint32_t)g_netutil_ping_count;
+              uint32_t recv = net ? net->rx_packets + (uint32_t)g_netutil_ping_count : 0;
+              int loss = (sent > recv && sent > 0) ? (int)(((sent - recv) * 100U) / sent) : 0;
+              char sentbuf[32], recvbuf[32], lossbuf[32], pct[8];
+              int sp = 0, rp = 0, lp = 0;
+              sentbuf[0] = recvbuf[0] = lossbuf[0] = 0;
+              runtime_format_percent(loss, pct, sizeof(pct));
+              apps3_append_text(sentbuf, &sp, sizeof(sentbuf), "Packets Sent: ");
+              apps3_append_uint(sentbuf, &sp, sizeof(sentbuf), sent);
+              apps3_append_text(recvbuf, &rp, sizeof(recvbuf), "Packets Recv: ");
+              apps3_append_uint(recvbuf, &rp, sizeof(recvbuf), recv);
+              apps3_append_text(lossbuf, &lp, sizeof(lossbuf), "Packet Loss: ");
+              apps3_append_text(lossbuf, &lp, sizeof(lossbuf), pct);
+              vga_draw_string_trans(wx+10, pa_y+4,  sentbuf, nu_txt);
+              vga_draw_string_trans(wx+10, pa_y+16, recvbuf, nu_grn);
+              vga_draw_string_trans(wx+10, pa_y+28, lossbuf, loss ? RGB(255,149,0) : nu_grn);
+              vga_draw_string_trans(wx+10, pa_y+40, net && net->name ? net->name : "No interface", nu_sub); }
+            return 1;
         }
-        pa_y += 86;
-        /* Stats */
-        vga_fill_rect(wx+6, pa_y, ww-12, 50, nu_card);
-        vga_draw_rect_outline(wx+6, pa_y, ww-12, 50, nu_sep);
-        { const netif_t *net = runtime_primary_netif();
-          uint32_t sent = net ? net->tx_packets : 0;
-          uint32_t recv = net ? net->rx_packets : 0;
-          int loss = (sent > recv && sent > 0) ? (int)(((sent - recv) * 100U) / sent) : 0;
-          char sentbuf[32];
-          char recvbuf[32];
-          char lossbuf[32];
-          char pct[8];
-          int sp = 0, rp = 0, lp = 0;
-          sentbuf[0] = recvbuf[0] = lossbuf[0] = 0;
-          runtime_format_percent(loss, pct, sizeof(pct));
-          apps3_append_text(sentbuf, &sp, sizeof(sentbuf), "Packets Sent: ");
-          apps3_append_uint(sentbuf, &sp, sizeof(sentbuf), sent);
-          apps3_append_text(recvbuf, &rp, sizeof(recvbuf), "Packets Recv: ");
-          apps3_append_uint(recvbuf, &rp, sizeof(recvbuf), recv);
-          apps3_append_text(lossbuf, &lp, sizeof(lossbuf), "Packet Loss: ");
-          apps3_append_text(lossbuf, &lp, sizeof(lossbuf), pct);
-          vga_draw_string_trans(wx+10, pa_y+4,  sentbuf, nu_txt);
-          vga_draw_string_trans(wx+10, pa_y+16, recvbuf, nu_grn);
-          vga_draw_string_trans(wx+10, pa_y+28, lossbuf, loss ? RGB(255,149,0) : nu_grn);
-          vga_draw_string_trans(wx+10, pa_y+40, net && net->name ? net->name : "No interface", nu_sub); }
-        return 1;
+        if (active_tab == 2) {
+            char local[16], gateway[16], dns[16];
+            runtime_format_ipv4(net ? net->ipv4 : 0, local, sizeof(local));
+            runtime_format_ipv4(gw_ip, gateway, sizeof(gateway));
+            runtime_format_ipv4(dns_ip, dns, sizeof(dns));
+            vga_fill_rect(wx+6, pa_y, ww-12, 112, nu_card);
+            vga_draw_rect_outline(wx+6, pa_y, ww-12, 112, nu_sep);
+            vga_draw_string_trans(wx+12, pa_y+8, "Traceroute", nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+30, "1  local interface", nu_sub); vga_draw_string_trans(wx+150, pa_y+30, local, nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+48, "2  default gateway", nu_sub); vga_draw_string_trans(wx+150, pa_y+48, gw_ip ? gateway : "not configured", nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+66, "3  resolver", nu_sub); vga_draw_string_trans(wx+150, pa_y+66, dns_ip ? dns : "not configured", nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+88, net && net->up ? "Path ready" : "Interface is down", net && net->up ? nu_grn : RGB(255,149,0));
+            return 1;
+        }
+        if (active_tab == 3) {
+            runtime_system_info_t sys;
+            char dns[16];
+            runtime_get_system_info(&sys);
+            runtime_format_ipv4(dns_ip, dns, sizeof(dns));
+            vga_fill_rect(wx+6, pa_y, ww-12, 100, nu_card);
+            vga_draw_rect_outline(wx+6, pa_y, ww-12, 100, nu_sep);
+            vga_draw_string_trans(wx+12, pa_y+8, "Lookup", nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+30, "Name:", nu_sub); vga_draw_string_trans(wx+80, pa_y+30, sys.nodename, nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+48, "Server:", nu_sub); vga_draw_string_trans(wx+80, pa_y+48, dns_ip ? dns : "not configured", nu_txt);
+            vga_draw_string_trans(wx+12, pa_y+66, "Records shown from runtime network state", nu_sub);
+            return 1;
+        }
+        {
+            int ports[] = {22, 53, 80, 443};
+            const char *names[] = {"SSH", "DNS", "HTTP", "HTTPS"};
+            int pi4;
+            vga_fill_rect(wx+6, pa_y, ww-12, 118, nu_card);
+            vga_draw_rect_outline(wx+6, pa_y, ww-12, 118, nu_sep);
+            vga_draw_string_trans(wx+12, pa_y+8, "Port Scan", nu_txt);
+            for (pi4=0; pi4<4; pi4++) {
+                char pbuf[8];
+                int row_y = pa_y + 30 + pi4 * 20;
+                runtime_format_uint((uint32_t)ports[pi4], pbuf, sizeof(pbuf));
+                vga_draw_string_trans(wx+16, row_y, pbuf, nu_sub);
+                vga_draw_string_trans(wx+64, row_y, names[pi4], nu_txt);
+                vga_draw_string_trans(wx+150, row_y, net && net->up ? "reachable" : "blocked", net && net->up ? nu_grn : RGB(255,149,0));
+            }
+            return 1;
+        }
     }
 
     /* ---- Math Notes ---- */
