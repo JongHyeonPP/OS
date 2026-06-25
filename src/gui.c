@@ -2713,7 +2713,7 @@ static void safari_describe_tls_probe(const safari_request_t *req, const uint8_t
     safari_append(out, &pos, max, saw_certificate ? "Certificate handshake was visible in plaintext.\n" :
                   "Certificate is not yet decoded; TLS 1.3 encrypts it after ServerHello.\n");
     safari_append(out, &pos, max,
-                  "\nEncrypted HTTPS page rendering still requires key exchange, record protection, certificate validation, and HTTP-over-TLS decryption.");
+                  "\nFull HTTPS page rendering still requires Finished/application traffic, certificate validation, and HTTP-over-TLS response handling.");
 }
 
 static int safari_fetch_raw_http(const safari_request_t *req, const char *method,
