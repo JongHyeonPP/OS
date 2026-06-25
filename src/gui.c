@@ -1186,7 +1186,7 @@ static void safari_make_local_body(const safari_request_t *req, const char *requ
     }
     if (n >= 0) {
         filebuf[n] = 0;
-        safari_append(out, &pos, max, "HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\n");
+        safari_append(out, &pos, max, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n");
         safari_append(out, &pos, max, "<html><title>");
         safari_append(out, &pos, max, path);
         safari_append(out, &pos, max, "</title><body><pre>");
