@@ -4652,7 +4652,14 @@ static void safari_resolve_location(const safari_request_t *req, const char *loc
         int cpos = 0;
         const char *base = req->path[0] ? req->path : "/";
         if (p[0] == '?' || p[0] == '#') {
-            safari_append(out, &pos, max, base);
+            int keep_query = (p[0] == '#');
+            for (i = 0; base[i] && base[i] != '#'; i++) {
+                if (!keep_query && base[i] == '?') break;
+                if (pos + 1 < max) {
+                    out[pos++] = base[i];
+                    out[pos] = 0;
+                }
+            }
             safari_append(out, &pos, max, p);
             return;
         }
