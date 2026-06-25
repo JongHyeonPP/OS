@@ -4972,23 +4972,37 @@ void airplay_draw(void) {
     vga_draw_string_trans(dx+(dw-7*8)/2, dy+14, "AirPlay", RGB(235,235,240));
     vga_draw_hline(dx, dy+44, dw, RGB(62,62,76));
     vga_draw_string_trans(dx+16, dy+54, "OUTPUT TO:", RGB(115,115,138));
-    gui_draw_rounded_rect(dx+12, dy+72, dw-24, 54, 8, RGB(42,42,55));
+    gui_draw_rounded_rect(dx+12, dy+72, dw-24, 54, 8, g_airplay_selected == 0 ? RGB(52,62,84) : RGB(42,42,55));
     gui_draw_circle(dx+34, dy+99, 14, RGB(80,80,100));
     vga_draw_string_trans(dx+28, dy+94, "MC", RGB(200,200,215));
     vga_draw_string_trans(dx+56, dy+88, "This Mac", RGB(255,255,255));
     vga_draw_string_trans(dx+56, dy+106, "Built-in display", RGB(190,220,255));
     vga_draw_hline(dx+16, dy+144, dw-32, RGB(52,52,68));
-    vga_draw_string_trans(dx+16, dy+166, "No AirPlay receivers found", RGB(200,200,215));
+    if (g_airplay_scan_count > 0) {
+        gui_draw_rounded_rect(dx+12, dy+152, dw-24, 54, 8, g_airplay_selected == 1 ? RGB(52,62,84) : RGB(42,42,55));
+        gui_draw_circle(dx+34, dy+179, 14, RGB(0,122,255));
+        vga_draw_string_trans(dx+26, dy+174, "TV", RGB(255,255,255));
+        vga_draw_string_trans(dx+56, dy+168, "Living Room TV", RGB(255,255,255));
+        vga_draw_string_trans(dx+56, dy+186, g_airplay_selected == 1 ? "Streaming display" : "AirPlay receiver", RGB(190,220,255));
+    } else {
+        vga_draw_string_trans(dx+16, dy+166, "No AirPlay receivers found", RGB(200,200,215));
+    }
     if (g_airplay_scan_count > 0) {
         char aline[48];
         char anum[12];
         int ap = 0;
         aline[0] = 0;
+        if (g_airplay_selected == 1) {
+            overlay_append_text(aline, &ap, sizeof(aline), "Output: Living Room TV");
+            vga_draw_string_trans(dx+16, dy+216, aline, RGB(145,145,165));
+            aline[0] = 0;
+            ap = 0;
+        }
         overlay_append_text(aline, &ap, sizeof(aline), "Last scan: ");
         runtime_format_uint((uint32_t)g_airplay_scan_count, anum, sizeof(anum));
         overlay_append_text(aline, &ap, sizeof(aline), anum);
         overlay_append_text(aline, &ap, sizeof(aline), " completed");
-        vga_draw_string_trans(dx+16, dy+184, aline, RGB(145,145,165));
+        vga_draw_string_trans(dx+16, g_airplay_selected == 1 ? dy+234 : dy+216, aline, RGB(145,145,165));
     } else {
         vga_draw_string_trans(dx+16, dy+184, "Click Scan to discover receivers", RGB(145,145,165));
     }
@@ -5256,8 +5270,14 @@ int new_overlays_click(int mx, int my) {
             return 1;
         }
         if (HIT(dx+dw-52, by3, 52, 20)) { g_airplay_visible=0; return 1; }
-        if (HIT(dx+12, dy+72, dw-24, 140)) {
+        if (HIT(dx+12, dy+72, dw-24, 54)) {
+            g_airplay_selected = 0;
             toast_show("AirPlay","Using built-in display",RGB(0,122,255));
+            return 1;
+        }
+        if (g_airplay_scan_count > 0 && HIT(dx+12, dy+152, dw-24, 54)) {
+            g_airplay_selected = 1;
+            toast_show("AirPlay","Streaming to Living Room TV",RGB(0,122,255));
             return 1;
         }
         return 1;

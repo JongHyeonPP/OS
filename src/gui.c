@@ -169,6 +169,7 @@ int g_calendar_year = 0;
 int g_airplay_visible = 0;
 int g_airplay_scan_count = 0;
 uint32_t g_airplay_last_scan_tick = 0;
+int g_airplay_selected = 0; /* 0=this Mac, 1=discovered receiver */
 
 
 /* Siri overlay */

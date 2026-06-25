@@ -216,6 +216,7 @@ extern int g_calendar_year;
 extern int g_airplay_visible;
 extern int g_airplay_scan_count;
 extern uint32_t g_airplay_last_scan_tick;
+extern int g_airplay_selected;
 
 /* Siri */
 extern int      g_siri_visible;
