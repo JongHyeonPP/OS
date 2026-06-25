@@ -1364,19 +1364,54 @@ int draw_apps_group4(int idx) {
         uint32_t tp_txt=g_pref_darkmode?RGB(218,218,226):RGB(20,20,28);
         uint32_t tp_sub=g_pref_darkmode?RGB(130,130,140):RGB(100,100,110);
         uint32_t tp_acc=RGB(40,120,200);
+        int progress = 0;
+        char status[64];
+        int sp = 0;
+        if (g_transporter_uploading) {
+            uint32_t elapsed = timer_ticks() - g_transporter_upload_start_tick;
+            progress = (int)(elapsed / 30U);
+            if (progress >= 100) {
+                progress = 100;
+                g_transporter_uploading = 0;
+            }
+        } else if (g_transporter_upload_count > 0) {
+            progress = 100;
+        }
         vga_fill_rect(wx+1,cy,ww-2,wh-TITLEBAR_H,tp_bg);
         vga_draw_string_trans(wx+10,cy+8,"Transporter",tp_txt);
         vga_draw_hline(wx+2,cy+20,ww-4,g_pref_darkmode?RGB(50,50,56):RGB(215,215,220));
         /* Upload section */
         vga_fill_rect_alpha(wx+10,cy+28,ww-20,60,tp_acc,30);
         vga_draw_rect_outline(wx+10,cy+28,ww-20,60,tp_acc);
-        vga_draw_string_trans(wx+(ww-88)/2,cy+50,"Drop .ipa here",tp_sub);
-        vga_draw_string_trans(wx+(ww-120)/2,cy+64,"or click to browse",tp_sub);
+        if (g_transporter_uploading) {
+            vga_draw_string_trans(wx+(ww-136)/2,cy+50,"Uploading MyApp_v2.1.ipa",tp_txt);
+            vga_draw_string_trans(wx+(ww-112)/2,cy+64,"click to restart",tp_sub);
+        } else if (g_transporter_upload_count > 0) {
+            vga_draw_string_trans(wx+(ww-152)/2,cy+50,"Upload complete",tp_txt);
+            vga_draw_string_trans(wx+(ww-128)/2,cy+64,"click to send again",tp_sub);
+        } else {
+            vga_draw_string_trans(wx+(ww-88)/2,cy+50,"Drop .ipa here",tp_sub);
+            vga_draw_string_trans(wx+(ww-120)/2,cy+64,"or click to browse",tp_sub);
+        }
         /* Progress */
-        vga_draw_string_trans(wx+10,cy+96,"MyApp_v2.1.ipa",tp_txt);
+        vga_draw_string_trans(wx+10,cy+96,
+                              (g_transporter_uploading || g_transporter_upload_count > 0) ?
+                              "MyApp_v2.1.ipa" : "No package selected",
+                              (g_transporter_uploading || g_transporter_upload_count > 0) ? tp_txt : tp_sub);
         vga_fill_rect(wx+10,cy+110,ww-20,8,g_pref_darkmode?RGB(40,40,46):RGB(220,220,226));
-        vga_fill_rect(wx+10,cy+110,(ww-20)*3/4,8,tp_acc);
-        vga_draw_string_trans(wx+10,cy+122,"Uploading to App Store Connect...",tp_sub);
+        if (progress > 0)
+            vga_fill_rect(wx+10,cy+110,(ww-20)*progress/100,8,tp_acc);
+        status[0] = 0;
+        if (progress >= 100) {
+            apps4_append_text(status, &sp, sizeof(status), "Uploaded to App Store Connect");
+        } else if (g_transporter_uploading) {
+            apps4_append_text(status, &sp, sizeof(status), "Uploading to App Store Connect... ");
+            apps4_append_uint(status, &sp, sizeof(status), (uint32_t)progress);
+            apps4_append_text(status, &sp, sizeof(status), "%");
+        } else {
+            apps4_append_text(status, &sp, sizeof(status), "Waiting for package");
+        }
+        vga_draw_string_trans(wx+10,cy+122,status,tp_sub);
         return 1;
     }
     /* ---- AR Quick Look ---- */

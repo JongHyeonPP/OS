@@ -3085,6 +3085,9 @@ int g_wallet_pay_count = 0;
 /* ====== Misc app action state ====== */
 int g_compressor_added_files = 0;
 int g_compressor_submitted = 0;
+int g_transporter_uploading = 0;
+uint32_t g_transporter_upload_start_tick = 0;
+int g_transporter_upload_count = 0;
 int g_screen_recording_active = 0;
 int g_screen_recording_count = 0;
 int g_translate_favorites = 0;

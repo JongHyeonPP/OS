@@ -1561,6 +1561,24 @@ void gui_run(void) {
                 }
                 break;
             }
+            /* Transporter upload area */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Transporter")) continue;
+                if (i != top_win_idx) continue;
+                {
+                    int cy_tp = w->y + TITLEBAR_H;
+                    if (mx>=w->x+10 && mx<w->x+w->w-10 &&
+                        my>=cy_tp+28 && my<cy_tp+88) {
+                        g_transporter_uploading = 1;
+                        g_transporter_upload_start_tick = timer_ticks();
+                        if (g_transporter_upload_count < 999) g_transporter_upload_count++;
+                        toast_show("Transporter","Upload started",RGB(40,120,200));
+                        dirty=1; goto end_left_press;
+                    }
+                }
+                break;
+            }
             /* Translate favorite and Math Notes new note */
             for (i = 0; i < g_num_windows; i++) {
                 gui_window_t *w = &g_windows[i];
