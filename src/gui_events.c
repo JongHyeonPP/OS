@@ -154,6 +154,42 @@ static const char *gui_search_owner_name(int owner) {
     return "Search";
 }
 
+static const char *g_contact_names_for_search[] = {
+    "Alice Johnson", "Bob Smith", "Carol White", "David Brown",
+    "Emma Davis", "Frank Wilson", "Grace Lee", "Henry Chen"
+};
+
+static const char *g_contact_phones_for_search[] = {
+    "+1 555-0101", "+1 555-0142", "+1 555-0178", "+1 555-0165",
+    "+1 555-0133", "+1 555-0190", "+1 555-0121", "+1 555-0155"
+};
+
+static int gui_contacts_index_for_visible_row(int row) {
+    int i;
+    int shown = 0;
+    if (row < 0) return -1;
+    for (i = 0; i < 8; i++) {
+        if (!gui_search_matches(GUI_SEARCH_CONTACTS,
+                                g_contact_names_for_search[i],
+                                g_contact_phones_for_search[i]))
+            continue;
+        if (shown == row) return i;
+        shown++;
+    }
+    return -1;
+}
+
+static int gui_contacts_visible_selection(void) {
+    int sel = g_ct_sel;
+    int first = gui_contacts_index_for_visible_row(0);
+    if (sel < 0 || sel >= 8) sel = 0;
+    if (gui_search_matches(GUI_SEARCH_CONTACTS,
+                           g_contact_names_for_search[sel],
+                           g_contact_phones_for_search[sel]))
+        return sel;
+    return first >= 0 ? first : 0;
+}
+
 static int gui_filename_has_ext(const char *name, const char *ext) {
     const char *dot = 0;
     int i;
@@ -1626,9 +1662,7 @@ void gui_run(void) {
                             "alice@email.com", "bob@email.com", "carol@email.com", "david@email.com",
                             "emma@email.com", "frank@email.com", "grace@email.com", "henry@email.com"
                         };
-                        int sel_ct = g_ct_sel;
-                        if (sel_ct < 0) sel_ct = 0;
-                        if (sel_ct > 7) sel_ct = 7;
+                        int sel_ct = gui_contacts_visible_selection();
                         if (ca == 0) { g_facetime_visible=1; g_facetime_calling=1; toast_show("Contacts","Calling contact",RGB(52,199,89)); }
                         else if (ca == 1) { (void)gui_open_basic_app("FaceTime"); toast_show("Contacts","FaceTime started",RGB(0,199,190)); }
                         else if (ca == 2) { (void)gui_open_basic_app("Messages"); toast_show("Contacts","Message thread opened",RGB(52,199,89)); }
@@ -1638,8 +1672,9 @@ void gui_run(void) {
                 }
                 if (mx >= w->x+1 && mx < w->x+1+list_w2 && my >= ct_top2+44) {
                     int row = (my - (ct_top2+62)) / 32;
-                    if (row >= 0 && row < 8) {
-                        g_ct_sel = row;
+                    int contact_index = gui_contacts_index_for_visible_row(row);
+                    if (contact_index >= 0) {
+                        g_ct_sel = contact_index;
                         dirty = 1;
                         goto end_left_press;
                     }
@@ -2136,16 +2171,25 @@ void gui_run(void) {
                   { static const char *feat_names_as[] = {
                         "Darkroom","Bear","Fantastical","1Password","Things 3","Pixelmator"
                     };
+                    static const char *feat_subs_as[] = {
+                        "Photo & Video Editor", "Writing App for Notes", "Calendar & Tasks",
+                        "Password Manager", "To-Do & Task Manager", "Photo Editor"
+                    };
                     int card_y_as = tab_y_as + 160;
                     int feat_cols_as = (w->w > 320) ? 3 : 2;
                     int faw_as = (w->w - 8) / feat_cols_as - 4;
                     int fah_as = 62;
                     int fi_as;
+                    int shown_as = 0;
                     for (fi_as=0; fi_as<6; fi_as++) {
-                        int fc_as = fi_as % feat_cols_as;
-                        int fr_as = fi_as / feat_cols_as;
-                        int fax_as = w->x + 4 + fc_as * (faw_as + 4);
-                        int fay_as = card_y_as + fr_as * (fah_as + 4);
+                        int fc_as, fr_as, fax_as, fay_as;
+                        if (!gui_search_matches(GUI_SEARCH_APPSTORE, feat_names_as[fi_as], feat_subs_as[fi_as]))
+                            continue;
+                        fc_as = shown_as % feat_cols_as;
+                        fr_as = shown_as / feat_cols_as;
+                        fax_as = w->x + 4 + fc_as * (faw_as + 4);
+                        fay_as = card_y_as + fr_as * (fah_as + 4);
+                        shown_as++;
                         int bw_as = 46;
                         int bx_as = fax_as + faw_as - bw_as - 5;
                         int by_as = fay_as + fah_as - 21;
@@ -4082,6 +4126,34 @@ void gui_run(void) {
                     int cx0 = w->x + sb_w + 1;
                     int cw2 = w->w - sb_w - 2;
                     if (mx >= cx0 && mx < cx0+cw2 && my >= fy0 && my < fy0+fh2) {
+                        const char *finder_query_ev = gui_search_text(GUI_SEARCH_FINDER);
+                        if (finder_query_ev && finder_query_ev[0]) {
+                            int fcount_search = 0;
+                            const folder_icon_t *cf_search = finder_current_folders(&fcount_search);
+                            int row_search = (my - (fy0 + 28)) / 18;
+                            int shown_search = 0;
+                            int fi_search;
+                            for (fi_search = 0; fi_search < fcount_search; fi_search++) {
+                                if (!gui_search_matches(GUI_SEARCH_FINDER, cf_search[fi_search].name, 0))
+                                    continue;
+                                if (shown_search == row_search) {
+                                    uint32_t click_now = timer_ticks();
+                                    if (last_click_fi == fi_search && (click_now - last_click_tick) < 500 &&
+                                        g_finder_depth < FINDER_DEPTH_MAX-1) {
+                                        g_finder_stack[g_finder_depth] = cf_search[fi_search].name;
+                                        g_finder_depth++;
+                                        last_click_fi = -1;
+                                    } else {
+                                        last_click_fi = fi_search;
+                                        last_click_tick = click_now;
+                                    }
+                                    dirty = 1;
+                                    goto end_left_press;
+                                }
+                                shown_search++;
+                            }
+                            goto end_left_press;
+                        }
                         int ic_w = (cw2 > 200) ? 100 : cw2/2;
                         int ic_h = 60;
                         int gx = cx0 + (cw2 - 2*ic_w)/2;
