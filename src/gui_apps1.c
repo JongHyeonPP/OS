@@ -598,8 +598,10 @@ int draw_apps_group1(int idx) {
             /* Network */
             const netif_t *net = runtime_primary_netif();
             uint32_t gw_ip = 0;
+            uint32_t dns_ip = runtime_dns_server4();
             char ipbuf[18];
             char gwbuf[18];
+            char dnsbuf[18];
             char txbuf[12];
             char rxbuf[12];
             char pktbuf[32];
@@ -614,6 +616,7 @@ int draw_apps_group1(int idx) {
             }
             runtime_format_ipv4(net ? net->ipv4 : 0, ipbuf, sizeof(ipbuf));
             runtime_format_ipv4(gw_ip, gwbuf, sizeof(gwbuf));
+            runtime_format_ipv4(dns_ip, dnsbuf, sizeof(dnsbuf));
             runtime_format_uint(net ? net->tx_packets : 0, txbuf, sizeof(txbuf));
             runtime_format_uint(net ? net->rx_packets : 0, rxbuf, sizeof(rxbuf));
             pktbuf[0] = 0;
@@ -634,7 +637,7 @@ int draw_apps_group1(int idx) {
             vga_draw_string_trans(cx, cy+82, "Gateway:", lbl);
             vga_draw_string_trans(cx+68, cy+82, gwbuf, sub);
             vga_draw_string_trans(cx, cy+96, "DNS:", lbl);
-            vga_draw_string_trans(cx+36, cy+96, "not configured", sub);
+            vga_draw_string_trans(cx+36, cy+96, dns_ip ? dnsbuf : "not configured", sub);
             vga_draw_string_trans(cx, cy+110, "Signal:", lbl);
             { int si2;
               for (si2=0;si2<5;si2++) {
@@ -1404,8 +1407,10 @@ int draw_apps_group1(int idx) {
         vga_fill_rect(wx+1, toolbary, ww-2, 26, sf_tb_bg);
         vga_draw_hline(wx+1, toolbary+26, ww-2, sf_tab_bd);
         /* Back/Forward */
-        vga_draw_string_trans(wx+8,  toolbary+9, "<", sf_nav);
-        vga_draw_string_trans(wx+22, toolbary+9, ">", sf_nav);
+        { int can_back = safari_can_go_back();
+          int can_forward = safari_can_go_forward();
+          vga_draw_string_trans(wx+8,  toolbary+9, "<", can_back ? sf_url_txt : sf_nav);
+          vga_draw_string_trans(wx+22, toolbary+9, ">", can_forward ? sf_url_txt : sf_nav); }
         /* Address bar */
         int ab_x=wx+44, ab_w=ww-90;
         vga_fill_rect(ab_x, toolbary+5, ab_w, 16, sf_ab_bg);
@@ -1453,7 +1458,7 @@ int draw_apps_group1(int idx) {
             gui_draw_circle(sbx+12, sby+12, 5, sp_sub);
             gui_draw_circle(sbx+12, sby+12, 3, sp_bg);
             vga_draw_line(sbx+16, sby+16, sbx+20, sby+20, sp_sub);
-            vga_draw_string_trans(sbx+22, sby+8, "Search or enter address", sp_sub);
+            vga_draw_string_trans(sbx+22, sby+8, "Enter web address", sp_sub);
 
             int fy = sby + sbh + 14;
             vga_draw_string_trans(wx+12, fy, "FAVOURITES", sp_sub);
@@ -1517,12 +1522,48 @@ int draw_apps_group1(int idx) {
             int col = 0;
             int line = 0;
             int ci;
+            int total_lines = 1;
+            int visible_lines;
+            int max_scroll;
             if (max_cols < 8) max_cols = 8;
             vga_draw_string_trans(tx, ty, g_safari_page_title, g_safari_page_state == 2 ? RGB(255,80,80) : pg_txt);
             vga_draw_string_trans(tx, ty+14, g_safari_page_status, pg_sub);
             vga_draw_hline(wx+8, ty+28, ww-16, pg_rule);
             ty += 36;
-            for (ci = 0; g_safari_page_text[ci] && ty + line*12 < cy2 + ph - 8; ci++) {
+            if (g_safari_link_count > 0) {
+                int li;
+                vga_draw_string_trans(tx, ty, "Links:", pg_sub);
+                ty += 12;
+                for (li = 0; li < g_safari_link_count && ty + 12 < cy2 + ph - 8; li++) {
+                    char link_line[64];
+                    int lp = 0;
+                    apps1_append_uint(link_line, &lp, sizeof(link_line), (uint32_t)(li + 1));
+                    apps1_append_text(link_line, &lp, sizeof(link_line), ". ");
+                    apps1_append_text(link_line, &lp, sizeof(link_line), g_safari_link_titles[li]);
+                    vga_draw_string_trans(tx, ty, link_line, RGB(0,122,255));
+                    ty += 12;
+                }
+                vga_draw_hline(wx+8, ty+2, ww-16, pg_rule);
+                ty += 8;
+            }
+            for (ci = 0; g_safari_page_text[ci]; ci++) {
+                char ch = g_safari_page_text[ci];
+                if (ch == '\n' || col >= max_cols) {
+                    total_lines++;
+                    col = 0;
+                    if (ch == '\n') continue;
+                }
+                if (ch >= 32 && ch < 127) col++;
+            }
+            visible_lines = (cy2 + ph - 8 - ty) / 12;
+            if (visible_lines < 1) visible_lines = 1;
+            max_scroll = total_lines - visible_lines;
+            if (max_scroll < 0) max_scroll = 0;
+            if (g_safari_page_scroll < 0) g_safari_page_scroll = 0;
+            if (g_safari_page_scroll > max_scroll) g_safari_page_scroll = max_scroll;
+            col = 0;
+            line = 0;
+            for (ci = 0; g_safari_page_text[ci] && line - g_safari_page_scroll < visible_lines; ci++) {
                 char ch = g_safari_page_text[ci];
                 if (ch == '\n' || col >= max_cols) {
                     line++;
@@ -1530,7 +1571,8 @@ int draw_apps_group1(int idx) {
                     if (ch == '\n') continue;
                 }
                 if (ch >= 32 && ch < 127) {
-                    vga_draw_char_trans(tx + col*8, ty + line*12, ch, pg_txt);
+                    if (line >= g_safari_page_scroll)
+                        vga_draw_char_trans(tx + col*8, ty + (line-g_safari_page_scroll)*12, ch, pg_txt);
                     col++;
                 }
             }

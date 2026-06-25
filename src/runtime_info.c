@@ -54,6 +54,57 @@ static uint32_t total_heap_bytes(void) {
     return (uint32_t)(heap_used_bytes() + heap_free_bytes());
 }
 
+static int runtime_parse_ipv4_text(const char *s, uint32_t *out) {
+    uint32_t octets[4];
+    uint32_t i;
+    if (!s || !out) return -1;
+    for (i = 0; i < 4; i++) {
+        uint32_t value = 0;
+        int any = 0;
+        while (*s >= '0' && *s <= '9') {
+            value = value * 10U + (uint32_t)(*s - '0');
+            if (value > 255U) return -1;
+            any = 1;
+            s++;
+        }
+        if (!any) return -1;
+        octets[i] = value;
+        if (i < 3) {
+            if (*s != '.') return -1;
+            s++;
+        }
+    }
+    if (*s && *s != ' ' && *s != '\t' && *s != '\r' && *s != '\n') return -1;
+    *out = (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3];
+    return 0;
+}
+
+static int runtime_resolv_conf_dns(uint32_t *out) {
+    int fd;
+    int n;
+    int i = 0;
+    char buf[256];
+    if (!out) return -1;
+    fd = vfs_open("/etc/resolv.conf", VFS_O_RDONLY);
+    if (fd < 0) return -1;
+    n = vfs_read(fd, buf, sizeof(buf) - 1);
+    vfs_close(fd);
+    if (n <= 0) return -1;
+    buf[n] = 0;
+    while (i < n) {
+        while (i < n && (buf[i] == ' ' || buf[i] == '\t' || buf[i] == '\r' || buf[i] == '\n')) i++;
+        if (i + 10 < n && buf[i] == 'n' && buf[i+1] == 'a' && buf[i+2] == 'm' &&
+            buf[i+3] == 'e' && buf[i+4] == 's' && buf[i+5] == 'e' && buf[i+6] == 'r' &&
+            buf[i+7] == 'v' && buf[i+8] == 'e' && buf[i+9] == 'r') {
+            i += 10;
+            while (i < n && (buf[i] == ' ' || buf[i] == '\t')) i++;
+            if (runtime_parse_ipv4_text(buf + i, out) == 0) return 0;
+        }
+        while (i < n && buf[i] != '\n') i++;
+    }
+    return -1;
+}
+
 static uint32_t task_count_active(void) {
     uint32_t i, count = 0;
     for (i = 0; i < task_table_size(); i++) {
@@ -216,6 +267,24 @@ const netif_t *runtime_primary_netif(void) {
             return n;
     }
     return fallback;
+}
+
+uint32_t runtime_dns_server4(void) {
+    uint32_t i;
+    uint32_t dns = 0;
+    if (runtime_resolv_conf_dns(&dns) == 0) return dns;
+    for (i = 0; i < net_route_count(); i++) {
+        const net_route_t *route = net_route_at(i);
+        const netif_t *iface;
+        if (!route || !route->gateway) continue;
+        iface = netif_at(route->ifindex);
+        if (iface && (iface->ipv4 & 0xFFFFFF00U) == 0x0A000200U &&
+            (route->gateway & 0xFFFFFF00U) == 0x0A000200U) {
+            return (route->gateway & 0xFFFFFF00U) | 3U;
+        }
+        return route->gateway;
+    }
+    return 0;
 }
 
 void runtime_get_power_info(runtime_power_info_t *out) {

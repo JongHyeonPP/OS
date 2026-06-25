@@ -969,17 +969,8 @@ void gui_run(void) {
                         if (g_safari_tab_count < SAFARI_MAX_TABS) {
                             str_cpy(g_safari_tab_urls[g_safari_active_tab], g_safari_url);
                             g_safari_active_tab = g_safari_tab_count++;
-                            g_safari_tab_urls[g_safari_active_tab][0] = 0;
-                            safari_load_url("about:home");
-                            g_safari_tab_titles[g_safari_active_tab][0] = 'N';
-                            g_safari_tab_titles[g_safari_active_tab][1] = 'e';
-                            g_safari_tab_titles[g_safari_active_tab][2] = 'w';
-                            g_safari_tab_titles[g_safari_active_tab][3] = ' ';
-                            g_safari_tab_titles[g_safari_active_tab][4] = 'T';
-                            g_safari_tab_titles[g_safari_active_tab][5] = 'a';
-                            g_safari_tab_titles[g_safari_active_tab][6] = 'b';
-                            g_safari_tab_titles[g_safari_active_tab][7] = 0;
-                            g_safari_url[0] = 0;
+                            safari_reset_tab_state(g_safari_active_tab, "about:home");
+                            safari_load_current_tab();
                             dirty=1;
                         }
                         goto end_left_press;
@@ -999,10 +990,12 @@ void gui_run(void) {
                                   if (g_safari_tab_count > 1) {
                                       int j5;
                                       for (j5=ti4; j5<g_safari_tab_count-1; j5++) {
-                                          str_cpy(g_safari_tab_urls[j5], g_safari_tab_urls[j5+1]);
-                                          str_cpy(g_safari_tab_titles[j5], g_safari_tab_titles[j5+1]);
+                                          safari_copy_tab_state(j5, j5+1);
                                       }
                                       g_safari_tab_count--;
+                                      safari_reset_tab_state(g_safari_tab_count, "about:home");
+                                      if (g_safari_active_tab > ti4)
+                                          g_safari_active_tab--;
                                       if (g_safari_active_tab >= g_safari_tab_count)
                                           g_safari_active_tab = g_safari_tab_count-1;
                                       str_cpy(g_safari_url, g_safari_tab_urls[g_safari_active_tab]);
@@ -1030,11 +1023,31 @@ void gui_run(void) {
                 if (i != win_top_visible()) continue;
                 int tbary = w->y+TITLEBAR_H+1+22;
                 int ab_x2 = w->x+44, ab_w2 = w->w-90;
+                if (my>=tbary+5 && my<tbary+21) {
+                    if (mx>=w->x+4 && mx<w->x+20) {
+                        g_safari_url_focused=0;
+                        if (safari_can_go_back()) safari_go_back();
+                        else toast_show("Safari", "No back history", RGB(120,120,128));
+                        dirty=1; goto end_left_press;
+                    }
+                    if (mx>=w->x+20 && mx<w->x+36) {
+                        g_safari_url_focused=0;
+                        if (safari_can_go_forward()) safari_go_forward();
+                        else toast_show("Safari", "No forward history", RGB(120,120,128));
+                        dirty=1; goto end_left_press;
+                    }
+                    if (mx>=w->x+w->w-24 && mx<w->x+w->w-6) {
+                        g_safari_url_focused=0;
+                        g_share_visible=1;
+                        gui_record_share_action("Sharing web page", RGB(40,160,220));
+                        dirty=1; goto end_left_press;
+                    }
+                }
                 if (mx>=ab_x2 && mx<ab_x2+ab_w2 && my>=tbary+5 && my<tbary+21) {
                     g_safari_url_focused=1; dirty=1; goto end_left_press;
                 }
                 if (mx>=w->x+w->w-42 && mx<w->x+w->w-28 && my>=tbary+5 && my<tbary+21) {
-                    safari_load_current_tab(); dirty=1; goto end_left_press;
+                    safari_reload(); dirty=1; goto end_left_press;
                 }
                 {
                     int cy_home = tbary + 28;
@@ -1065,6 +1078,16 @@ void gui_run(void) {
                                     safari_load_url(fav_urls2[fi2]); dirty=1; goto end_left_press;
                                 }
                             }
+                        }
+                    }
+                    if (!safari_is_home_url(g_safari_url) && g_safari_link_count > 0 &&
+                        my >= cy_home && my < cy_home + ph_home) {
+                        int link_y2 = cy_home + 12 + 36 + 12;
+                        int li_hit = (my - link_y2) / 12;
+                        if (mx >= w->x+12 && mx < w->x+w->w-12 &&
+                            li_hit >= 0 && li_hit < g_safari_link_count &&
+                            my >= link_y2 + li_hit*12 && my < link_y2 + li_hit*12 + 12) {
+                            safari_load_url(g_safari_link_urls[li_hit]); dirty=1; goto end_left_press;
                         }
                     }
                 }
@@ -4283,8 +4306,11 @@ void gui_run(void) {
                 } else if (g_photos_fullscreen && (ch == KEY_RIGHT || ch == KEY_DOWN)) {
                     g_photos_sel = (g_photos_sel + 1) % 6; dirty = 1;
                 } else if (ch == KEY_PGUP) {
-                    /* Page Up: scroll Terminal up, or calendar back */
-                    if (gui_top_window_named("Terminal")) {
+                    if (gui_top_window_named("Safari")) {
+                        g_safari_page_scroll -= 5;
+                        if (g_safari_page_scroll < 0) g_safari_page_scroll = 0;
+                        dirty = 1;
+                    } else if (gui_top_window_named("Terminal")) {
                         int max_sc = term_num_lines - TERM_LINES;
                         if (max_sc < 0) max_sc = 0;
                         g_term_scroll += 5;
@@ -4292,12 +4318,19 @@ void gui_run(void) {
                         dirty = 1;
                     }
                 } else if (ch == KEY_PGDN) {
-                    /* Page Down: scroll Terminal down */
-                    if (gui_top_window_named("Terminal")) {
+                    if (gui_top_window_named("Safari")) {
+                        g_safari_page_scroll += 5;
+                        if (g_safari_page_scroll > SAFARI_PAGE_TEXT_MAX / 8) g_safari_page_scroll = SAFARI_PAGE_TEXT_MAX / 8;
+                        dirty = 1;
+                    } else if (gui_top_window_named("Terminal")) {
                         g_term_scroll -= 5;
                         if (g_term_scroll < 0) g_term_scroll = 0;
                         dirty = 1;
                     }
+                } else if ((ch == KEY_UP || ch == KEY_DOWN) && gui_top_window_named("Safari") && !g_safari_url_focused) {
+                    if (ch == KEY_UP && g_safari_page_scroll > 0) g_safari_page_scroll--;
+                    if (ch == KEY_DOWN && g_safari_page_scroll < SAFARI_PAGE_TEXT_MAX / 8) g_safari_page_scroll++;
+                    dirty = 1;
                 } else if ((ch == KEY_UP || ch == KEY_DOWN) && gui_top_window_named("Settings")) {
                     if (ch == KEY_UP && g_settings_tab > 0)  { g_settings_tab--; dirty=1; }
                     if (ch == KEY_DOWN && g_settings_tab < 13){ g_settings_tab++; dirty=1; }

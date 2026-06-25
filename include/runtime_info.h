@@ -91,6 +91,7 @@ void runtime_get_weather_info(runtime_weather_info_t *out);
 void runtime_get_system_info(runtime_system_info_t *out);
 int  runtime_get_storage_info(const char *path, runtime_storage_info_t *out);
 const netif_t *runtime_primary_netif(void);
+uint32_t runtime_dns_server4(void);
 
 void runtime_format_uint(uint32_t value, char *buf, uint32_t max);
 void runtime_format_percent(int percent, char *buf, uint32_t max);

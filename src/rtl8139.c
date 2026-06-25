@@ -8,6 +8,8 @@
 
 #define RTL_VENDOR 0x10EC
 #define RTL_DEVICE 0x8139
+#define RTL_DEFAULT_IPV4    0x0A00020FU
+#define RTL_DEFAULT_GATEWAY 0x0A000202U
 
 #define REG_IDR0      0x00
 #define REG_TSD0      0x10
@@ -276,10 +278,11 @@ void rtl8139_init(void) {
          RCR_AAP | RCR_APM | RCR_AM | RCR_AB | RCR_WRAP | RCR_MXDMA_UNLIMITED);
     outl((uint16_t)(g_rtl.io + REG_TCR), 0x00000600U);
     outb((uint16_t)(g_rtl.io + REG_CR), CR_RE | CR_TE);
-    ifindex = net_register_if("eth0", g_rtl.mac, 0x0A00020FU, 1500,
+    ifindex = net_register_if("eth0", g_rtl.mac, RTL_DEFAULT_IPV4, 1500,
                               rtl_send, rtl_poll, &g_rtl);
     if (ifindex < 0) return;
     g_rtl.ifindex = (uint32_t)ifindex;
+    (void)net_route_add(0, 0, RTL_DEFAULT_GATEWAY, (uint32_t)ifindex);
     g_rtl.present = 1;
     driver_register("rtl8139-net", DRIVER_BUS_NET,
                     ((uint32_t)dev->vendor_id << 16) | dev->device_id,
