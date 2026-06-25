@@ -1467,7 +1467,7 @@ int draw_apps_group1(int idx) {
         if (g_safari_url_focused) {
             vga_fill_rect_alpha(ab_x+2, toolbary+6, ab_w-4, 14, RGB(0,122,255), 30);
         }
-        /* Actual transport indicator: local/about, HTTP, or unsupported TLS. */
+        /* Actual transport indicator: local/about, HTTP, or HTTPS warning. */
         if (safari_url_has_scheme(g_safari_url, "https")) {
             vga_draw_string_trans(ab_x+4, toolbary+8, "!", RGB(255,59,48));
         } else if (safari_url_has_scheme(g_safari_url, "http")) {
