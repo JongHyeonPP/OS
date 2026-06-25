@@ -1655,6 +1655,16 @@ int draw_apps_group3(int idx) {
         vga_draw_hline(wx+1, content_y+20, ww-2, mn_sep);
         vga_draw_string_trans(wx+6, content_y+6, "Math Notes", mn_txt);
         vga_draw_string_trans(wx+ww-70, content_y+6, "New Note", mn_acc);
+        if (g_math_notes_created > 0) {
+            char note_line[24];
+            char note_num[8];
+            int np = 0;
+            note_line[0] = 0;
+            apps3_append_text(note_line, &np, sizeof(note_line), "Notes: ");
+            runtime_format_uint((uint32_t)g_math_notes_created + 1U, note_num, sizeof(note_num));
+            apps3_append_text(note_line, &np, sizeof(note_line), note_num);
+            vga_draw_string_trans(wx+8, content_y+22, note_line, mn_acc);
+        }
         /* Notebook-style ruling */
         { int li4, ly;
           for (li4=0;li4<20;li4++){

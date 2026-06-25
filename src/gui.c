@@ -1715,6 +1715,8 @@ int  g_lock_pw_len = 0;
 
 /* Share Sheet overlay */
 int g_share_visible = 0;
+int g_share_action_count = 0;
+const char *g_share_last_action = "Ready";
 
 /* Print Dialog overlay */
 int g_print_visible = 0;
@@ -1776,13 +1778,25 @@ char g_journal_bodies[JOURNAL_MAX][JOURNAL_BLEN] = {
 };
 
 /* ====== Contacts ====== */
-int g_contacts_sel = 0;
 
 /* ====== Preview ====== */
 int g_preview_page = 0;
+int g_preview_zoom = 100;
+int g_preview_markup = 0;
 
 /* ====== Apple TV ====== */
 int g_atv_sel = 0;
+
+/* ====== Wallet ====== */
+int g_wallet_pay_count = 0;
+
+/* ====== Misc app action state ====== */
+int g_compressor_added_files = 0;
+int g_compressor_submitted = 0;
+int g_screen_recording_active = 0;
+int g_screen_recording_count = 0;
+int g_translate_favorites = 0;
+int g_math_notes_created = 0;
 
 /* ====== Stage Manager side strip ====== */
 

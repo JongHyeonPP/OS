@@ -511,6 +511,8 @@ extern int  g_lock_pw_len;
 
 /* Share / Print */
 extern int g_share_visible;
+extern int g_share_action_count;
+extern const char *g_share_last_action;
 extern int g_print_visible;
 extern int g_print_copies;
 extern int g_print_page_from;
@@ -612,9 +614,17 @@ extern int  g_journal_count;
 extern char g_journal_titles[JOURNAL_MAX][JOURNAL_TLEN];
 extern char g_journal_bodies[JOURNAL_MAX][JOURNAL_BLEN];
 
-extern int g_contacts_sel;
 extern int g_preview_page;
+extern int g_preview_zoom;
+extern int g_preview_markup;
 extern int g_atv_sel;
+extern int g_wallet_pay_count;
+extern int g_compressor_added_files;
+extern int g_compressor_submitted;
+extern int g_screen_recording_active;
+extern int g_screen_recording_count;
+extern int g_translate_favorites;
+extern int g_math_notes_created;
 
 /* Context menu (defined in gui_overlays.c) */
 #define CTX_MENU_W       150

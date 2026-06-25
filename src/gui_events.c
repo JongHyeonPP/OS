@@ -18,6 +18,105 @@ static int gui_top_window_named(const char *title) {
            str_eq(g_windows[top].title, title);
 }
 
+static int gui_filename_has_ext(const char *name, const char *ext) {
+    const char *dot = 0;
+    int i;
+    for (i = 0; name && name[i]; i++) {
+        if (name[i] == '.') dot = name + i;
+    }
+    return dot && str_eq(dot, ext);
+}
+
+static int gui_open_basic_app(const char *title) {
+    int i;
+    for (i = 0; i < g_num_windows; i++) {
+        if (g_windows[i].title && str_eq(g_windows[i].title, title)) {
+            g_windows[i].visible = 1;
+            win_bring_to_front(i);
+            if (str_eq(title, "TextEdit")) { g_edit_focused = 1; g_dict_focused = 0; }
+            return 1;
+        }
+    }
+    if (g_num_windows >= MAX_WINDOWS) return 0;
+    {
+        gui_window_t *nw = &g_windows[g_num_windows];
+        nw->focused = 0;
+        nw->dragging = 0;
+        nw->resizing = 0;
+        nw->visible = 1;
+        nw->maximized = 0;
+        nw->title = title;
+        if (str_eq(title, "TextEdit")) {
+            nw->x=120; nw->y=80; nw->w=310; nw->h=260;
+            g_edit_focused = 1; g_dict_focused = 0;
+        } else if (str_eq(title, "Preview")) {
+            nw->x=160; nw->y=60; nw->w=380; nw->h=300;
+            g_preview_page = 0; g_preview_zoom = 100; g_preview_markup = 0;
+        } else if (str_eq(title, "Mail")) {
+            nw->x=100; nw->y=80; nw->w=360; nw->h=260;
+        } else if (str_eq(title, "FaceTime")) {
+            nw->x=200; nw->y=80; nw->w=220; nw->h=260;
+            g_facetime_active = 2; g_facetime_contact = 0;
+        } else if (str_eq(title, "Messages")) {
+            nw->x=130; nw->y=60; nw->w=340; nw->h=290;
+        } else if (str_eq(title, "Notes")) {
+            nw->x=18; nw->y=270; nw->w=260; nw->h=240;
+        } else if (str_eq(title, "MyOS Finder")) {
+            nw->x=200; nw->y=80; nw->w=380; nw->h=340;
+        } else {
+            nw->x=160; nw->y=80; nw->w=300; nw->h=240;
+        }
+        g_win_anim[g_num_windows] = OPEN_ANIM;
+        g_win_minimized[g_num_windows] = 0;
+        g_win_close_anim[g_num_windows] = 0;
+        g_num_windows++;
+        return 1;
+    }
+}
+
+static void gui_record_share_action(const char *label, uint32_t color) {
+    g_share_action_count++;
+    g_share_last_action = label;
+    toast_show("Share", label, color);
+}
+
+static void gui_quicklook_open_current(void) {
+    if (gui_filename_has_ext(g_ql_filename, ".txt") || gui_filename_has_ext(g_ql_filename, ".md")) {
+        if (gui_open_basic_app("TextEdit")) toast_show("Quick Look", "Opened in TextEdit", RGB(0,122,255));
+        else toast_show("Quick Look", "Window limit reached", RGB(255,59,48));
+    } else {
+        if (gui_open_basic_app("Preview")) toast_show("Quick Look", "Opened in Preview", RGB(170,50,170));
+        else toast_show("Quick Look", "Window limit reached", RGB(255,59,48));
+    }
+}
+
+static void gui_mail_start_compose(const char *to, const char *subject, const char *body) {
+    int i;
+    g_mail_compose = 1;
+    g_mail_focused_field = 1;
+    g_mail_to_len = 0;
+    g_mail_subject_len = 0;
+    g_mail_body_len = 0;
+    g_mail_to[0] = 0;
+    g_mail_subject[0] = 0;
+    g_mail_body[0] = 0;
+    if (to) {
+        for (i = 0; to[i] && i < 63; i++) g_mail_to[i] = to[i];
+        g_mail_to[i] = 0;
+        g_mail_to_len = i;
+    }
+    if (subject) {
+        for (i = 0; subject[i] && i < 63; i++) g_mail_subject[i] = subject[i];
+        g_mail_subject[i] = 0;
+        g_mail_subject_len = i;
+    }
+    if (body) {
+        for (i = 0; body[i] && i < 255; i++) g_mail_body[i] = body[i];
+        g_mail_body[i] = 0;
+        g_mail_body_len = i;
+    }
+}
+
 static void textedit_clear_selection(void) {
     g_edit_sel_start = 0;
     g_edit_sel_end = 0;
@@ -319,15 +418,29 @@ void gui_run(void) {
                 dirty = 1;
                 goto end_left_press;
             }
-            /* Quick Look click: close panel */
+            /* Quick Look click */
             if (g_ql_visible) {
                 int ql_w2=400, ql_h2=300;
                 int ql_x2=(VGA_WIDTH-ql_w2)/2, ql_y2=(VGA_HEIGHT-ql_h2)/2;
-                /* Close button at top-left */
+                int ql_by2 = ql_y2 + ql_h2 - 30;
                 if (mx>=ql_x2+7 && mx<=ql_x2+21 && my>=ql_y2+7 && my<=ql_y2+21) {
                     g_ql_visible = 0; dirty = 1; goto end_left_press;
                 }
-                /* Click inside panel = keep open; outside = close */
+                if (my >= ql_by2 && my < ql_y2+ql_h2) {
+                    if (mx >= ql_x2+ql_w2/2-50 && mx < ql_x2+ql_w2/2+50) {
+                        gui_quicklook_open_current();
+                        g_ql_visible = 0; dirty = 1; goto end_left_press;
+                    }
+                    if (mx >= ql_x2+8 && mx < ql_x2+80) {
+                        g_share_visible = 1;
+                        g_ql_visible = 0;
+                        gui_record_share_action("Ready to share", RGB(0,122,255));
+                        dirty = 1; goto end_left_press;
+                    }
+                    if (mx >= ql_x2+ql_w2-80 && mx < ql_x2+ql_w2-8) {
+                        g_ql_visible = 0; dirty = 1; goto end_left_press;
+                    }
+                }
                 if (mx < ql_x2 || mx > ql_x2+ql_w2 || my < ql_y2 || my > ql_y2+ql_h2) {
                     g_ql_visible = 0; dirty = 1;
                 }
@@ -335,14 +448,31 @@ void gui_run(void) {
             }
             /* Share Sheet click */
             if (g_share_visible) {
-                int ss_w2=280, ss_h2=200;
+                int ss_w2=280, ss_h2=220;
                 int ss_x2=(VGA_WIDTH-ss_w2)/2, ss_y2=VGA_HEIGHT-ss_h2-28;
-                /* Close/Done button */
                 if ((mx>=ss_x2+ss_w2-26 && mx<ss_x2+ss_w2-8 && my>=ss_y2+6 && my<ss_y2+22) ||
                     (mx>=ss_x2+8 && mx<ss_x2+ss_w2-8 && my>=ss_y2+ss_h2-26 && my<ss_y2+ss_h2-6)) {
                     g_share_visible = 0; dirty = 1; goto end_left_press;
                 }
-                /* Outside panel = close */
+                if (my >= ss_y2+36 && my < ss_y2+80 && mx >= ss_x2 && mx < ss_x2+ss_w2) {
+                    int sa_icon_w2 = ss_w2 / 6;
+                    int si_share = (mx - ss_x2) / sa_icon_w2;
+                    if (si_share == 0) { (void)gui_open_basic_app("Mail"); gui_record_share_action("Shared with Mail", RGB(0,122,255)); }
+                    else if (si_share == 1) { (void)gui_open_basic_app("Messages"); gui_record_share_action("Shared with Messages", RGB(52,199,89)); }
+                    else if (si_share == 2) { (void)gui_open_basic_app("Notes"); gui_record_share_action("Added to Notes", RGB(255,214,10)); }
+                    else if (si_share == 3) { g_airdrop_visible=1; g_airdrop_sending=2; g_airdrop_progress=100; gui_record_share_action("Sent with AirDrop", RGB(0,190,255)); }
+                    else if (si_share == 4) { gui_record_share_action("Link copied", RGB(120,120,128)); }
+                    else { gui_record_share_action("More sharing options", RGB(150,150,160)); }
+                    g_share_visible = 0; dirty = 1; goto end_left_press;
+                }
+                if (my >= ss_y2+96 && my < ss_y2+184 && mx >= ss_x2+8 && mx < ss_x2+ss_w2-8) {
+                    int ai_share = (my - (ss_y2+96)) / 22;
+                    if (ai_share == 0) gui_record_share_action("Link copied", RGB(120,120,128));
+                    else if (ai_share == 1) { (void)gui_open_basic_app("MyOS Finder"); gui_record_share_action("Saved to Files", RGB(41,128,185)); }
+                    else if (ai_share == 2) { g_print_visible = 1; gui_record_share_action("Print prepared", RGB(0,122,255)); }
+                    else { (void)gui_open_basic_app("Notes"); gui_record_share_action("Added to Notes", RGB(255,214,10)); }
+                    g_share_visible = 0; dirty = 1; goto end_left_press;
+                }
                 if (mx < ss_x2 || mx > ss_x2+ss_w2 || my < ss_y2 || my > ss_y2+ss_h2) {
                     g_share_visible = 0; dirty = 1;
                 }
@@ -534,8 +664,8 @@ void gui_run(void) {
                         else if (str_eq(aname,"Pong"))               { nw2->x=120;nw2->y=40; nw2->w=300;nw2->h=260; toast_show("Pong","Space=start, W/S=move",RGB(255,180,50)); g_pong_active=0;g_pong_over=0;g_pong_score_p=0;g_pong_score_a=0; }
                         else if (str_eq(aname,"Minesweeper")) { nw2->x=200;nw2->y=60;nw2->w=200;nw2->h=264; g_mine_state=0;g_mine_remaining=MINE_COUNT;g_mine_rng=1; int _r,_c; for(_r=0;_r<MINE_ROWS;_r++)for(_c=0;_c<MINE_COLS;_c++){g_mine_board[_r][_c]=0;g_mine_vis[_r][_c]=0;g_mine_flag[_r][_c]=0;} toast_show("Minesweeper","Left=reveal, Right=flag",RGB(80,80,200)); }
                         else if (str_eq(aname,"Journal"))     { nw2->x=110;nw2->y=50; nw2->w=380;nw2->h=340; g_journal_sel=0; g_journal_focused=0; toast_show("Journal","Select an entry to read",RGB(255,149,0)); }
-                        else if (str_eq(aname,"Contacts"))    { nw2->x=150;nw2->y=50; nw2->w=420;nw2->h=320; g_contacts_sel=0; toast_show("Contacts","Your address book",RGB(0,122,255)); }
-                        else if (str_eq(aname,"Preview"))     { nw2->x=160;nw2->y=60; nw2->w=380;nw2->h=300; g_preview_page=0; toast_show("Preview","Open documents and images",RGB(170,50,170)); }
+                        else if (str_eq(aname,"Contacts"))    { nw2->x=150;nw2->y=50; nw2->w=420;nw2->h=320; g_ct_sel=0; toast_show("Contacts","Your address book",RGB(0,122,255)); }
+                        else if (str_eq(aname,"Preview"))     { nw2->x=160;nw2->y=60; nw2->w=380;nw2->h=300; g_preview_page=0; g_preview_zoom=100; g_preview_markup=0; toast_show("Preview","Open documents and images",RGB(170,50,170)); }
                         else if (str_eq(aname,"Apple TV"))    { nw2->x=120;nw2->y=50; nw2->w=400;nw2->h=300; g_atv_sel=0; toast_show("Apple TV","Stream movies and TV shows",RGB(255,255,255)); }
                         else { nw2->x=200;nw2->y=120;nw2->w=280;nw2->h=220; }
                         nw2->title = aname;
@@ -1006,6 +1136,36 @@ void gui_run(void) {
                     if (mx>=vbx+44 && mx<vbx+64) { g_finder_view=2; dirty=1; goto end_left_press; }
                 }
             }
+            /* Preview toolbar and thumbnails */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Preview")) continue;
+                if (i != top_win_idx) continue;
+                {
+                    int cy_pv = w->y + TITLEBAR_H;
+                    int ti_pv;
+                    for (ti_pv=0; ti_pv<6; ti_pv++) {
+                        int tx_pv = w->x + 4 + ti_pv * 30;
+                        if (mx>=tx_pv && mx<tx_pv+26 && my>=cy_pv+4 && my<cy_pv+24) {
+                            if (ti_pv == 0 && g_preview_page > 0) g_preview_page--;
+                            else if (ti_pv == 1 && g_preview_page < 2) g_preview_page++;
+                            else if (ti_pv == 2 && g_preview_zoom > 75) g_preview_zoom -= 25;
+                            else if (ti_pv == 3 && g_preview_zoom < 150) g_preview_zoom += 25;
+                            else if (ti_pv == 4) g_preview_zoom = 100;
+                            else if (ti_pv == 5) g_preview_markup ^= 1;
+                            dirty = 1; goto end_left_press;
+                        }
+                    }
+                    for (ti_pv=0; ti_pv<3; ti_pv++) {
+                        int ty_pv = cy_pv + 34 + ti_pv * 48;
+                        if (mx>=w->x+4 && mx<w->x+58 && my>=ty_pv && my<ty_pv+42) {
+                            g_preview_page = ti_pv;
+                            dirty = 1; goto end_left_press;
+                        }
+                    }
+                }
+                break;
+            }
             /* Screen Time tabs */
             for (i = 0; i < g_num_windows; i++) {
                 gui_window_t *w = &g_windows[i];
@@ -1051,7 +1211,7 @@ void gui_run(void) {
                 /* Sidebar list click */
                 if (mx >= w->x+1 && mx < w->x+rm_sb_w && my >= w->y+TITLEBAR_H+24) {
                     int rli = (my - (w->y+TITLEBAR_H+24)) / 22;
-                    if (rli >= 0 && rli < 6) { g_reminders_sel_list=rli; dirty=1; goto end_left_press; }
+                    if (rli >= 0 && rli < 7) { g_reminders_sel_list=rli; dirty=1; goto end_left_press; }
                 }
                 /* Checkbox clicks */
                 { int rii;
@@ -1101,12 +1261,11 @@ void gui_run(void) {
                 }
                 break;
             }
-            /* Contacts app: click list to select contact */
+            /* Contacts app: click list or contact action buttons */
             { int ci_ct;
               for (ci_ct = g_num_windows-1; ci_ct >= 0; ci_ct--) {
                 gui_window_t *w = &g_windows[ci_ct];
                 if (!w->visible || !w->title || !str_eq(w->title,"Contacts")) continue;
-                /* Ensure Contacts is topmost at click point */
                 { int jj, cov=0;
                   for (jj=ci_ct+1; jj<g_num_windows; jj++) {
                       gui_window_t *wj=&g_windows[jj];
@@ -1117,6 +1276,28 @@ void gui_run(void) {
                 }
                 int ct_top2 = w->y + TITLEBAR_H + 1;
                 int list_w2 = w->w * 2 / 5;
+                int det_x2 = w->x + 1 + list_w2;
+                int det_w2 = w->w - 1 - list_w2;
+                int ab_y_ct = ct_top2 + 132;
+                int ab_w_ct = (det_w2 - 8) / 4;
+                int ca;
+                for (ca = 0; ca < 4; ca++) {
+                    int abx_ct = det_x2 + 2 + ca * ab_w_ct;
+                    if (mx>=abx_ct && mx<abx_ct+ab_w_ct-2 && my>=ab_y_ct && my<ab_y_ct+24) {
+                        static const char *emails[8] = {
+                            "alice@email.com", "bob@email.com", "carol@email.com", "david@email.com",
+                            "emma@email.com", "frank@email.com", "grace@email.com", "henry@email.com"
+                        };
+                        int sel_ct = g_ct_sel;
+                        if (sel_ct < 0) sel_ct = 0;
+                        if (sel_ct > 7) sel_ct = 7;
+                        if (ca == 0) { g_facetime_visible=1; g_facetime_calling=1; toast_show("Contacts","Calling contact",RGB(52,199,89)); }
+                        else if (ca == 1) { (void)gui_open_basic_app("FaceTime"); toast_show("Contacts","FaceTime started",RGB(0,199,190)); }
+                        else if (ca == 2) { (void)gui_open_basic_app("Messages"); toast_show("Contacts","Message thread opened",RGB(52,199,89)); }
+                        else { (void)gui_open_basic_app("Mail"); gui_mail_start_compose(emails[sel_ct], "Hello", ""); toast_show("Contacts","Mail draft ready",RGB(0,122,255)); }
+                        dirty = 1; goto end_left_press;
+                    }
+                }
                 if (mx >= w->x+1 && mx < w->x+1+list_w2 && my >= ct_top2+44) {
                     int row = (my - (ct_top2+62)) / 32;
                     if (row >= 0 && row < 8) {
@@ -1236,6 +1417,87 @@ void gui_run(void) {
                 }
                 break;
               }
+            }
+            /* Compressor toolbar actions */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Compressor")) continue;
+                if (i != top_win_idx) continue;
+                { int cy_cp = w->y + TITLEBAR_H;
+                  if (mx>=w->x+6 && mx<w->x+66 && my>=cy_cp+4 && my<cy_cp+18) {
+                      g_compressor_added_files++;
+                      toast_show("Compressor","File added",RGB(0,122,255));
+                      dirty=1; goto end_left_press;
+                  }
+                  if (mx>=w->x+80 && mx<w->x+160 && my>=cy_cp+4 && my<cy_cp+20) {
+                      g_compressor_submitted++;
+                      toast_show("Compressor","Batch submitted",RGB(52,199,89));
+                      dirty=1; goto end_left_press;
+                  } }
+                break;
+            }
+            /* Screen Recording start/stop */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Screen Recording")) continue;
+                if (i != top_win_idx) continue;
+                { int cy_sr = w->y + TITLEBAR_H;
+                  int by_sr = cy_sr + w->h - TITLEBAR_H - 20;
+                  if ((mx-w->x-w->w/2)*(mx-w->x-w->w/2)+(my-(cy_sr+50))*(my-(cy_sr+50)) <= 32*32 ||
+                      (mx>=w->x+w->w/2-40 && mx<w->x+w->w/2+40 && my>=by_sr && my<by_sr+15)) {
+                      g_screen_recording_active ^= 1;
+                      if (!g_screen_recording_active) g_screen_recording_count++;
+                      g_screen_shared = g_screen_recording_active;
+                      toast_show("Screen Recording",g_screen_recording_active?"Recording started":"Recording saved",RGB(255,59,48));
+                      dirty=1; goto end_left_press;
+                  } }
+                break;
+            }
+            /* AR Quick Look and Final Cut share buttons */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title) continue;
+                if (i != top_win_idx) continue;
+                if (str_eq(w->title,"AR Quick Look")) {
+                    int cy_ar = w->y + TITLEBAR_H;
+                    int vh_ar = w->h - TITLEBAR_H - 30;
+                    if (mx>=w->x+w->w-70 && mx<w->x+w->w-10 && my>=cy_ar+vh_ar+4 && my<cy_ar+vh_ar+22) {
+                        g_share_visible = 1;
+                        gui_record_share_action("Sharing AR model",RGB(100,200,255));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Final Cut Pro")) {
+                    int cy_fc = w->y + TITLEBAR_H;
+                    if (mx>=w->x+w->w-78 && mx<w->x+w->w-8 && my>=cy_fc+5 && my<cy_fc+25) {
+                        g_share_visible = 1;
+                        gui_record_share_action("Sharing timeline",RGB(120,120,130));
+                        dirty=1; goto end_left_press;
+                    }
+                }
+                break;
+            }
+            /* Translate favorite and Math Notes new note */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title) continue;
+                if (i != top_win_idx) continue;
+                if (str_eq(w->title,"Translate")) {
+                    int cy_tr = w->y + TITLEBAR_H;
+                    int fav_y = cy_tr + w->h - TITLEBAR_H - 26;
+                    if (mx>=w->x+8 && mx<w->x+170 && my>=fav_y && my<fav_y+18) {
+                        g_translate_favorites++;
+                        toast_show("Translate","Added to Favorites",RGB(0,122,255));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Math Notes")) {
+                    int cy_mn = w->y + TITLEBAR_H;
+                    if (mx>=w->x+w->w-78 && mx<w->x+w->w-6 && my>=cy_mn+2 && my<cy_mn+20) {
+                        g_math_notes_created++;
+                        toast_show("Math Notes","New note created",RGB(255,149,0));
+                        dirty=1; goto end_left_press;
+                    }
+                }
+                break;
             }
             /* 2048: click New Game button */
             { int ci_2k;
@@ -1690,6 +1952,20 @@ void gui_run(void) {
                     if (di == 5 || di == 11 || di == 15) ix2 += 8;
                 }
             }
+            /* Wallet: local Apple Pay authorization */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Wallet")) continue;
+                if (i != top_win_idx) continue;
+                { int btn_y_wl = w->y + TITLEBAR_H + 28 + 3*12 + 70;
+                  int btn_x_wl = w->x + (w->w - 120) / 2;
+                  if (mx>=btn_x_wl && mx<btn_x_wl+120 && my>=btn_y_wl && my<btn_y_wl+28) {
+                      g_wallet_pay_count++;
+                      toast_show("Wallet","Face ID payment authorized",RGB(52,199,89));
+                      dirty=1; goto end_left_press;
+                  } }
+                break;
+            }
             /* Mail: New compose button + message list click */
             for (i = 0; i < g_num_windows; i++) {
                 gui_window_t *w = &g_windows[i];
@@ -1751,14 +2027,34 @@ void gui_run(void) {
                     fcy+=22;
                     if (my>=fcy&&my<w->y+w->h-18) { g_mail_focused_field=3; dirty=1; goto end_left_press; }
                 }
-                /* Message list click (not composing) */
+                /* Message list and preview action clicks (not composing) */
                 if (!g_mail_compose) {
                     int sb_w_ml=68, list_w_ml=(w->w-2-68)*2/5;
                     int lx_ml=w->x+1+sb_w_ml, msg_y=cy_ml+26;
+                    int px_ml = w->x + 1 + sb_w_ml + list_w_ml;
+                    int pw_ml = w->w - 2 - sb_w_ml - list_w_ml;
                     int mi3;
                     for(mi3=0;mi3<5;mi3++) {
                         if(mx>=lx_ml&&mx<lx_ml+list_w_ml&&my>=msg_y+mi3*38&&my<msg_y+mi3*38+38) {
                             g_mail_sel_msg=mi3; dirty=1; goto end_left_press;
+                        }
+                    }
+                    {
+                        int ch_ml = w->h - TITLEBAR_H - 19;
+                        int reply_y_ml = cy_ml + 182;
+                        if (reply_y_ml + 20 < cy_ml + ch_ml - 30) {
+                            if (mx>=px_ml+8 && mx<px_ml+52 && my>=reply_y_ml && my<reply_y_ml+18) {
+                                (void)pw_ml;
+                                gui_mail_start_compose("sender@example.com", "Re:", "");
+                                toast_show("Mail","Reply draft ready",RGB(0,122,255));
+                                dirty=1; goto end_left_press;
+                            }
+                            if (mx>=px_ml+58 && mx<px_ml+110 && my>=reply_y_ml && my<reply_y_ml+18) {
+                                gui_mail_start_compose("", "Fwd:", "");
+                                g_mail_focused_field = 1;
+                                toast_show("Mail","Forward draft ready",RGB(0,122,255));
+                                dirty=1; goto end_left_press;
+                            }
                         }
                     }
                 }
@@ -2485,8 +2781,8 @@ void gui_run(void) {
                                         else if (str_eq(an2,"Pong"))               { nws2->x=120;nws2->y=40; nws2->w=300;nws2->h=260; toast_show("Pong","Space=start, W/S=move",RGB(255,180,50)); g_pong_active=0;g_pong_over=0;g_pong_score_p=0;g_pong_score_a=0; }
                                         else if (str_eq(an2,"Minesweeper")) { nws2->x=200;nws2->y=60;nws2->w=200;nws2->h=264; g_mine_state=0;g_mine_remaining=MINE_COUNT;g_mine_rng=1; { int _r,_c; for(_r=0;_r<MINE_ROWS;_r++)for(_c=0;_c<MINE_COLS;_c++){g_mine_board[_r][_c]=0;g_mine_vis[_r][_c]=0;g_mine_flag[_r][_c]=0;} } toast_show("Minesweeper","Left=reveal, Right=flag",RGB(80,80,200)); }
                                         else if (str_eq(an2,"Journal"))     { nws2->x=110;nws2->y=50; nws2->w=380;nws2->h=340; g_journal_sel=0; g_journal_focused=0; toast_show("Journal","Select an entry to read",RGB(255,149,0)); }
-                                        else if (str_eq(an2,"Contacts"))   { nws2->x=150;nws2->y=50; nws2->w=420;nws2->h=320; g_contacts_sel=0; toast_show("Contacts","Your address book",RGB(0,122,255)); }
-                                        else if (str_eq(an2,"Preview"))    { nws2->x=160;nws2->y=60; nws2->w=380;nws2->h=300; g_preview_page=0; toast_show("Preview","Open documents and images",RGB(170,50,170)); }
+                                        else if (str_eq(an2,"Contacts"))   { nws2->x=150;nws2->y=50; nws2->w=420;nws2->h=320; g_ct_sel=0; toast_show("Contacts","Your address book",RGB(0,122,255)); }
+                                        else if (str_eq(an2,"Preview"))    { nws2->x=160;nws2->y=60; nws2->w=380;nws2->h=300; g_preview_page=0; g_preview_zoom=100; g_preview_markup=0; toast_show("Preview","Open documents and images",RGB(170,50,170)); }
                                         else if (str_eq(an2,"Apple TV"))   { nws2->x=120;nws2->y=50; nws2->w=400;nws2->h=300; g_atv_sel=0; toast_show("Apple TV","Stream movies and TV shows",RGB(255,255,255)); }
                                         else { nws2->x=120;nws2->y=80;nws2->w=280;nws2->h=200; }
                                         nws2->title = an2;
@@ -3612,8 +3908,8 @@ void gui_run(void) {
                                     else if (str_eq(aname,"Pong"))               { nw3->x=120;nw3->y=40; nw3->w=300;nw3->h=260; toast_show("Pong","Space=start, W/S=move",RGB(255,180,50)); g_pong_active=0;g_pong_over=0;g_pong_score_p=0;g_pong_score_a=0; }
                                     else if (str_eq(aname,"Minesweeper")) { nw3->x=200;nw3->y=60;nw3->w=200;nw3->h=264; g_mine_state=0;g_mine_remaining=MINE_COUNT;g_mine_rng=1; { int _r,_c; for(_r=0;_r<MINE_ROWS;_r++)for(_c=0;_c<MINE_COLS;_c++){g_mine_board[_r][_c]=0;g_mine_vis[_r][_c]=0;g_mine_flag[_r][_c]=0;} } toast_show("Minesweeper","Left=reveal, Right=flag",RGB(80,80,200)); }
                                     else if (str_eq(aname,"Journal"))     { nw3->x=110;nw3->y=50; nw3->w=380;nw3->h=340; g_journal_sel=0; g_journal_focused=0; toast_show("Journal","Select an entry to read",RGB(255,149,0)); }
-                                    else if (str_eq(aname,"Contacts"))    { nw3->x=150;nw3->y=50; nw3->w=420;nw3->h=320; g_contacts_sel=0; toast_show("Contacts","Your address book",RGB(0,122,255)); }
-                                    else if (str_eq(aname,"Preview"))     { nw3->x=160;nw3->y=60; nw3->w=380;nw3->h=300; g_preview_page=0; toast_show("Preview","Open documents and images",RGB(170,50,170)); }
+                                    else if (str_eq(aname,"Contacts"))    { nw3->x=150;nw3->y=50; nw3->w=420;nw3->h=320; g_ct_sel=0; toast_show("Contacts","Your address book",RGB(0,122,255)); }
+                                    else if (str_eq(aname,"Preview"))     { nw3->x=160;nw3->y=60; nw3->w=380;nw3->h=300; g_preview_page=0; g_preview_zoom=100; g_preview_markup=0; toast_show("Preview","Open documents and images",RGB(170,50,170)); }
                                     else if (str_eq(aname,"Apple TV"))    { nw3->x=120;nw3->y=50; nw3->w=400;nw3->h=300; g_atv_sel=0; toast_show("Apple TV","Stream movies and TV shows",RGB(255,255,255)); }
                                     else if (str_eq(aname,"iStudiez Pro"))       { nw3->x=110;nw3->y=55; nw3->w=400;nw3->h=280; }
                                     else if (str_eq(aname,"Lasso"))              { nw3->x=150;nw3->y=60; nw3->w=340;nw3->h=270; }

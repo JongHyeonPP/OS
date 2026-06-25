@@ -309,6 +309,9 @@ int draw_apps_group4(int idx) {
         gui_draw_rounded_rect(wx+6, content_y+4, 60, 14, 3, RGB(0,122,255));
         vga_draw_string_trans(wx+10, content_y+7, "Add File", RGB(255,255,255));
         vga_draw_string_trans(wx+80, content_y+7, "Submit All", cp_sub);
+        if (g_compressor_submitted > 0) {
+            vga_draw_string_trans(wx+164, content_y+7, "Submitted", cp_grn);
+        }
         /* Job queue */
         int jq_y=content_y+24;
         vga_draw_string_trans(wx+6, jq_y+4, "Batch", cp_sub);
@@ -344,6 +347,16 @@ int draw_apps_group4(int idx) {
               }
               jy += 42;
           }
+          if (g_compressor_added_files > 0 && jy+20 <= content_y+content_h-4) {
+              char add_line[32];
+              char add_num[8];
+              int ap = 0;
+              add_line[0] = 0;
+              apps4_append_text(add_line, &ap, sizeof(add_line), "Added local clip #");
+              runtime_format_uint((uint32_t)g_compressor_added_files, add_num, sizeof(add_num));
+              apps4_append_text(add_line, &ap, sizeof(add_line), add_num);
+              vga_draw_string_trans(wx+24, jy+4, add_line, cp_txt);
+          }
         }
         return 1;
     }
@@ -361,9 +374,9 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+1, cy, ww-2, wh-TITLEBAR_H, sr_bg);
         vga_draw_hline(wx+1, cy, ww-2, sr_sep);
         /* Big record button */
-        gui_draw_circle(wx+ww/2, cy+50, 28, RGB(255,59,48));
+        gui_draw_circle(wx+ww/2, cy+50, 28, g_screen_recording_active ? RGB(180,0,0) : RGB(255,59,48));
         gui_draw_circle_outline(wx+ww/2, cy+50, 32, sr_txt);
-        vga_draw_string_trans(wx+ww/2-14, cy+50-4, "REC", RGB(255,255,255));
+        vga_draw_string_trans(wx+ww/2-14, cy+50-4, g_screen_recording_active ? "ON" : "REC", RGB(255,255,255));
         /* Options */
         vga_draw_string_trans(wx+10, cy+92, "Microphone:", sr_sub);
         gui_draw_rounded_rect(wx+90, cy+88, 100, 14, 4, g_pref_darkmode?RGB(44,44,52):RGB(220,220,228));
@@ -381,8 +394,18 @@ int draw_apps_group4(int idx) {
         /* Bottom bar */
         vga_fill_rect(wx+1, cy+wh-TITLEBAR_H-24, ww-2, 24, g_pref_darkmode?RGB(36,36,42):RGB(232,232,236));
         vga_draw_hline(wx+1, cy+wh-TITLEBAR_H-24, ww-2, sr_sep);
-        gui_draw_rounded_rect(wx+ww/2-30, cy+wh-TITLEBAR_H-20, 60, 15, 4, RGB(255,59,48));
-        vga_draw_string_trans(wx+ww/2-22, cy+wh-TITLEBAR_H-17, "Start Rec", RGB(255,255,255));
+        gui_draw_rounded_rect(wx+ww/2-40, cy+wh-TITLEBAR_H-20, 80, 15, 4, RGB(255,59,48));
+        vga_draw_string_trans(wx+ww/2-32, cy+wh-TITLEBAR_H-17, g_screen_recording_active ? "Stop Rec" : "Start Rec", RGB(255,255,255));
+        if (g_screen_recording_count > 0) {
+            char rec_line[24];
+            char rec_num[8];
+            int rp = 0;
+            rec_line[0] = 0;
+            apps4_append_text(rec_line, &rp, sizeof(rec_line), "Saved clips: ");
+            runtime_format_uint((uint32_t)g_screen_recording_count, rec_num, sizeof(rec_num));
+            apps4_append_text(rec_line, &rp, sizeof(rec_line), rec_num);
+            vga_draw_string_trans(wx+10, cy+172, rec_line, sr_sub);
+        }
         return 1;
     }
 
@@ -2931,193 +2954,6 @@ int draw_apps_group4(int idx) {
         return 1;
     }
 
-    /* ---- Home (HomeKit) ---- */
-    if (g_windows[idx].title && str_eq(g_windows[idx].title, "Home")) {
-        const gui_window_t *win = &g_windows[idx];
-        if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
-        int cy = wy+TITLEBAR_H+1;
-        uint32_t hb2 = g_pref_darkmode?RGB(18,18,22):RGB(242,242,247);
-        uint32_t ht2 = g_pref_darkmode?RGB(230,230,238):RGB(20,20,28);
-        uint32_t hs2 = g_pref_darkmode?RGB(130,130,140):RGB(100,100,110);
-        vga_fill_rect(wx+1, cy, ww-2, wh-TITLEBAR_H-1, hb2);
-        uint32_t tnow2 = timer_ticks();
-
-        /* Header */
-        vga_draw_string_trans(wx+8, cy+4, "My Home", ht2);
-        { runtime_weather_info_t weather;
-          runtime_get_weather_info(&weather);
-          vga_draw_string_trans(wx+8, cy+14, weather.location_full, hs2); }
-
-        /* Room tab row */
-        { static const char *rooms[4]={"My Home","Living","Kitchen","Bedroom"};
-          int rm_y2=cy+28, ri5, rtw=(ww-8)/4;
-          for (ri5=0;ri5<4;ri5++) {
-              int rtx=wx+4+ri5*rtw;
-              uint32_t rbc=ri5==g_home_room?RGB(0,122,255):(g_pref_darkmode?RGB(44,44,52):RGB(220,220,228));
-              uint32_t rtc=ri5==g_home_room?RGB(255,255,255):ht2;
-              gui_draw_rounded_rect(rtx, rm_y2, rtw-2, 18, 6, rbc);
-              vga_draw_string_trans(rtx+2, rm_y2+5, rooms[ri5], rtc);
-          }
-        }
-
-        /* Count on devices for status */
-        { int on_count=0, hi2; for(hi2=0;hi2<6;hi2++) if(g_home_dev_on[hi2]) on_count++;
-          int px2=wx+8, py2=cy+52;
-          uint32_t pill_on2=RGB(0,122,255), pill_off2=g_pref_darkmode?RGB(44,44,52):RGB(220,220,228);
-          char on_s[8]; on_s[0]='0'+on_count; on_s[1]=' '; on_s[2]='O'; on_s[3]='n'; on_s[4]=0;
-          gui_draw_rounded_rect(px2, py2, 44, 14, 6, on_count?pill_on2:pill_off2);
-          vga_draw_string_trans(px2+4, py2+3, on_s, RGB(255,255,255));
-          gui_draw_rounded_rect(px2+50, py2, 40, 14, 6, pill_off2);
-          vga_draw_string_trans(px2+54, py2+3, "Secure", ht2);
-        }
-
-        /* Device tiles 3×2 grid using g_home_dev_on[] */
-        static const struct { const char *name; const char *val_off; uint32_t color; } hdevs2[]={
-            { "Living Light", "Off",   RGB(255,214,10)  },
-            { "Smart TV",     "Off",   RGB(100,140,255) },
-            { "Thermostat",   "Off",   RGB(255,149,0)   },
-            { "Speaker",      "Off",   RGB(147,44,246)  },
-            { "Curtains",     "Closed",RGB(52,199,89)   },
-            { "Door Lock",    "Open",  RGB(52,199,89)   },
-        };
-        int cw3=(ww-16)/3, ch3=58;
-        int gy2=cy+72;
-        int di2;
-        for (di2=0; di2<6; di2++) {
-            int tx3=wx+8+(di2%3)*(cw3+4);
-            int ty3=gy2+(di2/3)*(ch3+4);
-            if (ty3+ch3>wy+wh-2) break;
-            int on3=g_home_dev_on[di2];
-            uint32_t tile_bg = g_pref_darkmode
-                ? (on3?RGB(38,38,48):RGB(28,28,34))
-                : (on3?RGB(255,255,255):RGB(230,230,238));
-            uint32_t tile_bdr = g_pref_darkmode?RGB(55,55,65):RGB(210,210,218);
-            gui_draw_rounded_rect(tx3, ty3, cw3, ch3, 8, tile_bg);
-            gui_draw_rounded_rect_outline(tx3, ty3, cw3, ch3, 8, tile_bdr);
-            uint32_t icon_c2 = on3 ? hdevs2[di2].color : hs2;
-            gui_draw_circle(tx3+16, ty3+18, 11, icon_c2);
-            if (on3) {
-                int pulse3=(int)((tnow2/700+di2*2)%3);
-                if (pulse3==0) vga_fill_rect_alpha(tx3+9, ty3+11, 14, 14, icon_c2, 35);
-            }
-            vga_draw_string_trans(tx3+4, ty3+34, hdevs2[di2].name, ht2);
-            { char home_val[16];
-              if (!on3) {
-                  home_val[0] = 0;
-                  apps4_append_text(home_val, &(int){0}, sizeof(home_val), hdevs2[di2].val_off);
-              } else if (di2 == 0) {
-                  runtime_format_percent(70 + (int)((tnow2 / 500U) % 31U), home_val, sizeof(home_val));
-              } else if (di2 == 2) {
-                  apps4_format_decimal_tenths(200U + ((tnow2 / 2000U) % 50U), " C", home_val, sizeof(home_val));
-              } else if (di2 == 3) {
-                  home_val[0] = 0;
-                  apps4_append_text(home_val, &(int){0}, sizeof(home_val), "Playing");
-              } else if (di2 == 4) {
-                  home_val[0] = 0;
-                  apps4_append_text(home_val, &(int){0}, sizeof(home_val), "Open");
-              } else if (di2 == 5) {
-                  home_val[0] = 0;
-                  apps4_append_text(home_val, &(int){0}, sizeof(home_val), "Locked");
-              } else {
-                  home_val[0] = 0;
-                  apps4_append_text(home_val, &(int){0}, sizeof(home_val), "On");
-              }
-              vga_draw_string_trans(tx3+4, ty3+44, home_val, hs2); }
-            uint32_t tog_c2=on3?RGB(52,199,89):hs2;
-            gui_draw_circle(tx3+cw3-12, ty3+12, 6, tog_c2);
-        }
-        return 1;
-    }
-
-    /* ---- Stocks ---- */
-    if (g_windows[idx].title && str_eq(g_windows[idx].title, "Stocks")) {
-        const gui_window_t *win = &g_windows[idx];
-        if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
-        int cy = wy+TITLEBAR_H+1;
-        uint32_t stbg = g_pref_darkmode?RGB(18,18,22):RGB(248,248,252);
-        uint32_t sttx = g_pref_darkmode?RGB(230,230,238):RGB(20,20,28);
-        uint32_t stsb = g_pref_darkmode?RGB(130,130,140):RGB(100,100,110);
-        uint32_t stsp = g_pref_darkmode?RGB(50,50,58):RGB(210,210,215);
-        vga_fill_rect(wx+1, cy, ww-2, wh-TITLEBAR_H-1, stbg);
-
-        static const struct { const char *sym; const char *name; float price; float chg; } stocks[]={
-            {"AAPL","Apple",      182.63f, +1.24f},
-            {"MSFT","Microsoft",  378.85f, -0.54f},
-            {"GOOGL","Alphabet",  141.80f, +2.10f},
-            {"AMZN","Amazon",     186.40f, +0.87f},
-            {"NVDA","NVIDIA",     880.20f, +12.5f},
-            {"TSLA","Tesla",      177.48f, -3.20f},
-        };
-        int ns2=6, si2;
-        int row_h2=32;
-        for (si2=0; si2<ns2; si2++) {
-            int ry2=cy+si2*row_h2;
-            if (ry2+row_h2>wy+wh-60) break;
-            vga_draw_hline(wx+1, ry2+row_h2-1, ww-2, stsp);
-            /* Symbol + name */
-            vga_draw_string_trans(wx+8,  ry2+6,  stocks[si2].sym,  sttx);
-            vga_draw_string_trans(wx+8,  ry2+18, stocks[si2].name, stsb);
-            /* Mini sparkline */
-            static const int spark[6][8]={{10,14,12,16,15,18,17,20},{20,18,22,20,24,22,20,22},
-                                           {8,10,9,12,11,14,12,15},{15,16,14,17,16,18,17,18},
-                                           {5,8,10,12,15,18,20,22},{22,20,18,20,17,15,16,14}};
-            int spx=wx+ww/2-30;
-            int spy_base=ry2+row_h2-6;
-            int spi;
-            uint32_t sp_col = stocks[si2].chg>=0?RGB(52,199,89):RGB(255,59,48);
-            for (spi=0;spi<7;spi++) {
-                int y1s=spy_base-spark[si2][spi];
-                int y2s=spy_base-spark[si2][spi+1];
-                int x1s=spx+spi*8, x2s=x1s+8;
-                vga_draw_line(x1s,y1s,x2s,y2s,sp_col);
-            }
-            /* Price */
-            { char pb[10]; int pi=0;
-              int pint=(int)stocks[si2].price;
-              pb[pi++]='0'+pint/100%10; if(pb[0]=='0'&&pi>1)pi=0;
-              pb[pi++]='0'+pint/10%10;
-              pb[pi++]='0'+pint%10; pb[pi++]='.';
-              int pfrac=(int)((stocks[si2].price-(float)pint)*100);
-              pb[pi++]='0'+pfrac/10; pb[pi++]='0'+pfrac%10; pb[pi]=0;
-              int pw2=pi*8; vga_draw_string_trans(wx+ww-6-pw2, ry2+4, pb, sttx);
-            }
-            /* Change badge */
-            { char cb2[10]; int ci2=0;
-              float ac=stocks[si2].chg; if(ac<0)ac=-ac;
-              cb2[ci2++]=stocks[si2].chg>=0?'+':'-';
-              int ai=(int)ac; int af=(int)((ac-(float)ai)*10);
-              cb2[ci2++]='0'+ai/10%10; if(cb2[1]=='0')ci2=1;
-              cb2[ci2++]='0'+ai%10; cb2[ci2++]='.'; cb2[ci2++]='0'+af; cb2[ci2++]='%'; cb2[ci2]=0;
-              uint32_t chg_col=stocks[si2].chg>=0?RGB(52,199,89):RGB(255,59,48);
-              int cw4=ci2*8+8;
-              gui_draw_rounded_rect(wx+ww-6-cw4, ry2+20, cw4, 12, 4, chg_col);
-              vga_draw_string_trans(wx+ww-4-ci2*8, ry2+22, cb2, RGB(255,255,255));
-            }
-        }
-        /* Market status bar */
-        int ms_y=wy+wh-40;
-        vga_draw_hline(wx+1, ms_y, ww-2, stsp);
-        { datetime_t market_now;
-          int market_open;
-          get_current_datetime(&market_now);
-          market_open = market_now.hour >= 9 && market_now.hour < 16;
-          vga_draw_string_trans(wx+8, ms_y+6, market_open ? "Market: OPEN" : "Market: CLOSED",
-                                market_open ? RGB(52,199,89) : stsb); }
-        vga_draw_string_trans(wx+8, ms_y+18,"NASDAQ  S&P500  KOSPI", stsb);
-        { uint32_t tnow3=timer_ticks();
-          static const int idx_vals[]={18420,5312,2674};
-          int ii; int ix=wx+ww-130;
-          for (ii=0;ii<3;ii++){
-              char idxbuf[12];
-              runtime_format_uint((uint32_t)(idx_vals[ii] + (int)((tnow3 / 1000U + (uint32_t)ii * 17U) % 40U)), idxbuf, sizeof(idxbuf));
-              vga_draw_string_trans(ix+ii*44, ms_y+18, idxbuf, stsb);
-          }
-        }
-        return 1;
-    }
-
     /* ---- Translate ---- */
     if (g_windows[idx].title && str_eq(g_windows[idx].title, "Translate")) {
         const gui_window_t *win = &g_windows[idx];
@@ -3164,7 +3000,18 @@ int draw_apps_group4(int idx) {
         gui_draw_circle(wx+ww-20, cy+src_h+40, 12, g_pref_darkmode?RGB(44,44,52):RGB(220,220,228));
         vga_draw_string_trans(wx+ww-28, cy+src_h+36, "spk", trst);
         /* Favorites button */
-        vga_draw_string_trans(wx+8, cy+wh-TITLEBAR_H-22, "★ Add to Favorites", RGB(0,122,255));
+        if (g_translate_favorites > 0) {
+            char fav_line[32];
+            char fav_num[8];
+            int fp = 0;
+            fav_line[0] = 0;
+            apps4_append_text(fav_line, &fp, sizeof(fav_line), "Favorited ");
+            runtime_format_uint((uint32_t)g_translate_favorites, fav_num, sizeof(fav_num));
+            apps4_append_text(fav_line, &fp, sizeof(fav_line), fav_num);
+            vga_draw_string_trans(wx+8, cy+wh-TITLEBAR_H-22, fav_line, RGB(0,122,255));
+        } else {
+            vga_draw_string_trans(wx+8, cy+wh-TITLEBAR_H-22, "* Add to Favorites", RGB(0,122,255));
+        }
         return 1;
     }
 
@@ -3435,100 +3282,6 @@ int draw_apps_group4(int idx) {
         return 1;
     }
 
-    /* ---- Contacts ---- */
-    if (g_windows[idx].title && str_eq(g_windows[idx].title, "Contacts")) {
-        const gui_window_t *win = &g_windows[idx];
-        if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
-        int cy = wy+TITLEBAR_H;
-        uint32_t cbg  = g_pref_darkmode ? RGB(22,22,26)   : RGB(245,245,250);
-        uint32_t csbg = g_pref_darkmode ? RGB(30,30,36)   : RGB(232,232,240);
-        uint32_t ctxt = g_pref_darkmode ? RGB(220,220,228) : RGB(20,20,30);
-        uint32_t csub = g_pref_darkmode ? RGB(120,120,130) : RGB(100,100,115);
-        uint32_t csep = g_pref_darkmode ? RGB(50,50,58)   : RGB(210,210,218);
-        uint32_t cacc = RGB(0,122,255);
-        vga_fill_rect(wx+1, cy, ww-2, wh-TITLEBAR_H, cbg);
-        /* Sidebar (groups) */
-        int sb_w = ww/3; if(sb_w<80) sb_w=80;
-        vga_fill_rect(wx+1, cy, sb_w, wh-TITLEBAR_H, csbg);
-        vga_draw_vline(wx+sb_w+1, cy, wh-TITLEBAR_H, csep);
-        vga_draw_string_trans(wx+8, cy+6, "Groups", ctxt);
-        { static const char *groups[]={"All Contacts","Family","Friends","Work","Favorites"};
-          static const int gcnt[]={24,4,8,7,5};
-          int gi2; for(gi2=0;gi2<5;gi2++) {
-              int gy2=cy+24+gi2*20;
-              if(gi2==0) {
-                  gui_draw_rounded_rect(wx+2, gy2-2, sb_w-2, 18, 4, cacc);
-                  vga_draw_string_trans(wx+8, gy2+2, groups[gi2], RGB(255,255,255));
-              } else {
-                  vga_draw_string_trans(wx+8, gy2+2, groups[gi2], csub);
-              }
-              /* Count badge */
-              { char nb[4]; int nv=gcnt[gi2];
-                nb[0]='0'+nv/10; nb[1]='0'+nv%10; nb[2]=0;
-                vga_draw_string_trans(wx+sb_w-20, gy2+2, nb, csub); }
-          }
-        }
-        /* Contact list */
-        int list_x = wx+sb_w+4;
-        int list_w = ww-sb_w-8;
-        static const struct { const char *name; const char *phone; const char *email; uint32_t av; } cts[]={
-            {"Alice Kim",    "+82-10-1234-5678","alice@example.com",   RGB(255,100,100)},
-            {"Bob Chen",     "+1-415-555-0199", "bob@example.com",     RGB(100,130,255)},
-            {"Carol Park",   "+82-10-9876-5432","carol@example.com",   RGB(255,200,50)},
-            {"David Lee",    "+1-650-555-0178", "david@example.com",   RGB(147,44,246)},
-            {"Jenny Wu",     "+86-138-0013-8000","jenny@example.com",  RGB(255,149,0)},
-            {"MyOS Team",    "+82-2-1234-5678", "team@myos.dev",       RGB(52,199,89)},
-        };
-        int nc2=6, ci2;
-        for(ci2=0; ci2<nc2; ci2++) {
-            int cy2=cy+6+ci2*28;
-            if(cy2+28 > wy+wh-4) break;
-            if(ci2==g_contacts_sel) {
-                vga_fill_rect(list_x, cy2, list_w, 27, g_pref_darkmode?RGB(0,72,195):RGB(0,99,216));
-                gui_draw_circle(list_x+16, cy2+13, 12, cts[ci2].av);
-                vga_draw_char_trans(list_x+12, cy2+9, cts[ci2].name[0], RGB(255,255,255));
-                vga_draw_string_trans(list_x+32, cy2+4,  cts[ci2].name,  RGB(255,255,255));
-                vga_draw_string_trans(list_x+32, cy2+16, cts[ci2].phone, RGB(200,220,255));
-            } else {
-                if(ci2>0) vga_draw_hline(list_x+30, cy2, list_w-32, csep);
-                gui_draw_circle(list_x+16, cy2+13, 12, cts[ci2].av);
-                vga_draw_char_trans(list_x+12, cy2+9, cts[ci2].name[0], RGB(255,255,255));
-                vga_draw_string_trans(list_x+32, cy2+4,  cts[ci2].name,  ctxt);
-                vga_draw_string_trans(list_x+32, cy2+16, cts[ci2].phone, csub);
-            }
-        }
-        /* Detail pane: show selected contact info */
-        if(g_contacts_sel >= 0 && g_contacts_sel < nc2) {
-            /* If window is wide enough, show detail on right */
-            if(list_w > 160) {
-                int det_x = list_x + list_w*6/10;
-                int det_w = list_w*4/10 - 4;
-                vga_draw_vline(det_x-2, cy, wh-TITLEBAR_H, csep);
-                /* Avatar */
-                gui_draw_circle(det_x+det_w/2, cy+40, 28, cts[g_contacts_sel].av);
-                vga_draw_char_trans(det_x+det_w/2-4, cy+32, cts[g_contacts_sel].name[0], RGB(255,255,255));
-                /* Name */
-                { int nl2=str_len(cts[g_contacts_sel].name)*8;
-                  vga_draw_string_trans(det_x+(det_w-nl2)/2, cy+72, cts[g_contacts_sel].name, ctxt); }
-                /* Fields */
-                vga_draw_string_trans(det_x+4, cy+90,  "mobile", csub);
-                vga_draw_string_trans(det_x+4, cy+102, cts[g_contacts_sel].phone, cacc);
-                vga_draw_string_trans(det_x+4, cy+118, "email",  csub);
-                vga_draw_string_trans(det_x+4, cy+130, cts[g_contacts_sel].email, cacc);
-                /* Action buttons */
-                { static const char *acts[]={"Call","FaceTime","Mail"};
-                  int ai2; for(ai2=0;ai2<3;ai2++) {
-                      int ax=det_x+4+ai2*(det_w/3);
-                      vga_fill_rect_alpha(ax, cy+148, det_w/3-4, 22, cacc, 180);
-                      vga_draw_string_trans(ax+(det_w/3-4-str_len(acts[ai2])*8)/2, cy+154, acts[ai2], RGB(255,255,255));
-                  }
-                }
-            }
-        }
-        return 1;
-    }
-
     /* ---- Preview ---- */
     if (g_windows[idx].title && str_eq(g_windows[idx].title, "Preview")) {
         const gui_window_t *win = &g_windows[idx];
@@ -3545,11 +3298,13 @@ int draw_apps_group4(int idx) {
         /* Toolbar */
         vga_fill_rect(wx+1, cy, ww-2, 28, pvtb);
         vga_draw_hline(wx+1, cy+28, ww-2, pvsep);
-        { static const char *tools[]={"<",">","Zoom-","Zoom+","Fit","Markup"};
+        { static const char *tools[]={"<",">","-","+","Fit","Mark"};
           int ti2; for(ti2=0;ti2<6;ti2++) {
               int tx=wx+4+ti2*30;
-              vga_fill_rect_alpha(tx, cy+4, 26, 20, pvsep, 80);
-              vga_draw_string_trans(tx+(26-str_len(tools[ti2])*8)/2, cy+10, tools[ti2], pvtxt);
+              uint32_t tool_bg = (ti2==5 && g_preview_markup) ? pvacc : pvsep;
+              uint32_t tool_fg = (ti2==5 && g_preview_markup) ? RGB(255,255,255) : pvtxt;
+              vga_fill_rect_alpha(tx, cy+4, 26, 20, tool_bg, 80);
+              vga_draw_string_trans(tx+(26-str_len(tools[ti2])*8)/2, cy+10, tools[ti2], tool_fg);
           }
         }
         /* Thumbnail sidebar */
@@ -3575,43 +3330,69 @@ int draw_apps_group4(int idx) {
         int doc_y = cy+32;
         int doc_h = wh-TITLEBAR_H-32;
         /* Page shadow + white page */
-        vga_fill_rect_alpha(doc_x+(doc_w-160)/2+3, doc_y+6, 160, doc_h-20, RGB(0,0,0), 40);
-        vga_fill_rect(doc_x+(doc_w-160)/2, doc_y+3, 160, doc_h-20, RGB(255,255,255));
-        vga_draw_rect_outline(doc_x+(doc_w-160)/2, doc_y+3, 160, doc_h-20, RGB(200,200,210));
+        int pv_page_w = 160 * g_preview_zoom / 100;
+        int pv_page_h = (doc_h - 20) * g_preview_zoom / 100;
+        if (pv_page_w < 110) pv_page_w = 110;
+        if (pv_page_w > doc_w - 12) pv_page_w = doc_w - 12;
+        if (pv_page_h < 120) pv_page_h = 120;
+        if (pv_page_h > doc_h - 10) pv_page_h = doc_h - 10;
+        int pv_page_x = doc_x + (doc_w - pv_page_w) / 2;
+        int pv_page_y = doc_y + 3;
+        vga_fill_rect_alpha(pv_page_x+3, pv_page_y+3, pv_page_w, pv_page_h, RGB(0,0,0), 40);
+        vga_fill_rect(pv_page_x, pv_page_y, pv_page_w, pv_page_h, RGB(255,255,255));
+        vga_draw_rect_outline(pv_page_x, pv_page_y, pv_page_w, pv_page_h, RGB(200,200,210));
         /* Page content based on page index */
-        int px2=doc_x+(doc_w-160)/2+8, py2=doc_y+14;
+        int px2=pv_page_x+8, py2=pv_page_y+11;
         if(g_preview_page==0) {
             vga_draw_string_trans(px2, py2,    "MyOS Preview", pvtxt);
-            vga_draw_hline(px2, py2+12, 144, pvsep);
-            { int li2; for(li2=0;li2<7;li2++) {
-                  vga_draw_hline(px2, py2+20+li2*10, 140-li2*8, pvsep);
-                  vga_draw_hline(px2, py2+22+li2*10, 130-li2*4, g_pref_darkmode?RGB(50,50,58):RGB(210,210,220));
+            vga_draw_hline(px2, py2+12, pv_page_w-16, pvsep);
+            { int li2; for(li2=0;li2<7 && py2+22+li2*10<pv_page_y+pv_page_h-12;li2++) {
+                  int line_w = pv_page_w - 20 - li2*8;
+                  if (line_w < 40) line_w = 40;
+                  vga_draw_hline(px2, py2+20+li2*10, line_w, pvsep);
+                  vga_draw_hline(px2, py2+22+li2*10, line_w-8, g_pref_darkmode?RGB(50,50,58):RGB(210,210,220));
             } }
             /* Image frame */
-            vga_fill_rect(px2+20, py2+95, 100, 60, RGB(180,210,240));
-            { int mi2; for(mi2=0;mi2<100;mi2++) {
-                  int mhv=20+(mi2*13%30);
-                  vga_fill_rect(px2+20+mi2, py2+95+60-mhv, 1, mhv, RGB(40,80,140));
-              }
+            if (pv_page_h > 150) {
+                int img_w = pv_page_w - 60;
+                int img_h = 48;
+                if (img_w > 120) img_w = 120;
+                if (img_w < 70) img_w = 70;
+                vga_fill_rect(px2+20, py2+88, img_w, img_h, RGB(180,210,240));
+                { int mi2; for(mi2=0;mi2<img_w;mi2++) {
+                      int mhv=14+(mi2*13%24);
+                      vga_fill_rect(px2+20+mi2, py2+88+img_h-mhv, 1, mhv, RGB(40,80,140));
+                  }
+                }
+                gui_draw_circle(px2+img_w-30, py2+102, 10, RGB(255,220,60));
             }
-            gui_draw_circle(px2+90, py2+110, 12, RGB(255,220,60));
         } else if(g_preview_page==1) {
             vga_draw_string_trans(px2, py2, "Chapter 2", pvtxt);
-            vga_draw_hline(px2, py2+12, 144, pvsep);
-            { int li2; for(li2=0;li2<12;li2++)
-                  vga_draw_hline(px2, py2+20+li2*10, 138, pvsep); }
+            vga_draw_hline(px2, py2+12, pv_page_w-16, pvsep);
+            { int li2; for(li2=0;li2<12 && py2+20+li2*10<pv_page_y+pv_page_h-14;li2++)
+                  vga_draw_hline(px2, py2+20+li2*10, pv_page_w-22, pvsep); }
         } else {
             vga_draw_string_trans(px2, py2, "Chapter 3", pvtxt);
-            vga_draw_hline(px2, py2+12, 144, pvsep);
-            { int li2; for(li2=0;li2<10;li2++)
-                  vga_draw_hline(px2, py2+20+li2*10, 120+li2%3*10, pvsep); }
+            vga_draw_hline(px2, py2+12, pv_page_w-16, pvsep);
+            { int li2; for(li2=0;li2<10 && py2+20+li2*10<pv_page_y+pv_page_h-14;li2++) {
+                  int line_w = pv_page_w - 40 + (li2%3)*10;
+                  if (line_w > pv_page_w-18) line_w = pv_page_w-18;
+                  vga_draw_hline(px2, py2+20+li2*10, line_w, pvsep);
+              } }
+        }
+        if (g_preview_markup) {
+            vga_draw_hline(pv_page_x+20, pv_page_y+pv_page_h-32, pv_page_w-40, RGB(255,59,48));
+            vga_draw_string_trans(pv_page_x+24, pv_page_y+pv_page_h-46, "Marked", RGB(255,59,48));
         }
         /* Page indicator */
-        { char pbuf[16]; int pv=g_preview_page+1;
-          pbuf[0]='P'; pbuf[1]='a'; pbuf[2]='g'; pbuf[3]='e'; pbuf[4]=' ';
-          pbuf[5]='0'+pv; pbuf[6]=' '; pbuf[7]='o'; pbuf[8]='f'; pbuf[9]=' ';
-          pbuf[10]='3'; pbuf[11]=0;
-          vga_draw_string_trans(doc_x+(doc_w-88)/2, doc_y+doc_h-14, pbuf, pvsub); }
+        { char pbuf[28]; char zbuf[8]; int pp=0; int pv=g_preview_page+1;
+          pbuf[0]=0;
+          apps4_append_text(pbuf, &pp, sizeof(pbuf), "Page ");
+          apps4_append_uint(pbuf, &pp, sizeof(pbuf), (uint32_t)pv);
+          apps4_append_text(pbuf, &pp, sizeof(pbuf), " of 3  ");
+          runtime_format_percent(g_preview_zoom, zbuf, sizeof(zbuf));
+          apps4_append_text(pbuf, &pp, sizeof(pbuf), zbuf);
+          vga_draw_string_trans(doc_x+(doc_w-str_len(pbuf)*8)/2, doc_y+doc_h-14, pbuf, pvsub); }
         return 1;
     }
 

@@ -474,65 +474,6 @@ int draw_apps_group2(int idx) {
         return 1;
     }
 
-    /* Maps window */
-    if (g_windows[idx].title && str_eq(g_windows[idx].title, "Maps")) {
-        const gui_window_t *win = &g_windows[idx];
-        if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
-        int my_top = wy+TITLEBAR_H;
-        /* Map background - satellite-like tiles */
-        int r2, c2;
-        uint32_t map_colors[4][4] = {
-            {RGB(90,130,80), RGB(85,125,75), RGB(180,170,140), RGB(170,160,130)},
-            {RGB(80,120,70), RGB(75,115,65), RGB(160,150,120), RGB(190,175,145)},
-            {RGB(200,190,160),RGB(185,175,150),RGB(75,110,65),RGB(80,120,70)},
-            {RGB(170,160,130),RGB(80,120,70), RGB(90,130,80), RGB(190,180,155)},
-        };
-        int mh = wh - TITLEBAR_H - 18;
-        for (r2=0; r2<4; r2++) {
-            for (c2=0; c2<4; c2++) {
-                vga_fill_rect(wx+1+c2*(ww-2)/4, my_top+r2*mh/4, (ww-2)/4, mh/4, map_colors[r2%4][c2%4]);
-            }
-        }
-        /* Roads */
-        vga_draw_line(wx+1, my_top+mh*2/5, wx+ww-1, my_top+mh*2/5, RGB(230,220,180));
-        vga_draw_line(wx+1, my_top+mh*2/5+1, wx+ww-1, my_top+mh*2/5+1, RGB(230,220,180));
-        vga_draw_line(wx+ww/3, my_top, wx+ww/3, my_top+mh, RGB(230,220,180));
-        vga_draw_line(wx+ww/3+1, my_top, wx+ww/3+1, my_top+mh, RGB(230,220,180));
-        vga_draw_line(wx+ww*2/3, my_top, wx+ww*2/3, my_top+mh, RGB(200,210,170));
-        /* Blue river/water area */
-        vga_fill_rect(wx+ww*3/5, my_top+mh/3, ww/5, mh/4, RGB(100,160,220));
-        vga_draw_string_trans(wx+ww*3/5+4, my_top+mh/3+6, "Han River", RGB(255,255,255));
-        /* Location pin */
-        int pin_x = wx+ww/2, pin_y = my_top+mh/2;
-        gui_draw_circle(pin_x, pin_y-14, 10, RGB(255,59,48));
-        gui_draw_circle(pin_x, pin_y-14, 4, RGB(255,255,255));
-        vga_draw_line(pin_x, pin_y-4, pin_x, pin_y+4, RGB(255,59,48));
-        vga_draw_string_trans(pin_x-16, pin_y+6, "You are here", RGB(255,255,255));
-        /* Search bar */
-        vga_fill_rect(wx+8, my_top+4, ww-16, 20, RGB(255,255,255));
-        gui_draw_rounded_rect_outline(wx+8, my_top+4, ww-16, 20, 5, RGB(180,180,180));
-        vga_draw_string_trans(wx+14, my_top+10, "Search Maps...", RGB(150,150,150));
-        /* Compass */
-        int cp_x = wx+ww-26, cp_y = my_top+mh-26;
-        gui_draw_circle(cp_x, cp_y, 14, RGB(255,255,255));
-        gui_draw_circle(cp_x, cp_y, 13, RGB(200,200,205));
-        vga_draw_string_trans(cp_x-4, cp_y-10, "N", RGB(255,59,48));
-        vga_draw_string_trans(cp_x-4, cp_y+2, "S", RGB(80,80,80));
-        /* Scale bar */
-        vga_fill_rect(wx+12, my_top+mh-14, 60, 2, RGB(50,50,50));
-        vga_draw_string_trans(wx+12, my_top+mh-10, "500m", RGB(40,40,40));
-        /* Category buttons */
-        static const char *cats[] = { "Directions", "Transit", "Explore" };
-        int ci3;
-        for (ci3=0; ci3<3; ci3++) {
-            int bx = wx+8+ci3*((ww-16)/3);
-            gui_draw_rounded_rect(bx, my_top+mh+1, (ww-16)/3-2, 14, 4, RGB(0,122,255));
-            vga_draw_string_trans(bx+2, my_top+mh+4, cats[ci3], RGB(255,255,255));
-        }
-        return 1;
-    }
-
     /* Messages window */
     if (g_windows[idx].title && str_eq(g_windows[idx].title, "Messages")) {
         const gui_window_t *win = &g_windows[idx];
@@ -1296,8 +1237,21 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(wx+8, btn_y+38, "RECENT TRANSACTIONS", wl_sub);
         static const char *txns[] = { "Coffee Shop -$4.50", "Grocery Store -$38.20", "Bus Fare -$1.50" };
         int ti5;
+        int txn_offset = 0;
+        if (g_wallet_pay_count > 0) {
+            char pay_line[32];
+            int wp = 0;
+            char wcnt[8];
+            pay_line[0] = 0;
+            apps2_append_text(pay_line, &wp, sizeof(pay_line), "Apple Pay authorized #");
+            runtime_format_uint((uint32_t)g_wallet_pay_count, wcnt, sizeof(wcnt));
+            apps2_append_text(pay_line, &wp, sizeof(pay_line), wcnt);
+            vga_draw_string_trans(wx+8, btn_y+52, pay_line, wl_txt);
+            vga_draw_hline(wx+4, btn_y+68, ww-8, wl_sep);
+            txn_offset = 1;
+        }
         for (ti5=0; ti5<3; ti5++) {
-            int ty=btn_y+52+ti5*18;
+            int ty=btn_y+52+(ti5+txn_offset)*18;
             if(ty+18>wy+wh-22) break;
             vga_draw_string_trans(wx+8, ty, txns[ti5], wl_txt);
             vga_draw_hline(wx+4, ty+16, ww-8, wl_sep);
@@ -1372,164 +1326,6 @@ int draw_apps_group2(int idx) {
             /* on/off indicator dot */
             vga_fill_rect(dx+cell_w-10, dy+4, 6, 6, dev_on ? RGB(52,199,89) : RGB(150,150,155));
         }
-        return 1;
-    }
-
-    /* Music app window */
-    if (g_windows[idx].title && str_eq(g_windows[idx].title, "Music")) {
-        const gui_window_t *win = &g_windows[idx];
-        if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
-        int mw=ww;
-        uint32_t mu_bg  = g_pref_darkmode ? RGB(18,16,22)    : RGB(248,245,252);
-        uint32_t mu_hd  = g_pref_darkmode ? RGB(30,26,38)    : RGB(232,226,242);
-        uint32_t mu_sep = g_pref_darkmode ? RGB(55,50,68)    : RGB(205,198,218);
-        uint32_t mu_txt = g_pref_darkmode ? RGB(215,210,225) : RGB(28,22,40);
-        uint32_t mu_sub = g_pref_darkmode ? RGB(125,118,138) : RGB(108,100,120);
-        uint32_t mu_acc = RGB(252,60,68);   /* Music red */
-        vga_fill_rect(wx+1, wy+TITLEBAR_H+1, mw-2, wh-TITLEBAR_H-19, mu_bg);
-        /* Header */
-        vga_fill_rect(wx+1, wy+TITLEBAR_H+1, mw-2, 22, mu_hd);
-        vga_draw_hline(wx+1, wy+TITLEBAR_H+23, mw-2, mu_sep);
-        { int tl=str_len("Music")*8; vga_draw_string_trans(wx+(mw-tl)/2, wy+TITLEBAR_H+7, "Music", mu_acc); }
-        /* Now Playing */
-        int art_y = wy+TITLEBAR_H+28;
-        int art_x = wx + (mw-80)/2;
-        /* Album art */
-        gui_draw_rounded_rect(art_x, art_y, 80, 80, 10, RGB(60,0,100));
-        vga_fill_rect_alpha(art_x+2, art_y+2, 76, 30, RGB(255,255,255), 30);
-        gui_draw_circle(art_x+40, art_y+40, 20, RGB(40,0,80));
-        gui_draw_circle(art_x+40, art_y+40, 4, RGB(255,255,255));
-        vga_draw_string_trans(art_x+4, art_y+56, "MyOS Vibes", RGB(255,180,255));
-        vga_draw_string_trans(art_x+4, art_y+66, "Dark Synthwave", RGB(180,140,200));
-        /* Track info */
-        int ti_y = art_y+86;
-        { int tl=str_len("Neon Horizon")*8; vga_draw_string_trans(wx+(mw-tl)/2, ti_y, "Neon Horizon", mu_txt); }
-        { int tl=str_len("SynthWave Collective")*8; vga_draw_string_trans(wx+(mw-tl)/2, ti_y+12, "SynthWave Collective", mu_sub); }
-        /* Heart */
-        vga_draw_string_trans(art_x-16, ti_y+4, "<3", mu_acc);
-        /* Progress bar */
-        uint32_t t_mu = timer_ticks();
-        int mu_dur=240, mu_pos=(int)((t_mu/1000)%mu_dur);
-        int pb_x=wx+16, pb_w=mw-32;
-        vga_fill_rect(pb_x, ti_y+26, pb_w, 3, mu_sep);
-        vga_fill_rect(pb_x, ti_y+26, pb_w*mu_pos/mu_dur, 3, mu_acc);
-        /* Time stamps */
-        char ts_cur[6], ts_tot[6];
-        ts_cur[0]='0'; ts_cur[1]=':'; ts_cur[2]='0'+mu_pos/60; ts_cur[3]='0'+(mu_pos%60)/10; ts_cur[4]='0'+mu_pos%10; ts_cur[5]=0;
-        ts_tot[0]='4'; ts_tot[1]=':'; ts_tot[2]='0'; ts_tot[3]='0'; ts_tot[4]='0'; ts_tot[5]=0;
-        vga_draw_string_trans(pb_x, ti_y+32, ts_cur, mu_sub);
-        vga_draw_string_trans(pb_x+pb_w-5*8, ti_y+32, ts_tot, mu_sub);
-        /* Controls */
-        int ctrl_y = ti_y+44;
-        /* Shuffle */
-        vga_draw_string_trans(wx+12, ctrl_y+4, "<<", mu_sub);
-        /* Prev */
-        vga_draw_string_trans(wx+mw/2-40, ctrl_y+4, "|<", mu_sub);
-        /* Play */
-        int pl_x=wx+mw/2, pl_y=ctrl_y+12;
-        gui_draw_circle(pl_x, pl_y, 14, mu_acc);
-        vga_draw_string_trans(pl_x-4, pl_y-4, ">>", RGB(255,255,255));
-        /* Next */
-        vga_draw_string_trans(wx+mw/2+30, ctrl_y+4, ">|", mu_sub);
-        /* Repeat */
-        vga_draw_string_trans(wx+mw-24, ctrl_y+4, ">>", mu_sub);
-        /* Volume */
-        int vol_y = ctrl_y+32;
-        vga_draw_string_trans(wx+8, vol_y+2, "Vol", mu_sub);
-        vga_fill_rect(wx+36, vol_y+4, mw-56, 4, mu_sep);
-        vga_fill_rect(wx+36, vol_y+4, (mw-56)*75/100, 4, mu_acc);
-        vga_draw_string_trans(wx+mw-20, vol_y+2, "75", mu_sub);
-        /* Song list */
-        vga_draw_hline(wx+4, vol_y+14, mw-8, mu_sep);
-        vga_draw_string_trans(wx+8, vol_y+18, "UP NEXT", mu_sub);
-        static const char *songs[] = { "Cyber Dreams", "Electric Sky", "Night Drive" };
-        int si3;
-        for (si3=0; si3<3; si3++) {
-            int sy=vol_y+30+si3*22;
-            if (sy+22 > wy+wh-22) break;
-            vga_fill_rect(wx+8, sy, 14, 14, RGB(80,0,140));
-            vga_draw_char_trans(wx+11, sy+3, '0'+si3+2, RGB(255,255,255));
-            vga_draw_string_trans(wx+26, sy+3, songs[si3], si3==0?mu_acc:mu_txt);
-            vga_draw_string_trans(wx+mw-32, sy+3, "4:00", mu_sub);
-        }
-        return 1;
-    }
-
-    /* Reminders window */
-    if (g_windows[idx].title && str_eq(g_windows[idx].title, "Reminders")) {
-        const gui_window_t *win = &g_windows[idx];
-        if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
-        uint32_t rm_bg  = g_pref_darkmode ? RGB(28,28,30)    : RGB(248,248,252);
-        uint32_t rm_sb  = g_pref_darkmode ? RGB(38,38,42)    : RGB(238,238,242);
-        uint32_t rm_sep = g_pref_darkmode ? RGB(55,55,60)    : RGB(205,205,210);
-        uint32_t rm_txt = g_pref_darkmode ? RGB(210,210,218) : RGB(30,30,40);
-        uint32_t rm_sub = g_pref_darkmode ? RGB(120,120,128) : RGB(100,100,110);
-        uint32_t rm_acc = RGB(255,59,48); /* red accent */
-        vga_fill_rect(wx+1, wy+TITLEBAR_H+1, ww-2, wh-TITLEBAR_H-19, rm_bg);
-        /* Left sidebar */
-        int sb_w2 = 90;
-        vga_fill_rect(wx+1, wy+TITLEBAR_H+1, sb_w2, wh-TITLEBAR_H-19, rm_sb);
-        vga_draw_vline(wx+sb_w2, wy+TITLEBAR_H+1, wh-TITLEBAR_H-19, rm_sep);
-        /* Sidebar lists */
-        vga_draw_string_trans(wx+8, wy+TITLEBAR_H+10, "MY LISTS", rm_sub);
-        static const struct { const char *name; uint32_t col; int cnt; } rm_lists[] = {
-            { "Today",     RGB(255,59,48),  3 },
-            { "Scheduled", RGB(255,149,0),  5 },
-            { "All",       RGB(142,142,147),8 },
-            { "Flagged",   RGB(255,149,0),  2 },
-            { "Work",      RGB(52,199,89),  4 },
-            { "Personal",  RGB(0,122,255),  6 },
-        };
-        int li2, ns_rm=6;
-        for (li2=0; li2<ns_rm; li2++) {
-            int ly = wy+TITLEBAR_H+24+li2*22;
-            if (li2==g_reminders_sel_list)
-                vga_fill_rect(wx+2, ly-2, sb_w2-2, 20, g_pref_darkmode?RGB(50,50,55):RGB(220,220,225));
-            gui_draw_circle(wx+16, ly+8, 7, rm_lists[li2].col);
-            vga_draw_string_trans(wx+26, ly+4, rm_lists[li2].name, rm_txt);
-            /* Badge count */
-            if (rm_lists[li2].cnt > 0) {
-                char cb2[3]; cb2[0]='0'+rm_lists[li2].cnt; cb2[1]=0;
-                vga_draw_string_trans(wx+sb_w2-12, ly+4, cb2, rm_sub);
-            }
-        }
-        /* Main content: Today's reminders */
-        int cx3 = wx+sb_w2+8;
-        int cy3 = wy+TITLEBAR_H+8;
-        static const char *list_labels[] = {"Today","Scheduled","All","Flagged","Work","Personal"};
-        vga_draw_string_trans(cx3, cy3, list_labels[g_reminders_sel_list], rm_txt);
-        vga_draw_string_trans(cx3, cy3+12, "3 Reminders", rm_sub);
-        vga_draw_hline(wx+sb_w2, cy3+24, ww-sb_w2-1, rm_sep);
-        static const struct { const char *text; int flag; } rm_items[] = {
-            { "Buy groceries", 0 },
-            { "Call dentist",  1 },
-            { "Review PR #42", 0 },
-        };
-        int ii2, ni_rm=3;
-        for (ii2=0; ii2<ni_rm; ii2++) {
-            int iy2 = cy3+30+ii2*34;
-            int is_done = (g_reminders_done >> ii2) & 1;
-            /* Interactive checkbox */
-            if (is_done) {
-                gui_draw_circle(cx3+9, iy2+9, 9, rm_acc);
-                vga_draw_string_trans(cx3+5, iy2+5, "v", RGB(255,255,255));
-            } else {
-                gui_draw_circle_outline(cx3+9, iy2+9, 9, rm_sep);
-            }
-            /* Text - strikethrough if done */
-            uint32_t tc = is_done ? rm_sub : rm_txt;
-            vga_draw_string_trans(cx3+22, iy2+5, rm_items[ii2].text, tc);
-            if (is_done) vga_draw_hline(cx3+22, iy2+9, str_len(rm_items[ii2].text)*8, rm_sub);
-            /* Flag */
-            if (rm_items[ii2].flag && !is_done)
-                vga_draw_string_trans(cx3+22, iy2+16, "! Flagged", RGB(255,149,0));
-            vga_draw_hline(wx+sb_w2+4, iy2+30, ww-sb_w2-8, rm_sep);
-        }
-        /* "Add Reminder" button at bottom */
-        int ab_y = wy+wh-34;
-        vga_draw_string_trans(cx3, ab_y, "+ New Reminder", rm_acc);
         return 1;
     }
 
@@ -2303,66 +2099,6 @@ int draw_apps_group2(int idx) {
             vga_fill_rect(rx2, rcy, 18, 18, recent_cols[rc2]);
             gui_draw_rounded_rect_outline(rx2, rcy, 18, 18, 2, cp_sep);
         }
-        return 1;
-    }
-
-    /* Preview window */
-    if (g_windows[idx].title && str_eq(g_windows[idx].title, "Preview")) {
-        const gui_window_t *win = &g_windows[idx];
-        if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
-        uint32_t pv_bg  = g_pref_darkmode ? RGB(28,28,30)    : RGB(248,248,252);
-        uint32_t pv_tb  = g_pref_darkmode ? RGB(44,44,48)    : RGB(232,232,236);
-        uint32_t pv_sep = g_pref_darkmode ? RGB(60,60,65)    : RGB(200,200,205);
-        uint32_t pv_txt = g_pref_darkmode ? RGB(210,210,218) : RGB(30,30,40);
-        uint32_t pv_sub = g_pref_darkmode ? RGB(120,120,128) : RGB(100,100,110);
-        uint32_t pv_acc = RGB(0,122,255);
-        uint32_t pv_pg  = g_pref_darkmode ? RGB(50,50,55)    : RGB(180,180,185);
-        vga_fill_rect(wx+1, wy+TITLEBAR_H+1, ww-2, wh-TITLEBAR_H-19, pv_bg);
-        /* Toolbar */
-        vga_fill_rect(wx+1, wy+TITLEBAR_H+1, ww-2, 26, pv_tb);
-        vga_draw_hline(wx+1, wy+TITLEBAR_H+27, ww-2, pv_sep);
-        /* Toolbar buttons */
-        static const char *pv_btns[] = { "<", ">", "Zoom-", "Zoom+", "Fit", "Markup", "Share" };
-        int pb_x = wx+4;
-        int pb;
-        for (pb=0; pb<7; pb++) {
-            int pbw = (int)(str_len(pv_btns[pb])*8+6);
-            vga_fill_rect(pb_x, wy+TITLEBAR_H+5, pbw, 16, g_pref_darkmode?RGB(55,55,60):RGB(215,215,220));
-            gui_draw_rounded_rect_outline(pb_x, wy+TITLEBAR_H+5, pbw, 16, 2, pv_sep);
-            vga_draw_string_trans(pb_x+3, wy+TITLEBAR_H+8, pv_btns[pb], pv_txt);
-            pb_x += pbw+3;
-            if (pb==1 || pb==4) pb_x += 4;
-        }
-        /* Sidebar (thumbnail strip) */
-        int sb_w = 56;
-        vga_fill_rect(wx+1, wy+TITLEBAR_H+28, sb_w, wh-TITLEBAR_H-48, pv_pg);
-        vga_draw_vline(wx+1+sb_w, wy+TITLEBAR_H+28, wh-TITLEBAR_H-48, pv_sep);
-        vga_draw_string_trans(wx+8, wy+TITLEBAR_H+40, "No", pv_sub);
-        vga_draw_string_trans(wx+8, wy+TITLEBAR_H+54, "pages", pv_sub);
-        /* Main content area - document page */
-        int doc_x = wx+1+sb_w+1;
-        int doc_w = ww-sb_w-2;
-        vga_fill_rect(doc_x, wy+TITLEBAR_H+28, doc_w, wh-TITLEBAR_H-48, pv_pg);
-        /* Empty document area */
-        int page_m = 10;
-        int page_x = doc_x+page_m, page_y=wy+TITLEBAR_H+38;
-        int page_w = doc_w-page_m*2, page_h = wh-TITLEBAR_H-68;
-        vga_fill_rect(page_x+3, page_y+3, page_w, page_h, g_pref_darkmode?RGB(20,20,22):RGB(140,140,145));
-        vga_fill_rect(page_x, page_y, page_w, page_h, g_pref_darkmode?RGB(55,55,60):RGB(255,255,255));
-        gui_draw_rounded_rect_outline(page_x, page_y, page_w, page_h, 1, pv_sep);
-        int cx2 = page_x+10;
-        vga_draw_string_trans(cx2, page_y+10, "Preview", pv_txt);
-        vga_draw_hline(cx2, page_y+22, page_w-20, pv_sep);
-        vga_draw_string_trans(cx2, page_y+46, "No document open", pv_sub);
-        vga_draw_string_trans(cx2, page_y+62, "No document selected", pv_sub);
-        /* Status bar */
-        vga_fill_rect(wx+1, wy+wh-20, ww-2, 18, pv_tb);
-        vga_draw_hline(wx+1, wy+wh-20, ww-2, pv_sep);
-        vga_draw_string_trans(wx+6, wy+wh-14, "No document", pv_sub);
-        { char zoom_buf[8];
-          runtime_format_percent(100, zoom_buf, sizeof(zoom_buf));
-          int zl=str_len(zoom_buf)*8; vga_draw_string_trans(wx+ww-zl-6, wy+wh-14, zoom_buf, pv_acc); }
         return 1;
     }
 

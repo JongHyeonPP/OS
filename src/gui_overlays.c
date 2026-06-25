@@ -2869,8 +2869,8 @@ static void term_configure_app_window(gui_window_t *nw, const char *name) {
     else if (str_eq(name, "Pong"))             { nw->x=120; nw->y=40; nw->w=300; nw->h=260; }
     else if (str_eq(name, "Minesweeper"))      { nw->x=200; nw->y=60; nw->w=200; nw->h=264; }
     else if (str_eq(name, "Journal"))          { nw->x=110; nw->y=50; nw->w=380; nw->h=340; g_journal_sel=0; g_journal_focused=0; }
-    else if (str_eq(name, "Contacts"))         { nw->x=150; nw->y=50; nw->w=420; nw->h=320; g_contacts_sel=0; }
-    else if (str_eq(name, "Preview"))          { nw->x=160; nw->y=60; nw->w=380; nw->h=300; g_preview_page=0; }
+    else if (str_eq(name, "Contacts"))         { nw->x=150; nw->y=50; nw->w=420; nw->h=320; g_ct_sel=0; }
+    else if (str_eq(name, "Preview"))          { nw->x=160; nw->y=60; nw->w=380; nw->h=300; g_preview_page=0; g_preview_zoom=100; g_preview_markup=0; }
     else if (str_eq(name, "Apple TV"))         { nw->x=120; nw->y=50; nw->w=400; nw->h=300; g_atv_sel=0; }
     term_reset_game_state(name);
     term_focus_opened_app(name);
@@ -3848,7 +3848,7 @@ void quick_look_draw(void) {
 
 void share_sheet_draw(void) {
     /* Bottom sheet, slides up */
-    int ss_w = 280, ss_h = 200;
+    int ss_w = 280, ss_h = 220;
     int ss_x = (VGA_WIDTH - ss_w) / 2;
     int ss_y = VGA_HEIGHT - ss_h - 28; /* above dock */
     uint32_t ss_bg  = g_pref_darkmode ? RGB(36,36,40)    : RGB(250,250,254);
@@ -3899,6 +3899,14 @@ void share_sheet_draw(void) {
         int ay = ss_y+96+ai2*22;
         vga_draw_string_trans(ss_x+12, ay+5, actions[ai2], ss_txt);
         vga_draw_hline(ss_x+8, ay+20, ss_w-16, ss_sep);
+    }
+    if (g_share_action_count > 0) {
+        char status[48];
+        int sp = 0;
+        status[0] = 0;
+        overlay_append_text(status, &sp, sizeof(status), "Last: ");
+        overlay_append_text(status, &sp, sizeof(status), g_share_last_action);
+        vga_draw_string_trans(ss_x+12, ss_y+184, status, ss_sub);
     }
     /* Done button at bottom */
     int done_y = ss_y+ss_h-26;
