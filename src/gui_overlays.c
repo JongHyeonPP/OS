@@ -625,11 +625,54 @@ void nc_draw(void) {
           int_to_str(cal_now.day, daybuf);
           vga_draw_string_trans(nx+14, sy+10, daybuf, RGB(255,255,255)); }
         vga_draw_string_trans(nx+32, sy+5, "Calendar", nc_txt);
-        { char agebuf[16]; runtime_format_relative_time(3600, agebuf, sizeof(agebuf));
-          vga_draw_string_trans(nx+NC_W-44, sy+5, agebuf, nc_sub); }
-        vga_draw_hline(nx+8, sy+24, cw2-4, nc_cbd);
-        vga_draw_string_trans(nx+10, sy+28, "Team Standup", nc_txt);
-        vga_draw_string_trans(nx+10, sy+38, "Starting soon  *  Conference Room", nc_sub);
+        {
+            datetime_t now_dt;
+            char whenbuf[16];
+            char detailbuf[32];
+            const char *event_title = "No upcoming events";
+            int best = -1;
+            int best_delta = 1000;
+            int best_day = 0;
+            int ei;
+            get_current_datetime(&now_dt);
+            for (ei = 0; ei < g_cal_evt_n; ei++) {
+                int day = g_cal_evt_day[ei];
+                int delta = day - now_dt.day;
+                if (day <= 0 || !g_cal_evt_txt[ei][0] || delta < 0) continue;
+                if (delta < best_delta) {
+                    best = ei;
+                    best_delta = delta;
+                    best_day = day;
+                }
+            }
+            whenbuf[0] = 0;
+            detailbuf[0] = 0;
+            if (best >= 0) {
+                int p = 0;
+                event_title = g_cal_evt_txt[best];
+                if (best_delta == 0) {
+                    overlay_append_text(whenbuf, &p, sizeof(whenbuf), "Today");
+                    p = 0;
+                    overlay_append_text(detailbuf, &p, sizeof(detailbuf), "Scheduled for today");
+                } else {
+                    char daybuf2[8];
+                    int_to_str(best_day, daybuf2);
+                    overlay_append_text(whenbuf, &p, sizeof(whenbuf), "Day ");
+                    overlay_append_text(whenbuf, &p, sizeof(whenbuf), daybuf2);
+                    p = 0;
+                    overlay_append_text(detailbuf, &p, sizeof(detailbuf), "Upcoming calendar event");
+                }
+            } else {
+                int p = 0;
+                overlay_append_text(whenbuf, &p, sizeof(whenbuf), "None");
+                p = 0;
+                overlay_append_text(detailbuf, &p, sizeof(detailbuf), "Add one in Calendar");
+            }
+            vga_draw_string_trans(nx+NC_W-54, sy+5, whenbuf, nc_sub);
+            vga_draw_hline(nx+8, sy+24, cw2-4, nc_cbd);
+            vga_draw_string_trans(nx+10, sy+28, event_title, nc_txt);
+            vga_draw_string_trans(nx+10, sy+38, detailbuf, nc_sub);
+        }
         sy += ch2 + 4;
     }
 
