@@ -2092,13 +2092,18 @@ void gui_run(void) {
                     }
                     { int hdr_y_pw = w->y + TITLEBAR_H + 2;
                       int entry_y_pw = hdr_y_pw + 28;
-                      int pe_pw;
+                      static const char *pw_sites_ev[] = {"github.com","google.com","apple.com","twitter.com","amazon.com","netflix.com","dropbox.com","slack.com"};
+                      static const char *pw_users_ev[] = {"user@email.com","myname@gmail","me@icloud.com","user@email.com","user@email.com","me@gmail.com","user@email.com","user@work.com"};
+                      int pe_pw, shown_pw = 0;
                       for (pe_pw=0; pe_pw<8; pe_pw++) {
-                          int ey_pw = entry_y_pw + pe_pw * 22;
+                          int ey_pw;
+                          if (!gui_search_matches(GUI_SEARCH_PASSWORDS, pw_sites_ev[pe_pw], pw_users_ev[pe_pw])) continue;
+                          ey_pw = entry_y_pw + shown_pw * 22;
                           if (mx>=w->x+sb_w_pw+2 && mx<w->x+w->w-2 && my>=ey_pw && my<ey_pw+20) {
                               g_passwords_entry = pe_pw;
                               dirty=1; goto end_left_press;
                           }
+                          shown_pw++;
                       }
                     }
                     { int bot_y_pw = w->y + w->h - 24;
@@ -2671,12 +2676,18 @@ void gui_run(void) {
                         bx_at += bw_at+6;
                     }
                     if (mx>=w->x+2 && mx<w->x+lib_w_at && my>=cy_at+56 && my<cy_at+56+6*20) {
-                        int cat_i=(my-(cy_at+56))/20;
-                        if (cat_i>=0 && cat_i<6) {
-                            g_automator_category=cat_i;
-                            g_automator_search_focused=0; gui_search_blur(GUI_SEARCH_AUTOMATOR);
-                            toast_show("Automator","Category selected",RGB(238,95,0));
-                            dirty=1; goto end_left_press;
+                        static const char *cats_at_ev[] = {"Files & Folders","Text","PDFs","Music","Photos","Utilities"};
+                        int cat_row=(my-(cy_at+56))/20;
+                        int cat_i, shown_at = 0;
+                        for (cat_i=0; cat_i<6; cat_i++) {
+                            if (!gui_search_matches(GUI_SEARCH_AUTOMATOR, cats_at_ev[cat_i], NULL)) continue;
+                            if (shown_at == cat_row) {
+                                g_automator_category=cat_i;
+                                g_automator_search_focused=0; gui_search_blur(GUI_SEARCH_AUTOMATOR);
+                                toast_show("Automator","Category selected",RGB(238,95,0));
+                                dirty=1; goto end_left_press;
+                            }
+                            shown_at++;
                         }
                     }
                     { int wf_x=w->x+lib_w_at+4;
@@ -3374,14 +3385,19 @@ void gui_run(void) {
                 } else if (g_alfred_search_focused) {
                     g_alfred_search_focused=0; gui_search_blur(GUI_SEARCH_ALFRED); dirty=1;
                 }
-                { int ai_al;
+                { static const char *al_results_ev[]={"MyOS Project","myos.iso","myos build script","myos.iso (copy)"};
+                  static const char *al_types_ev[]={"Folder","File","Script","File"};
+                  int ai_al, shown_al = 0;
                   for (ai_al=0; ai_al<4; ai_al++) {
-                      int ay_al=w->y+TITLEBAR_H+54+ai_al*28;
+                      int ay_al;
+                      if (!gui_search_matches(GUI_SEARCH_ALFRED, al_results_ev[ai_al], al_types_ev[ai_al])) continue;
+                      ay_al=w->y+TITLEBAR_H+54+shown_al*28;
                       if (mx>=w->x+2 && mx<w->x+w->w-2 && my>=ay_al-2 && my<ay_al+28) {
                           g_alfred_result=ai_al;
                           toast_show("Alfred","Result selected",RGB(200,50,200));
                           dirty=1; goto end_left_press;
                       }
+                      shown_al++;
                   } }
                 break;
             }
@@ -3397,12 +3413,18 @@ void gui_run(void) {
                         g_fontbook_search_focused=1; gui_search_focus(GUI_SEARCH_FONTBOOK); dirty=1; goto end_left_press;
                     }
                     if (mx>=w->x+2 && mx<w->x+sb_w_fb && my>=cy_fb+44 && my<cy_fb+44+9*18) {
-                        int font_i = (my - (cy_fb+44)) / 18;
-                        if (font_i >= 0 && font_i < 9) {
-                            g_fontbook_selected = font_i;
-                            g_fontbook_search_focused=0; gui_search_blur(GUI_SEARCH_FONTBOOK);
-                            toast_show("Font Book","Font selected",RGB(0,122,255));
-                            dirty=1; goto end_left_press;
+                        static const char *fonts_fb_ev[]={"Arial","Courier","Georgia","Helvetica","Impact","Monaco","Palatino","Times New Roman","Verdana"};
+                        int font_row = (my - (cy_fb+44)) / 18;
+                        int font_i, shown_fb = 0;
+                        for (font_i = 0; font_i < 9; font_i++) {
+                            if (!gui_search_matches(GUI_SEARCH_FONTBOOK, fonts_fb_ev[font_i], NULL)) continue;
+                            if (shown_fb == font_row) {
+                                g_fontbook_selected = font_i;
+                                g_fontbook_search_focused=0; gui_search_blur(GUI_SEARCH_FONTBOOK);
+                                toast_show("Font Book","Font selected",RGB(0,122,255));
+                                dirty=1; goto end_left_press;
+                            }
+                            shown_fb++;
                         }
                     } else if (g_fontbook_search_focused) { g_fontbook_search_focused=0; gui_search_blur(GUI_SEARCH_FONTBOOK); dirty=1; }
                 } else if (str_eq(w->title,"Console")) {
@@ -3443,15 +3465,21 @@ void gui_run(void) {
                         g_sfsymbols_search_focused=1; gui_search_focus(GUI_SEARCH_SFSYMBOLS); dirty=1; goto end_left_press;
                     }
                     if (mx>=w->x+10 && mx<w->x+w->w-10 && my>=cy_sf+30 && my<cy_sf+130) {
+                        static const char *sym_names_ev[]={"star","heart","house","bell","cloud","gear","lock","wifi","bolt","music.note"};
                         int cell_w_sf=(w->w-20)/5;
                         int col_sf=cell_w_sf>0 ? (mx-(w->x+10))/cell_w_sf : 0;
                         int row_sf=(my-(cy_sf+30))/50;
-                        int sym_i=row_sf*5+col_sf;
-                        if (sym_i>=0 && sym_i<10) {
-                            g_sfsymbols_selected=sym_i;
-                            g_sfsymbols_search_focused=0; gui_search_blur(GUI_SEARCH_SFSYMBOLS);
-                            toast_show("SF Symbols","Symbol selected",RGB(52,199,89));
-                            dirty=1; goto end_left_press;
+                        int sym_row=row_sf*5+col_sf;
+                        int sym_i, shown_sym = 0;
+                        for (sym_i = 0; sym_i < 10; sym_i++) {
+                            if (!gui_search_matches(GUI_SEARCH_SFSYMBOLS, sym_names_ev[sym_i], NULL)) continue;
+                            if (shown_sym == sym_row) {
+                                g_sfsymbols_selected=sym_i;
+                                g_sfsymbols_search_focused=0; gui_search_blur(GUI_SEARCH_SFSYMBOLS);
+                                toast_show("SF Symbols","Symbol selected",RGB(52,199,89));
+                                dirty=1; goto end_left_press;
+                            }
+                            shown_sym++;
                         }
                     } else if (g_sfsymbols_search_focused) { g_sfsymbols_search_focused=0; gui_search_blur(GUI_SEARCH_SFSYMBOLS); dirty=1; }
                 } else if (str_eq(w->title,"1Password")) {
@@ -3473,14 +3501,20 @@ void gui_run(void) {
                     if (mx>=w->x+8 && mx<w->x+w->w-8 && my>=sy_rc && my<sy_rc+30) {
                         g_raycast_search_focused=1; gui_search_focus(GUI_SEARCH_RAYCAST); dirty=1; goto end_left_press;
                     } else if (g_raycast_search_focused) { g_raycast_search_focused=0; gui_search_blur(GUI_SEARCH_RAYCAST); dirty=1; }
-                    { int ri_rc; for (ri_rc=0; ri_rc<6; ri_rc++) {
-                        int ry_rc=w->y+TITLEBAR_H+52+ri_rc*26;
-                        if (mx>=w->x+2 && mx<w->x+w->w-2 && my>=ry_rc-2 && my<ry_rc+26) {
-                            g_raycast_result=ri_rc;
-                            toast_show("Raycast","Command selected",RGB(255,90,30));
-                            dirty=1; goto end_left_press;
-                        }
-                    } }
+                    { static const char *rc_cmds_ev[]={"Calculator","File Search","Clipboard History","Window Management","System: Sleep","App Launcher"};
+                      static const char *rc_cats_ev[]={"Built-in","Extension","Extension","Extension","System","Built-in"};
+                      int ri_rc, shown_rc = 0;
+                      for (ri_rc=0; ri_rc<6; ri_rc++) {
+                          int ry_rc;
+                          if (!gui_search_matches(GUI_SEARCH_RAYCAST, rc_cmds_ev[ri_rc], rc_cats_ev[ri_rc])) continue;
+                          ry_rc=w->y+TITLEBAR_H+52+shown_rc*26;
+                          if (mx>=w->x+2 && mx<w->x+w->w-2 && my>=ry_rc-2 && my<ry_rc+26) {
+                              g_raycast_result=ri_rc;
+                              toast_show("Raycast","Command selected",RGB(255,90,30));
+                              dirty=1; goto end_left_press;
+                          }
+                          shown_rc++;
+                      } }
                 } else if (str_eq(w->title,"Privacy")) {
                     int cy_pv=w->y+TITLEBAR_H, ci_pv;
                     for (ci_pv=0; ci_pv<9; ci_pv++) {

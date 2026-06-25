@@ -343,11 +343,14 @@ int draw_apps_group3(int idx) {
         {
             static const char *pw_sites[] = {"github.com","google.com","apple.com","twitter.com","amazon.com","netflix.com","dropbox.com","slack.com"};
             static const char *pw_users[] = {"user@email.com","myname@gmail","me@icloud.com","user@email.com","user@email.com","me@gmail.com","user@email.com","user@work.com"};
-            int pe;
+            int pe, shown_pw = 0;
             for (pe=0; pe<8; pe++) {
-                int ey = entry_y+pe*22;
+                int ey;
+                int is_sel2;
+                if (!gui_search_matches(GUI_SEARCH_PASSWORDS, pw_sites[pe], pw_users[pe])) continue;
+                ey = entry_y+shown_pw*22;
                 if (ey+18 > wy+wh-28) break;
-                int is_sel2 = (pe==g_passwords_entry && g_passwords_sel<4);
+                is_sel2 = (pe==g_passwords_entry && g_passwords_sel<4);
                 if (is_sel2) vga_fill_rect_alpha(wx+sb_w+2, ey, ww-sb_w-4, 20, pw_acc, 50);
                 /* Key icon */
                 gui_draw_circle(main_x+5, ey+8, 5, RGB(255,180,0));
@@ -356,8 +359,11 @@ int draw_apps_group3(int idx) {
                 vga_draw_string_trans(main_x+main_w/2, ey+4, pw_users[pe], pw_sub);
                 vga_draw_string_trans(main_x+main_w-48, ey+4, "* * * * * *", pw_sub);
                 vga_draw_string_trans(main_x+main_w-14, ey+4, ">", pw_sub);
-                if (pe<7) vga_draw_hline(main_x, ey+20, main_w, pw_sep);
+                if (shown_pw<7) vga_draw_hline(main_x, ey+20, main_w, pw_sep);
+                shown_pw++;
             }
+            if (shown_pw == 0)
+                vga_draw_string_trans(main_x+12, entry_y+8, "No passwords found", pw_sub);
         }
         /* Bottom bar */
         int bot_y2 = wy+wh-24;
@@ -1291,13 +1297,18 @@ int draw_apps_group3(int idx) {
             gui_search_display_text(GUI_SEARCH_AUTOMATOR, "Search actions...", "Search focused"), at_sub);
         /* Action categories */
         { static const char *cats[] = {"Files & Folders","Text","PDFs","Music","Photos","Utilities"};
-          int ci;
+          int ci, shown_at = 0;
           for (ci=0;ci<6;ci++){
-              int cy2=content_y+56+ci*20;
+              int cy2;
+              if (!gui_search_matches(GUI_SEARCH_AUTOMATOR, cats[ci], NULL)) continue;
+              cy2=content_y+56+shown_at*20;
               if (cy2+16>content_y+content_h-4) break;
               if (ci==g_automator_category) vga_fill_rect(wx+2, cy2, lib_w-2, 18, g_pref_darkmode?RGB(45,45,52):RGB(228,228,236));
               vga_draw_string_trans(wx+8, cy2+5, cats[ci], ci==g_automator_category?at_acc:at_txt);
+              shown_at++;
           }
+          if (shown_at == 0)
+              vga_draw_string_trans(wx+8, content_y+62, "No actions found", at_sub);
         }
         /* Right panel: Workflow canvas */
         int wf_x = wx + lib_w + 4;
@@ -1361,16 +1372,21 @@ int draw_apps_group3(int idx) {
             gui_search_display_text(GUI_SEARCH_FONTBOOK, "Search...", "Search focused"), fb_sub);
         /* Font list */
         { static const char *fonts[]={"Arial","Courier","Georgia","Helvetica","Impact","Monaco","Palatino","Times New Roman","Verdana"};
-          int fi2, fy=content_y+44;
+          int fi2, fy=content_y+44, shown_fb = 0;
           int selected_fb = g_fontbook_selected;
           if (selected_fb < 0 || selected_fb >= 9) selected_fb = 3;
           for (fi2=0;fi2<9;fi2++){
-              int is_sel = fi2 == selected_fb;
+              int is_sel;
+              if (!gui_search_matches(GUI_SEARCH_FONTBOOK, fonts[fi2], NULL)) continue;
+              is_sel = fi2 == selected_fb;
               if (fy+16>content_y+content_h-4) break;
               if (is_sel) vga_fill_rect(wx+2, fy, sb_w-2, 16, g_pref_darkmode?RGB(44,44,52):RGB(218,218,225));
               vga_draw_string_trans(wx+8, fy+4, fonts[fi2], is_sel?fb_acc:fb_txt);
               fy += 18;
+              shown_fb++;
           }
+          if (shown_fb == 0)
+              vga_draw_string_trans(wx+8, content_y+48, "No fonts found", fb_sub);
         }
         /* Right: preview area */
         int pv_x = wx + sb_w + 4;
@@ -1378,14 +1394,25 @@ int draw_apps_group3(int idx) {
         vga_fill_rect(pv_x, content_y+23, pv_w, content_h-23, fb_card);
         { static const char *fonts[]={"Arial","Courier","Georgia","Helvetica","Impact","Monaco","Palatino","Times New Roman","Verdana"};
           int selected_fb = g_fontbook_selected;
+          int preview_fb = -1;
+          int fi_prev;
           char face_line[16];
           int flp = 0;
           if (selected_fb < 0 || selected_fb >= 9) selected_fb = 3;
-          face_line[0] = 0;
-          apps3_append_uint(face_line, &flp, sizeof(face_line), (uint32_t)(selected_fb + 6));
-          apps3_append_text(face_line, &flp, sizeof(face_line), " faces");
-          vga_draw_string_trans(pv_x+4, content_y+27, fonts[selected_fb], fb_txt);
-          vga_draw_string_trans(pv_x+4, content_y+37, face_line, fb_sub); }
+          for (fi_prev=0; fi_prev<9; fi_prev++) {
+              if (!gui_search_matches(GUI_SEARCH_FONTBOOK, fonts[fi_prev], NULL)) continue;
+              if (preview_fb < 0) preview_fb = fi_prev;
+              if (fi_prev == selected_fb) { preview_fb = fi_prev; break; }
+          }
+          if (preview_fb >= 0) {
+              face_line[0] = 0;
+              apps3_append_uint(face_line, &flp, sizeof(face_line), (uint32_t)(preview_fb + 6));
+              apps3_append_text(face_line, &flp, sizeof(face_line), " faces");
+              vga_draw_string_trans(pv_x+4, content_y+27, fonts[preview_fb], fb_txt);
+              vga_draw_string_trans(pv_x+4, content_y+37, face_line, fb_sub);
+          } else {
+              vga_draw_string_trans(pv_x+4, content_y+27, "No font selected", fb_sub);
+          } }
         vga_draw_hline(pv_x, content_y+48, pv_w, fb_sep);
         /* Preview text at different sizes */
         { const char *prev = "Aa Bb Cc";
@@ -1393,14 +1420,25 @@ int draw_apps_group3(int idx) {
           int psz[] = {1,1,1,1};
           int pi2;
           (void)psz;
-          for (pi2=0;pi2<4;pi2++){
-              if (content_y+psy[pi2]+12 > content_y+content_h-4) break;
-              vga_draw_string_trans(pv_x+4, content_y+psy[pi2], prev, fb_txt);
+          if (gui_search_text(GUI_SEARCH_FONTBOOK)[0] == 0 ||
+              gui_search_matches(GUI_SEARCH_FONTBOOK, "Arial", NULL) ||
+              gui_search_matches(GUI_SEARCH_FONTBOOK, "Courier", NULL) ||
+              gui_search_matches(GUI_SEARCH_FONTBOOK, "Georgia", NULL) ||
+              gui_search_matches(GUI_SEARCH_FONTBOOK, "Helvetica", NULL) ||
+              gui_search_matches(GUI_SEARCH_FONTBOOK, "Impact", NULL) ||
+              gui_search_matches(GUI_SEARCH_FONTBOOK, "Monaco", NULL) ||
+              gui_search_matches(GUI_SEARCH_FONTBOOK, "Palatino", NULL) ||
+              gui_search_matches(GUI_SEARCH_FONTBOOK, "Times New Roman", NULL) ||
+              gui_search_matches(GUI_SEARCH_FONTBOOK, "Verdana", NULL)) {
+              for (pi2=0;pi2<4;pi2++){
+                  if (content_y+psy[pi2]+12 > content_y+content_h-4) break;
+                  vga_draw_string_trans(pv_x+4, content_y+psy[pi2], prev, fb_txt);
+              }
+              vga_draw_string_trans(pv_x+4, content_y+128, "ABCDEFGHIJKLM", fb_txt);
+              vga_draw_string_trans(pv_x+4, content_y+142, "NOPQRSTUVWXYZ", fb_txt);
+              vga_draw_string_trans(pv_x+4, content_y+156, "0123456789", fb_sub);
+              vga_draw_string_trans(pv_x+4, content_y+170, "!@#$%^&*()", fb_sub);
           }
-          vga_draw_string_trans(pv_x+4, content_y+128, "ABCDEFGHIJKLM", fb_txt);
-          vga_draw_string_trans(pv_x+4, content_y+142, "NOPQRSTUVWXYZ", fb_txt);
-          vga_draw_string_trans(pv_x+4, content_y+156, "0123456789", fb_sub);
-          vga_draw_string_trans(pv_x+4, content_y+170, "!@#$%^&*()", fb_sub);
         }
         /* Size slider */
         vga_draw_hline(pv_x+4, content_y+content_h-16, pv_w-8, fb_sep);
@@ -1517,6 +1555,7 @@ int draw_apps_group3(int idx) {
               int show_log = 1;
               if (g_console_level_filter > 0 && logs[li4].lvl != g_console_level_filter - 1) show_log = 0;
               if (g_console_device_filter > 0 && !str_eq(logs[li4].proc, dev_filters[g_console_device_filter])) show_log = 0;
+              if (!gui_search_matches(GUI_SEARCH_CONSOLE, logs[li4].proc, logs[li4].msg)) show_log = 0;
               if (!show_log) continue;
               if (ly+12>content_y+content_h-4) break;
               uint32_t lvl_col = logs[li4].lvl==0?co_err:(logs[li4].lvl==1?co_wrn:co_inf);

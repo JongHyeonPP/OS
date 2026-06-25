@@ -1456,15 +1456,22 @@ int draw_apps_group4(int idx) {
         vga_draw_hline(wx+2,cy+26,ww-4,g_pref_darkmode?RGB(50,50,56):RGB(210,210,216));
         /* Symbol grid */
         static const char *sym_names[]={"star","heart","house","bell","cloud","gear","lock","wifi","bolt","music.note"};
-        int si2; for(si2=0;si2<10;si2++) {
-            int sx2=wx+10+(si2%5)*((ww-20)/5);
-            int sy2=cy+30+(si2/5)*50;
-            int is_sym = si2 == g_sfsymbols_selected;
+        int si2, shown_sym = 0;
+        for(si2=0;si2<10;si2++) {
+            int sx2, sy2, is_sym;
+            if (!gui_search_matches(GUI_SEARCH_SFSYMBOLS, sym_names[si2], NULL)) continue;
+            sx2=wx+10+(shown_sym%5)*((ww-20)/5);
+            sy2=cy+30+(shown_sym/5)*50;
+            is_sym = si2 == g_sfsymbols_selected;
             gui_draw_rounded_rect(sx2,sy2,32,32,6,is_sym?sf_acc:(g_pref_darkmode?RGB(40,40,46):RGB(235,235,240)));
             vga_draw_string_trans(sx2+8,sy2+12,sym_names[si2][0]=='s'?"*":"o",is_sym?RGB(255,255,255):sf_acc);
             vga_draw_string_trans(sx2,sy2+36,sym_names[si2],is_sym?sf_acc:(g_pref_darkmode?RGB(120,120,130):RGB(100,100,110)));
+            shown_sym++;
         }
-        if (g_sfsymbols_selected >= 0 && g_sfsymbols_selected < 10)
+        if (shown_sym == 0)
+            vga_draw_string_trans(wx+14, cy+46, "No symbols found", g_pref_darkmode?RGB(120,120,130):RGB(100,100,110));
+        if (g_sfsymbols_selected >= 0 && g_sfsymbols_selected < 10 &&
+            gui_search_matches(GUI_SEARCH_SFSYMBOLS, sym_names[g_sfsymbols_selected], NULL))
             vga_draw_string_trans(wx+10, cy+wh-TITLEBAR_H-16, sym_names[g_sfsymbols_selected], sf_acc);
         return 1;
     }
@@ -1858,14 +1865,21 @@ int draw_apps_group4(int idx) {
         vga_draw_string_trans(wx+100, wy+TITLEBAR_H+32,
                               gui_search_display_text(GUI_SEARCH_ONEPASSWORD, "Search...", "Search focused"), pw_sub);
         static const char *pw_items[]={"GitHub","Google","Apple ID","Netflix","Amazon","Spotify"};
-        for(vi=0;vi<6;vi++){
-            int iy2=wy+TITLEBAR_H+52+vi*26;
-            vga_fill_rect(wx+92, iy2, ww-94, 24, RGB(26,30,42));
-            vga_draw_hline(wx+92, iy2+24, ww-94, RGB(36,42,56));
-            gui_draw_rounded_rect(wx+96, iy2+4, 16, 16, 3, pw_acc);
-            vga_draw_string_trans(wx+100, iy2+9, "p", RGB(255,255,255));
-            vga_draw_string_trans(wx+118, iy2+4, pw_items[vi], pw_txt);
-            vga_draw_string_trans(wx+118, iy2+14, "user@email.com", pw_sub);
+        { int shown_op = 0;
+          for(vi=0;vi<6;vi++){
+              int iy2;
+              if (!gui_search_matches(GUI_SEARCH_ONEPASSWORD, pw_items[vi], "user@email.com")) continue;
+              iy2=wy+TITLEBAR_H+52+shown_op*26;
+              vga_fill_rect(wx+92, iy2, ww-94, 24, RGB(26,30,42));
+              vga_draw_hline(wx+92, iy2+24, ww-94, RGB(36,42,56));
+              gui_draw_rounded_rect(wx+96, iy2+4, 16, 16, 3, pw_acc);
+              vga_draw_string_trans(wx+100, iy2+9, "p", RGB(255,255,255));
+              vga_draw_string_trans(wx+118, iy2+4, pw_items[vi], pw_txt);
+              vga_draw_string_trans(wx+118, iy2+14, "user@email.com", pw_sub);
+              shown_op++;
+          }
+          if (shown_op == 0)
+              vga_draw_string_trans(wx+118, wy+TITLEBAR_H+62, "No items found", pw_sub);
         }
         return 1;
     }
@@ -1994,16 +2008,21 @@ int draw_apps_group4(int idx) {
         static const uint32_t rc_icols[]={RGB(200,50,50),RGB(0,122,255),RGB(52,199,89),RGB(255,149,0),RGB(120,120,130),RGB(220,40,220)};
         int active_rc = g_raycast_result;
         if (active_rc < 0 || active_rc > 5) active_rc = 0;
-        int ri2;
+        int ri2, shown_rc = 0;
         for(ri2=0;ri2<6;ri2++){
-            int ry2=wy+TITLEBAR_H+52+ri2*26;
+            int ry2;
+            if (!gui_search_matches(GUI_SEARCH_RAYCAST, rc_cmds[ri2], rc_cats[ri2])) continue;
+            ry2=wy+TITLEBAR_H+52+shown_rc*26;
             if(ri2==active_rc) vga_fill_rect(wx+2, ry2-2, ww-4, 28, RGB(30,30,40));
             gui_draw_rounded_rect(wx+10, ry2+3, 18, 18, 4, rc_icols[ri2]);
             { char cmd_icon[2]; cmd_icon[0] = rc_cmds[ri2][0]; cmd_icon[1] = 0;
               vga_draw_string_trans(wx+14, ry2+9, cmd_icon, RGB(255,255,255)); }
             vga_draw_string_trans(wx+34, ry2+5, rc_cmds[ri2], ri2==active_rc?rc_acc:rc_txt);
             vga_draw_string_trans(wx+ww-64, ry2+8, rc_cats[ri2], rc_sub);
+            shown_rc++;
         }
+        if (shown_rc == 0)
+            vga_draw_string_trans(wx+34, wy+TITLEBAR_H+62, "No commands found", rc_sub);
         vga_draw_string_trans(wx+8, wy+wh-18, "Tip: Press Tab to view actions", rc_sub);
         return 1;
     }
@@ -2327,15 +2346,20 @@ int draw_apps_group4(int idx) {
         static const uint32_t al_ic[]={RGB(0,122,255),RGB(200,200,200),RGB(52,199,89),RGB(200,200,200)};
         int active_al = g_alfred_result;
         if (active_al < 0 || active_al > 3) active_al = 0;
-        int ai2;
+        int ai2, shown_al = 0;
         for(ai2=0;ai2<4;ai2++){
-            int ay3=wy+TITLEBAR_H+54+ai2*28;
+            int ay3;
+            if (!gui_search_matches(GUI_SEARCH_ALFRED, al_results[ai2], al_types[ai2])) continue;
+            ay3=wy+TITLEBAR_H+54+shown_al*28;
             if(ai2==active_al) vga_fill_rect(wx+2, ay3-2, ww-4, 30, RGB(30,24,38));
             gui_draw_rounded_rect(wx+8, ay3+2, 20, 20, 4, al_ic[ai2]);
             vga_draw_string_trans(wx+34, ay3+4, al_results[ai2], ai2==active_al?al_acc:al_txt);
             vga_draw_string_trans(wx+34, ay3+16, al_types[ai2], al_sub);
             vga_draw_string_trans(wx+ww-32, ay3+10, ai2==active_al?"Ret":"", al_sub);
+            shown_al++;
         }
+        if (shown_al == 0)
+            vga_draw_string_trans(wx+34, wy+TITLEBAR_H+64, "No results found", al_sub);
         vga_draw_string_trans(wx+8, wy+wh-18, "Alfred Powerpack  |  Workflows  |  Clipboard", al_sub);
         return 1;
     }
