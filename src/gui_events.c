@@ -465,6 +465,28 @@ void gui_run(void) {
                 }
                 dirty = 1; goto end_left_press;
             }
+            /* Widget bar click */
+            if (g_widget_visible) {
+                int wb_h2 = 90;
+                int wb_x2 = 8;
+                int wb_y2 = VGA_HEIGHT - wb_h2 - 32;
+                int qn_x2 = wb_x2 + 486;
+                int qn_y2 = wb_y2;
+                if (mx >= qn_x2 && mx < qn_x2 + 160 && my >= qn_y2 && my < qn_y2 + wb_h2) {
+                    (void)gui_open_basic_app("Notes");
+                    g_notes_sel = NOTES_COUNT - 1;
+                    g_notes_focused = 1;
+                    g_widget_visible = 0;
+                    toast_show("Quick Notes", "New note ready", RGB(255,204,0));
+                    dirty = 1;
+                    goto end_left_press;
+                }
+                if (my < wb_y2 - 4 || my >= wb_y2 + wb_h2 + 8) {
+                    g_widget_visible = 0;
+                    dirty = 1;
+                    goto end_left_press;
+                }
+            }
             /* Control Center click */
             if (g_cc_visible) {
                 cc_click(mx, my);
