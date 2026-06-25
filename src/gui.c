@@ -1075,6 +1075,21 @@ static int safari_host_resolve4(const char *host, uint32_t *out) {
     return safari_dns_query4(host, out);
 }
 
+static void safari_append_html_escaped(char *out, int *pos, int max, const char *text) {
+    int i;
+    if (!out || !pos || !text) return;
+    for (i = 0; text[i] && *pos + 1 < max; i++) {
+        if (text[i] == '&') safari_append(out, pos, max, "&amp;");
+        else if (text[i] == '<') safari_append(out, pos, max, "&lt;");
+        else if (text[i] == '>') safari_append(out, pos, max, "&gt;");
+        else if (text[i] == '"') safari_append(out, pos, max, "&quot;");
+        else {
+            out[(*pos)++] = text[i];
+            out[*pos] = 0;
+        }
+    }
+}
+
 int safari_is_home_url(const char *url) {
     return !url || !url[0] || str_eq(url, "about:home") || str_eq(url, "about:blank");
 }
@@ -1333,15 +1348,15 @@ static void safari_make_local_body(const safari_request_t *req, const char *requ
         filebuf[n] = 0;
         safari_append(out, &pos, max, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n");
         safari_append(out, &pos, max, "<html><title>");
-        safari_append(out, &pos, max, path);
+        safari_append_html_escaped(out, &pos, max, path);
         safari_append(out, &pos, max, "</title><body><pre>");
-        safari_append(out, &pos, max, filebuf);
+        safari_append_html_escaped(out, &pos, max, filebuf);
         safari_append(out, &pos, max, "</pre></body></html>");
         return;
     }
     safari_append(out, &pos, max, "HTTP/1.0 404 Not Found\r\nContent-Type: text/html\r\n\r\n");
     safari_append(out, &pos, max, "<html><title>Not Found</title><body><h1>Not Found</h1><p>");
-    safari_append(out, &pos, max, path);
+    safari_append_html_escaped(out, &pos, max, path);
     safari_append(out, &pos, max, "</p></body></html>");
 }
 
