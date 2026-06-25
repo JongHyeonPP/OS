@@ -705,6 +705,8 @@ extern int g_preview_markup;
 extern int g_atv_sel;
 extern int g_atv_bottom_tab;
 extern int g_atv_playing;
+extern int g_atv_content_row;
+extern int g_atv_content_item;
 extern int g_wallet_pay_count;
 extern int g_compressor_added_files;
 extern int g_compressor_submitted;

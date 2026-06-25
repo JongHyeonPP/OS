@@ -2241,6 +2241,26 @@ void gui_run(void) {
                         dirty=1; goto end_left_press;
                     }
                   }
+                  { int row_tv;
+                    for (row_tv=0; row_tv<3; row_tv++) {
+                        int ry_tv=cy_tv+114+row_tv*38;
+                        int item_tv;
+                        if (ry_tv+36 > w->y+w->h-4) break;
+                        for (item_tv=0; item_tv<5; item_tv++) {
+                            int cell_tv=(w->w-12)/5;
+                            int tx_tv=w->x+6+item_tv*cell_tv;
+                            int tw_tv=cell_tv-4;
+                            if (tw_tv < 1) tw_tv = 1;
+                            if (mx>=tx_tv && mx<tx_tv+tw_tv && my>=ry_tv+10 && my<ry_tv+36) {
+                                g_atv_content_row=row_tv;
+                                g_atv_content_item=item_tv;
+                                g_atv_playing=1;
+                                toast_show("Apple TV","Title selected",RGB(255,255,255));
+                                dirty=1; goto end_left_press;
+                            }
+                        }
+                    }
+                  }
                   { int tab_w_tv = (w->w - 8) / 4;
                     int tab_y_tv = w->y + w->h - 20;
                     if (tab_w_tv < 1) tab_w_tv = 1;

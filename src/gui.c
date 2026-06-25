@@ -6197,6 +6197,8 @@ int g_preview_markup = 0;
 int g_atv_sel = 0;
 int g_atv_bottom_tab = 0;
 int g_atv_playing = 0;
+int g_atv_content_row = 0;
+int g_atv_content_item = 0;
 
 /* ====== Wallet ====== */
 int g_wallet_pay_count = 0;

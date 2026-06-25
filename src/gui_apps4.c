@@ -3809,6 +3809,11 @@ int draw_apps_group4(int idx) {
         /* Featured content hero */
         { int hw=ww-8, hh=80;
           int hx=wx+4, hy=cy+26;
+          char selected_title[8];
+          selected_title[0] = 'A' + (char)g_atv_content_item;
+          selected_title[1] = 'p';
+          selected_title[2] = '0' + (char)g_atv_content_row;
+          selected_title[3] = 0;
           /* Gradient hero bg */
           { int ri2; for(ri2=0;ri2<hh;ri2++) {
                 uint8_t rr=(uint8_t)(20+ri2*60/hh);
@@ -3822,7 +3827,7 @@ int draw_apps_group4(int idx) {
           vga_fill_rect_alpha(hx+hw*3/4-35, hy+hh/2-4, 70, 8, RGB(255,255,255), 60);
           /* Title overlay */
           vga_draw_string_trans(hx+8, hy+hh-28, "FEATURED", RGB(255,255,255));
-          vga_draw_string_trans(hx+8, hy+hh-16, "Top 10 Tonight", RGB(200,200,200));
+          vga_draw_string_trans(hx+8, hy+hh-16, selected_title, RGB(200,200,200));
           /* Play button */
           vga_fill_rect_alpha(hx+8, hy+hh-42, 52, 16, RGB(255,255,255), 220);
           vga_draw_string_trans(hx+14, hy+hh-38, g_atv_playing ? "Pause" : "Play", RGB(0,0,0));
@@ -3832,18 +3837,24 @@ int draw_apps_group4(int idx) {
         /* Content rows */
         { static const char *rowt[]={"Continue Watching","Top Picks for You","New Releases"};
           static const uint32_t rowc[]={RGB(255,100,50),RGB(100,180,255),RGB(150,255,100)};
+          int active_row = g_atv_content_row;
+          int active_item = g_atv_content_item;
+          if (active_row < 0 || active_row > 2) active_row = 0;
+          if (active_item < 0 || active_item > 4) active_item = 0;
           int ri2; for(ri2=0;ri2<3;ri2++) {
               int ry=cy+114+ri2*38;
               if(ry+36 > wy+wh-4) break;
-              vga_draw_string_trans(wx+6, ry, rowt[ri2], RGB(200,200,205));
+              vga_draw_string_trans(wx+6, ry, rowt[ri2], ri2==active_row?RGB(255,255,255):RGB(200,200,205));
               /* Show thumbnails */
               int ti2; for(ti2=0;ti2<5;ti2++) {
                   int tx=wx+6+ti2*((ww-12)/5);
                   int tw=(ww-12)/5-4;
                   int th=26;
+                  int is_card = (ri2 == active_row && ti2 == active_item);
                   if(tx+tw > wx+ww-4) break;
                   vga_fill_rect(tx, ry+10, tw, th, rowc[ri2]);
-                  vga_fill_rect_alpha(tx, ry+10, tw, th/2, RGB(255,255,255), 20);
+                  if (is_card) vga_draw_rect_outline(tx-1, ry+9, tw+2, th+2, RGB(255,255,255));
+                  vga_fill_rect_alpha(tx, ry+10, tw, th/2, RGB(255,255,255), is_card ? 55 : 20);
                   /* Title text */
                   char tn[4]; tn[0]='A'+ti2; tn[1]='p'; tn[2]='0'+ri2; tn[3]=0;
                   vga_draw_string_trans(tx+2, ry+14, tn, RGB(255,255,255));
