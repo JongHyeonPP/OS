@@ -1843,7 +1843,7 @@ int draw_apps_group2(int idx) {
               vga_draw_rect_outline(snap_x, snap_y, sw2, sh2, RGB(100+depth*20, 120+depth*20, 200+depth*10));
               /* Window header bar */
               vga_fill_rect(snap_x+1, snap_y+1, sw2-2, 8, RGB(50+depth*10, 50+depth*10, 80+depth*10));
-              /* Fake content lines */
+              /* Content lines */
               { int li3;
                 for (li3=0;li3<3;li3++) {
                     uint8_t lc=(uint8_t)(80-depth*20);
@@ -1852,7 +1852,12 @@ int draw_apps_group2(int idx) {
               }
               /* Date label on each snapshot */
               { char dl[12];
-                int yr=2026-depth, mn=6;
+                datetime_t dt;
+                int yr, mn;
+                get_current_datetime(&dt);
+                yr = dt.year;
+                mn = dt.month - depth;
+                while (mn <= 0) { mn += 12; yr--; }
                 dl[0]='0'+mn/10; dl[1]='0'+mn%10; dl[2]='-';
                 dl[3]='0'+yr/1000%10; dl[4]='0'+yr/100%10; dl[5]='0'+yr/10%10; dl[6]='0'+yr%10; dl[7]=0;
                 int dw2=str_len(dl)*8;
