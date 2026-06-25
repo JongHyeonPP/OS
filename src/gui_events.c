@@ -181,14 +181,6 @@ void gui_run(void) {
             }
             /* Unlock lock screen */
             if (g_locked) { g_locked = 0; dirty = 1; goto end_left_press; }
-            /* New overlay click handlers */
-            if (new_overlays_click(mx, my)) { dirty=1; goto end_left_press; }
-            /* New overlay click handlers */
-            if (new_overlays_click(mx, my)) { dirty=1; goto end_left_press; }
-            /* New overlay click handlers */
-            if (new_overlays_click(mx, my)) { dirty=1; goto end_left_press; }
-            /* New overlay click handlers */
-            if (new_overlays_click(mx, my)) { dirty=1; goto end_left_press; }
             /* Overlay click handlers */
             if (new_overlays_click(mx, my)) { dirty=1; goto end_left_press; }
             /* Toast action buttons */
@@ -428,7 +420,8 @@ void gui_run(void) {
                             (str_eq(aname,"Finder") && str_eq(wt,"MyOS Finder")))) {
                             g_windows[j2].visible=1; win_bring_to_front(j2);
                             if (str_eq(aname,"Wordle")) { g_wordle_focused=1; }
-                            if (str_eq(aname,"Dictionary")||str_eq(aname,"TextEdit")) { g_dict_focused=1; }
+                            if (str_eq(aname,"Dictionary")) { g_dict_focused=1; g_edit_focused=0; }
+                            if (str_eq(aname,"TextEdit")) { g_edit_focused=1; g_dict_focused=0; }
                             found2=1; break;
                         }
                     }
@@ -2341,7 +2334,8 @@ void gui_run(void) {
                                         if (wt2 && str_eq(wt2,an2)) {
                                             g_windows[js2].visible=1; win_bring_to_front(js2); fs2=1;
                                             if (str_eq(an2,"Wordle")) { g_wordle_focused=1; }
-                                            if (str_eq(an2,"Dictionary")||str_eq(an2,"TextEdit")) { g_dict_focused=1; }
+                                            if (str_eq(an2,"Dictionary")) { g_dict_focused=1; g_edit_focused=0; }
+                                            if (str_eq(an2,"TextEdit")) { g_edit_focused=1; g_dict_focused=0; }
                                             break;
                                         }
                                     }
@@ -3435,7 +3429,8 @@ void gui_run(void) {
                                         (str_eq(aname,"Finder") && str_eq(wt,"MyOS Finder")))) {
                                         g_windows[j3].visible=1; win_bring_to_front(j3);
                                         if (str_eq(aname,"Wordle")) { g_wordle_focused=1; }
-                                        if (str_eq(aname,"Dictionary")||str_eq(aname,"TextEdit")) { g_dict_focused=1; }
+                                        if (str_eq(aname,"Dictionary")) { g_dict_focused=1; g_edit_focused=0; }
+                                        if (str_eq(aname,"TextEdit")) { g_edit_focused=1; g_dict_focused=0; }
                                         found3=1; break;
                                     }
                                 }

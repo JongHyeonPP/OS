@@ -2767,12 +2767,106 @@ static int term_app_is_known(const char *name) {
     return 0;
 }
 
+static void term_focus_opened_app(const char *name) {
+    if (str_eq(name, "Dictionary")) {
+        g_dict_focused = 1;
+        g_edit_focused = 0;
+    } else if (str_eq(name, "TextEdit")) {
+        g_edit_focused = 1;
+        g_dict_focused = 0;
+    } else if (str_eq(name, "Wordle")) {
+        g_wordle_focused = 1;
+    }
+}
+
+static void term_reset_game_state(const char *name) {
+    if (str_eq(name, "2048")) {
+        g2048_new_game();
+    } else if (str_eq(name, "Sudoku")) {
+        g_sdk_started = 0;
+        g_sdk_errors = 0;
+        g_sdk_sel_r = -1;
+        g_sdk_sel_c = -1;
+    } else if (str_eq(name, "Wordle")) {
+        int r, c;
+        for (r = 0; r < WORDLE_ROWS; r++) {
+            for (c = 0; c < WORDLE_COLS; c++) {
+                g_wordle_guesses[r][c] = 0;
+                g_wordle_results[r][c] = 0;
+            }
+            g_wordle_guesses[r][WORDLE_COLS] = 0;
+        }
+        for (r = 0; r < 26; r++) g_wordle_kb_state[r] = 0;
+        g_wordle_cur_row = 0;
+        g_wordle_cur_col = 0;
+        g_wordle_state = 0;
+        g_wordle_answer_idx = 0;
+        g_wordle_focused = 1;
+    } else if (str_eq(name, "Pong")) {
+        g_pong_active = 0;
+        g_pong_over = 0;
+        g_pong_score_p = 0;
+        g_pong_score_a = 0;
+    } else if (str_eq(name, "Minesweeper")) {
+        int r, c;
+        g_mine_state = 0;
+        g_mine_remaining = MINE_COUNT;
+        g_mine_rng = 1;
+        for (r = 0; r < MINE_ROWS; r++) {
+            for (c = 0; c < MINE_COLS; c++) {
+                g_mine_board[r][c] = 0;
+                g_mine_vis[r][c] = 0;
+                g_mine_flag[r][c] = 0;
+            }
+        }
+    }
+}
+
+static void term_configure_app_window(gui_window_t *nw, const char *name) {
+    nw->x = 120;
+    nw->y = 80;
+    nw->w = 280;
+    nw->h = 220;
+    if (str_eq(name, "Clock"))                 { nw->x=50; nw->y=80; nw->w=180; nw->h=220; }
+    else if (str_eq(name, "Calculator"))       { nw->x=180; nw->y=100; nw->w=220; nw->h=280; }
+    else if (str_eq(name, "Settings"))         { nw->x=150; nw->y=50; nw->w=500; nw->h=400; }
+    else if (str_eq(name, "TextEdit"))         { nw->x=120; nw->y=80; nw->w=310; nw->h=260; }
+    else if (str_eq(name, "Terminal"))         { nw->x=100; nw->y=100; nw->w=290; nw->h=220; }
+    else if (str_eq(name, "Safari"))           { nw->x=60; nw->y=50; nw->w=480; nw->h=380; }
+    else if (str_eq(name, "Music"))            { nw->x=80; nw->y=55; nw->w=280; nw->h=340; }
+    else if (str_eq(name, "Photos"))           { nw->x=70; nw->y=50; nw->w=420; nw->h=340; }
+    else if (str_eq(name, "Maps"))             { nw->x=80; nw->y=55; nw->w=400; nw->h=320; }
+    else if (str_eq(name, "App Store"))        { nw->x=70; nw->y=45; nw->w=440; nw->h=360; }
+    else if (str_eq(name, "Mail"))             { nw->x=80; nw->y=50; nw->w=420; nw->h=350; }
+    else if (str_eq(name, "Calendar"))         { nw->x=90; nw->y=55; nw->w=400; nw->h=340; }
+    else if (str_eq(name, "Notes"))            { nw->x=90; nw->y=60; nw->w=300; nw->h=320; }
+    else if (str_eq(name, "Finder"))           { nw->x=80; nw->y=50; nw->w=420; nw->h=320; }
+    else if (str_eq(name, "Activity Monitor")) { nw->x=140; nw->y=80; nw->w=320; nw->h=270; }
+    else if (str_eq(name, "System Info"))      { nw->x=180; nw->y=100; nw->w=280; nw->h=220; }
+    else if (str_eq(name, "Keyboard Shortcuts")) { nw->x=90; nw->y=40; nw->w=620; nw->h=500; }
+    else if (str_eq(name, "Dictionary"))       { nw->x=180; nw->y=80; nw->w=300; nw->h=220; g_dict_input_len=0; g_dict_input[0]=0; }
+    else if (str_eq(name, "2048"))             { nw->x=150; nw->y=60; nw->w=240; nw->h=280; }
+    else if (str_eq(name, "Sudoku"))           { nw->x=90; nw->y=40; nw->w=260; nw->h=320; }
+    else if (str_eq(name, "Wordle"))           { nw->x=150; nw->y=40; nw->w=280; nw->h=380; }
+    else if (str_eq(name, "Snake"))            { nw->x=120; nw->y=45; nw->w=316; nw->h=252; }
+    else if (str_eq(name, "Breakout"))         { nw->x=100; nw->y=40; nw->w=320; nw->h=280; }
+    else if (str_eq(name, "Pong"))             { nw->x=120; nw->y=40; nw->w=300; nw->h=260; }
+    else if (str_eq(name, "Minesweeper"))      { nw->x=200; nw->y=60; nw->w=200; nw->h=264; }
+    else if (str_eq(name, "Journal"))          { nw->x=110; nw->y=50; nw->w=380; nw->h=340; g_journal_sel=0; g_journal_focused=0; }
+    else if (str_eq(name, "Contacts"))         { nw->x=150; nw->y=50; nw->w=420; nw->h=320; g_contacts_sel=0; }
+    else if (str_eq(name, "Preview"))          { nw->x=160; nw->y=60; nw->w=380; nw->h=300; g_preview_page=0; }
+    else if (str_eq(name, "Apple TV"))         { nw->x=120; nw->y=50; nw->w=400; nw->h=300; g_atv_sel=0; }
+    term_reset_game_state(name);
+    term_focus_opened_app(name);
+}
+
 static int term_open_app_named(const char *name) {
     int i;
     if (!term_app_is_known(name)) return -1;
     for (i = 0; i < g_num_windows; i++) {
         if (g_windows[i].title && str_eq(g_windows[i].title, name)) {
             g_windows[i].visible = 1;
+            term_focus_opened_app(name);
             win_bring_to_front(i);
             return 0;
         }
@@ -2780,15 +2874,12 @@ static int term_open_app_named(const char *name) {
     if (g_num_windows >= MAX_WINDOWS) return -2;
     {
         gui_window_t *nw = &g_windows[g_num_windows];
-        nw->x = 80 + (g_num_windows % 5) * 18;
-        nw->y = 52 + (g_num_windows % 4) * 16;
-        nw->w = 360;
-        nw->h = 280;
-        nw->title = name;
-        nw->visible = 1;
         nw->focused = 0;
         nw->dragging = 0;
+        nw->visible = 1;
         nw->maximized = 0;
+        nw->title = name;
+        term_configure_app_window(nw, name);
         g_win_anim[g_num_windows] = OPEN_ANIM;
         g_win_minimized[g_num_windows] = 0;
         g_win_close_anim[g_num_windows] = 0;
