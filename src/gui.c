@@ -4990,6 +4990,8 @@ static const char *safari_http_body(const char *response) {
     return response;
 }
 
+static int safari_tag_attr(const char *tag_start, const char *tag_end, const char *name, char *out, int max);
+
 static void safari_extract_title(const char *body, char *out, int max) {
     const char *p = body;
     int pos = 0;
@@ -5036,6 +5038,23 @@ static void safari_text_from_body(const char *body, char *out, int max) {
             continue;
         }
         if (ch == '<') {
+            if (safari_starts_with_ci(p, "img")) {
+                const char *tag_start = p - 1;
+                const char *tag_end = p;
+                char alt[SAFARI_LINK_TITLE_MAX];
+                while (*tag_end && *tag_end != '>') tag_end++;
+                alt[0] = 0;
+                if (*tag_end && safari_tag_attr(tag_start, tag_end, "alt", alt, sizeof(alt)) == 0 && alt[0]) {
+                    if (!line_start && pos + 1 < max) out[pos++] = ' ';
+                    safari_append(out, &pos, max, "[Image: ");
+                    safari_append(out, &pos, max, alt);
+                    safari_append(out, &pos, max, "]");
+                    line_start = 0;
+                    space_pending = 1;
+                }
+                p = *tag_end ? tag_end + 1 : tag_end;
+                continue;
+            }
             in_tag = 1;
             if (safari_starts_with_ci(p, "script")) {
                 skip_script = 1;
@@ -5203,7 +5222,24 @@ static void safari_anchor_text(const char *start, const char *end, char *out, in
     out[0] = 0;
     while (p && p < end && *p && pos + 1 < max) {
         char ch = *p++;
-        if (ch == '<') { in_tag = 1; continue; }
+        if (ch == '<') {
+            if (safari_starts_with_ci(p, "img")) {
+                const char *tag_start = p - 1;
+                const char *tag_end = p;
+                char alt[SAFARI_LINK_TITLE_MAX];
+                int ai;
+                while (*tag_end && tag_end < end && *tag_end != '>') tag_end++;
+                alt[0] = 0;
+                if (*tag_end && safari_tag_attr(tag_start, tag_end, "alt", alt, sizeof(alt)) == 0) {
+                    for (ai = 0; alt[ai] && pos + 1 < max; ai++)
+                        out[pos++] = alt[ai];
+                }
+                p = *tag_end ? tag_end + 1 : tag_end;
+                continue;
+            }
+            in_tag = 1;
+            continue;
+        }
         if (in_tag) { if (ch == '>') in_tag = 0; continue; }
         if (ch == '&') {
             char decoded = 0;
