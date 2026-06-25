@@ -1076,6 +1076,11 @@ void gui_run(void) {
                 gui_window_t *w = &g_windows[i];
                 if (!w->visible || !w->title || !str_eq(w->title,"Maps")) continue;
                 int cy3 = w->y+TITLEBAR_H+1;
+                if (mx>=w->x+8 && mx<w->x+w->w-64 && my>=cy3+6 && my<cy3+28) {
+                    g_maps_search_focused=1; dirty=1; goto end_left_press;
+                } else if (g_maps_search_focused) {
+                    g_maps_search_focused=0; dirty=1;
+                }
                 int vi;
                 for (vi=0;vi<3;vi++) {
                     int vbx=w->x+w->w-70+vi*22, vby=cy3+4;
@@ -1197,6 +1202,11 @@ void gui_run(void) {
                 gui_window_t *w = &g_windows[i];
                 if (!w->visible || !w->title || !str_eq(w->title,"Photos")) continue;
                 if (i != top_win_idx) continue;
+                if (mx>=w->x+188 && mx<w->x+248 && my>=w->y+TITLEBAR_H+6 && my<w->y+TITLEBAR_H+24) {
+                    g_photos_search_focused=1; dirty=1; goto end_left_press;
+                } else if (g_photos_search_focused) {
+                    g_photos_search_focused=0; dirty=1;
+                }
                 int cols3=3, px_w3=(w->w-16)/3, px_h3=62, pad3=4;
                 int i2;
                 for (i2=0;i2<6;i2++) {
@@ -1965,6 +1975,12 @@ void gui_run(void) {
                     }
                 } else if (str_eq(w->title,"Automator")) {
                     int cy_at=w->y+TITLEBAR_H;
+                    int lib_w_at=w->w/3;
+                    if (mx>=w->x+4 && mx<w->x+lib_w_at-2 && my>=cy_at+38 && my<cy_at+52) {
+                        g_automator_search_focused=1; dirty=1; goto end_left_press;
+                    } else if (g_automator_search_focused) {
+                        g_automator_search_focused=0; dirty=1;
+                    }
                     static const char *labels_at[]={"Run","Stop","Record","Variables"};
                     int bx_at=w->x+6;
                     int bi_at;
@@ -2475,6 +2491,60 @@ void gui_run(void) {
                     ix2 += DOCK_ICON_SIZE + DOCK_ICON_PAD;
                     if (di == 5 || di == 11 || di == 15) ix2 += 8;
                 }
+            }
+            /* Alfred search field */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title || !str_eq(w->title,"Alfred")) continue;
+                if (i != top_win_idx) continue;
+                if (mx>=w->x+8 && mx<w->x+w->w-8 &&
+                    my>=w->y+TITLEBAR_H+10 && my<w->y+TITLEBAR_H+44) {
+                    g_alfred_search_focused=1; dirty=1; goto end_left_press;
+                } else if (g_alfred_search_focused) {
+                    g_alfred_search_focused=0; dirty=1;
+                }
+                break;
+            }
+            /* Static search fields in utility apps */
+            for (i = 0; i < g_num_windows; i++) {
+                gui_window_t *w = &g_windows[i];
+                if (!w->visible || !w->title) continue;
+                if (i != top_win_idx) continue;
+                if (str_eq(w->title,"Font Book")) {
+                    int cy_fb=w->y+TITLEBAR_H;
+                    int sb_w_fb=w->w*2/5;
+                    if (mx>=w->x+4 && mx<w->x+sb_w_fb-2 && my>=cy_fb+26 && my<cy_fb+40) {
+                        g_fontbook_search_focused=1; dirty=1; goto end_left_press;
+                    } else if (g_fontbook_search_focused) { g_fontbook_search_focused=0; dirty=1; }
+                } else if (str_eq(w->title,"Console")) {
+                    int cy_co=w->y+TITLEBAR_H;
+                    int sf_x_co=w->x+w->w-100;
+                    if (mx>=sf_x_co && mx<sf_x_co+94 && my>=cy_co+4 && my<cy_co+18) {
+                        g_console_filter_focused=1; dirty=1; goto end_left_press;
+                    } else if (g_console_filter_focused) { g_console_filter_focused=0; dirty=1; }
+                } else if (str_eq(w->title,"SF Symbols")) {
+                    int cy_sf=w->y+TITLEBAR_H;
+                    if (mx>=w->x+8 && mx<w->x+w->w-82 && my>=cy_sf+6 && my<cy_sf+22) {
+                        g_sfsymbols_search_focused=1; dirty=1; goto end_left_press;
+                    } else if (g_sfsymbols_search_focused) { g_sfsymbols_search_focused=0; dirty=1; }
+                } else if (str_eq(w->title,"1Password")) {
+                    int sy_pw=w->y+TITLEBAR_H+26;
+                    if (mx>=w->x+92 && mx<w->x+w->w-4 && my>=sy_pw && my<sy_pw+20) {
+                        g_onepassword_search_focused=1; dirty=1; goto end_left_press;
+                    } else if (g_onepassword_search_focused) { g_onepassword_search_focused=0; dirty=1; }
+                } else if (str_eq(w->title,"Raycast")) {
+                    int sy_rc=w->y+TITLEBAR_H+10;
+                    if (mx>=w->x+8 && mx<w->x+w->w-8 && my>=sy_rc && my<sy_rc+30) {
+                        g_raycast_search_focused=1; dirty=1; goto end_left_press;
+                    } else if (g_raycast_search_focused) { g_raycast_search_focused=0; dirty=1; }
+                } else if (str_eq(w->title,"MyOS Finder")) {
+                    int sfx_fn=w->x+w->w-112;
+                    int sy_fn=w->y+TITLEBAR_H+6;
+                    if (mx>=sfx_fn && mx<sfx_fn+72 && my>=sy_fn && my<sy_fn+16) {
+                        g_finder_search_focused=1; dirty=1; goto end_left_press;
+                    } else if (g_finder_search_focused) { g_finder_search_focused=0; dirty=1; }
+                }
+                break;
             }
             /* Handoff activity selection and continue */
             for (i = 0; i < g_num_windows; i++) {

@@ -1223,7 +1223,8 @@ int draw_apps_group1(int idx) {
         vga_draw_string_trans(wx+8,   ph_top+8, "Library",   RGB(0,122,255));
         vga_draw_string_trans(wx+72,  ph_top+8, "For You",   ph_sub);
         vga_draw_string_trans(wx+132, ph_top+8, "Albums",    ph_sub);
-        vga_draw_string_trans(wx+190, ph_top+8, "Search",    ph_sub);
+        vga_draw_string_trans(wx+190, ph_top+8, g_photos_search_focused ? "Search*" : "Search",
+                              g_photos_search_focused ? RGB(0,122,255) : ph_sub);
         /* Sidebar (80px) */
         int sb_w = 80;
         vga_fill_rect(wx+1, ph_top+24, sb_w, ph_h-24, ph_sb_bg);
@@ -2107,11 +2108,13 @@ int draw_apps_group1(int idx) {
         uint32_t mp_sb_bg = g_pref_darkmode ? RGB(44,44,50) : RGB(255,255,255);
         uint32_t mp_sb_tx = g_pref_darkmode ? RGB(110,110,118) : RGB(160,160,165);
         vga_fill_rect_alpha(wx+8, cy+6, ww-72, 22, mp_sb_bg, 240);
-        gui_draw_rounded_rect_outline(wx+8, cy+6, ww-72, 22, 6, g_pref_darkmode?RGB(65,65,70):RGB(190,190,195));
+        gui_draw_rounded_rect_outline(wx+8, cy+6, ww-72, 22, 6,
+            g_maps_search_focused ? RGB(0,122,255) : (g_pref_darkmode?RGB(65,65,70):RGB(190,190,195)));
         gui_draw_circle(wx+20, cy+17, 5, mp_sb_tx);
         gui_draw_circle(wx+20, cy+17, 3, mp_sb_bg);
         vga_draw_line(wx+24, cy+21, wx+28, cy+25, mp_sb_tx);
-        vga_draw_string_trans(wx+30, cy+11, "Search Maps...", mp_sb_tx);
+        vga_draw_string_trans(wx+30, cy+11,
+            g_maps_search_focused ? "Search focused" : "Search Maps...", mp_sb_tx);
 
         /* View toggle button group (top right) */
         { static const char *vm_labels[3]={"Map","Sat","Mix"};

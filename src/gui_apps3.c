@@ -1238,8 +1238,10 @@ int draw_apps_group3(int idx) {
         vga_draw_string_trans(wx+6, content_y+27, "Actions", at_sub);
         /* Search bar */
         vga_fill_rect(wx+4, content_y+38, lib_w-6, 14, g_pref_darkmode?RGB(50,50,58):RGB(228,228,232));
-        vga_draw_rect_outline(wx+4, content_y+38, lib_w-6, 14, at_sep);
-        vga_draw_string_trans(wx+8, content_y+41, "Search actions...", at_sub);
+        vga_draw_rect_outline(wx+4, content_y+38, lib_w-6, 14,
+            g_automator_search_focused ? at_acc : at_sep);
+        vga_draw_string_trans(wx+8, content_y+41,
+            g_automator_search_focused ? "Search focused" : "Search actions...", at_sub);
         /* Action categories */
         { static const char *cats[] = {"Files & Folders","Text","PDFs","Music","Photos","Utilities"};
           int ci;
@@ -1306,8 +1308,10 @@ int draw_apps_group3(int idx) {
         vga_draw_vline(wx+sb_w+1, content_y+23, content_h-23, fb_sep);
         /* Search */
         vga_fill_rect(wx+4, content_y+26, sb_w-6, 14, g_pref_darkmode?RGB(48,48,56):RGB(224,224,228));
-        vga_draw_rect_outline(wx+4, content_y+26, sb_w-6, 14, fb_sep);
-        vga_draw_string_trans(wx+8, content_y+29, "Search...", fb_sub);
+        vga_draw_rect_outline(wx+4, content_y+26, sb_w-6, 14,
+            g_fontbook_search_focused ? fb_acc : fb_sep);
+        vga_draw_string_trans(wx+8, content_y+29,
+            g_fontbook_search_focused ? "Search focused" : "Search...", fb_sub);
         /* Font list */
         { static const char *fonts[]={"Arial","Courier","Georgia","Helvetica","Impact","Monaco","Palatino","Times New Roman","Verdana"};
           int fi2, fy=content_y+44;
@@ -1381,8 +1385,10 @@ int draw_apps_group3(int idx) {
           /* Search */
           int sf_x = wx+ww-100;
           vga_fill_rect(sf_x, content_y+4, 94, 14, g_pref_darkmode?RGB(40,40,48):RGB(218,218,224));
-          vga_draw_rect_outline(sf_x, content_y+4, 94, 14, co_sep);
-          vga_draw_string_trans(sf_x+4, content_y+7, "Filter...", co_sub);
+          vga_draw_rect_outline(sf_x, content_y+4, 94, 14,
+              g_console_filter_focused ? RGB(0,122,255) : co_sep);
+          vga_draw_string_trans(sf_x+4, content_y+7,
+              g_console_filter_focused ? "Filter focused" : "Filter...", co_sub);
         }
         /* Left sidebar: devices */
         int dev_w = ww/4;

@@ -1337,8 +1337,11 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+1,cy,ww-2,wh-TITLEBAR_H,sf_bg);
         /* Search bar */
         vga_fill_rect(wx+8,cy+6,ww-90,16,g_pref_darkmode?RGB(40,40,46):RGB(230,230,235));
-        vga_draw_rect_outline(wx+8,cy+6,ww-90,16,g_pref_darkmode?RGB(70,70,78):RGB(190,190,200));
-        vga_draw_string_trans(wx+14,cy+11,"Search symbols...",g_pref_darkmode?RGB(100,100,110):RGB(150,150,160));
+        vga_draw_rect_outline(wx+8,cy+6,ww-90,16,
+            g_sfsymbols_search_focused ? sf_acc : (g_pref_darkmode?RGB(70,70,78):RGB(190,190,200)));
+        vga_draw_string_trans(wx+14,cy+11,
+            g_sfsymbols_search_focused ? "Search focused" : "Search symbols...",
+            g_pref_darkmode?RGB(100,100,110):RGB(150,150,160));
         vga_draw_hline(wx+2,cy+26,ww-4,g_pref_darkmode?RGB(50,50,56):RGB(210,210,216));
         /* Symbol grid */
         static const char *sym_names[]={"star","heart","house","bell","cloud","gear","lock","wifi","bolt","music.note"};
@@ -1674,8 +1677,10 @@ int draw_apps_group4(int idx) {
         vga_draw_string_trans(wx+98, wy+TITLEBAR_H+8, "All Items (142)", pw_sub);
         vga_draw_hline(wx+92, wy+TITLEBAR_H+22, ww-94, RGB(40,48,60));
         /* Search bar */
-        gui_draw_rounded_rect(wx+92, wy+TITLEBAR_H+26, ww-96, 20, 4, RGB(30,36,48));
-        vga_draw_string_trans(wx+100, wy+TITLEBAR_H+32, "Search...", pw_sub);
+        gui_draw_rounded_rect(wx+92, wy+TITLEBAR_H+26, ww-96, 20, 4,
+                              g_onepassword_search_focused ? RGB(0,60,105) : RGB(30,36,48));
+        vga_draw_string_trans(wx+100, wy+TITLEBAR_H+32,
+                              g_onepassword_search_focused ? "Search focused" : "Search...", pw_sub);
         static const char *pw_items[]={"GitHub","Google","Apple ID","Netflix","Amazon","Spotify"};
         for(vi=0;vi<6;vi++){
             int iy2=wy+TITLEBAR_H+52+vi*26;
@@ -1792,8 +1797,10 @@ int draw_apps_group4(int idx) {
         uint32_t rc_acc=RGB(255,90,30);
         vga_fill_rect(wx+1, wy+TITLEBAR_H, ww-2, wh-TITLEBAR_H, rc_bg);
         /* Search bar */
-        gui_draw_rounded_rect(wx+8, wy+TITLEBAR_H+10, ww-16, 30, 8, RGB(28,28,34));
-        vga_draw_string_trans(wx+20, wy+TITLEBAR_H+22, "> Search commands...", rc_sub);
+        gui_draw_rounded_rect(wx+8, wy+TITLEBAR_H+10, ww-16, 30, 8,
+                              g_raycast_search_focused ? RGB(50,36,34) : RGB(28,28,34));
+        vga_draw_string_trans(wx+20, wy+TITLEBAR_H+22,
+                              g_raycast_search_focused ? "> Search focused" : "> Search commands...", rc_sub);
         vga_draw_hline(wx+2, wy+TITLEBAR_H+46, ww-4, RGB(36,36,44));
         /* Command results */
         static const char *rc_cmds[]={"Calculator","File Search","Clipboard History","Window Management","System: Sleep","App Launcher"};
@@ -2082,8 +2089,10 @@ int draw_apps_group4(int idx) {
         uint32_t al_acc=RGB(200,50,200);
         vga_fill_rect(wx+1, wy+TITLEBAR_H, ww-2, wh-TITLEBAR_H, al_bg);
         /* Search box */
-        gui_draw_rounded_rect(wx+8, wy+TITLEBAR_H+10, ww-16, 34, 10, RGB(28,22,34));
-        gui_draw_rounded_rect_outline(wx+8, wy+TITLEBAR_H+10, ww-16, 34, 10, al_acc);
+        gui_draw_rounded_rect(wx+8, wy+TITLEBAR_H+10, ww-16, 34, 10,
+                              g_alfred_search_focused ? RGB(40,24,48) : RGB(28,22,34));
+        gui_draw_rounded_rect_outline(wx+8, wy+TITLEBAR_H+10, ww-16, 34, 10,
+                                      g_alfred_search_focused ? RGB(255,120,255) : al_acc);
         gui_draw_circle(wx+26, wy+TITLEBAR_H+27, 8, al_sub);
         vga_draw_string_trans(wx+42, wy+TITLEBAR_H+23, "myos", al_txt);
         vga_fill_rect(wx+42+4*8, wy+TITLEBAR_H+24, 2, 12, al_acc);
@@ -2626,8 +2635,10 @@ int draw_apps_group4(int idx) {
     {
         int sfx = wx+ww-112, sfw=72, sfh=16;
         vga_fill_rect(sfx, wy+TITLEBAR_H+6, sfw, sfh, g_pref_darkmode?RGB(40,40,44):RGB(255,255,255));
-        vga_draw_rect_outline(sfx, wy+TITLEBAR_H+6, sfw, sfh, fn_btn_bd);
-        vga_draw_string_trans(sfx+4, wy+TITLEBAR_H+9, "Search", fn_sb_cat);
+        vga_draw_rect_outline(sfx, wy+TITLEBAR_H+6, sfw, sfh,
+            g_finder_search_focused ? RGB(0,122,255) : fn_btn_bd);
+        vga_draw_string_trans(sfx+4, wy+TITLEBAR_H+9,
+            g_finder_search_focused ? "Search*" : "Search", fn_sb_cat);
     }
     /* Path breadcrumb showing current finder depth */
     {
