@@ -3496,6 +3496,21 @@ void gui_run(void) {
                     if (mx>=w->x+92 && mx<w->x+w->w-4 && my>=sy_pw && my<sy_pw+20) {
                         g_onepassword_search_focused=1; gui_search_focus(GUI_SEARCH_ONEPASSWORD); dirty=1; goto end_left_press;
                     } else if (g_onepassword_search_focused) { g_onepassword_search_focused=0; gui_search_blur(GUI_SEARCH_ONEPASSWORD); dirty=1; }
+                    { static const char *pw_items_ev[]={"GitHub","Google","Apple ID","Netflix","Amazon","Spotify"};
+                      static const char *pw_users_ev[]={"user@email.com","myname@gmail","me@icloud.com","stream@home","shop@email.com","music@email.com"};
+                      int item_i, shown_item = 0;
+                      for (item_i=0; item_i<6; item_i++) {
+                          int iy_item;
+                          if (!gui_search_matches(GUI_SEARCH_ONEPASSWORD, pw_items_ev[item_i], pw_users_ev[item_i])) continue;
+                          iy_item=w->y+TITLEBAR_H+52+shown_item*26;
+                          if (mx>=w->x+92 && mx<w->x+w->w-2 && my>=iy_item && my<iy_item+24) {
+                              g_onepassword_item=item_i;
+                              toast_show("1Password","Item selected",RGB(0,120,200));
+                              dirty=1; goto end_left_press;
+                          }
+                          shown_item++;
+                      }
+                    }
                 } else if (str_eq(w->title,"Raycast")) {
                     int sy_rc=w->y+TITLEBAR_H+10;
                     if (mx>=w->x+8 && mx<w->x+w->w-8 && my>=sy_rc && my<sy_rc+30) {

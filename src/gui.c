@@ -6308,6 +6308,7 @@ int g_fantastical_selected_day = 0;
 int g_proxyman_session = 0;
 int g_istudiez_tab = 0;
 int g_onepassword_vault = 0;
+int g_onepassword_item = 0;
 int g_things_section = 1;
 int g_raycast_result = 0;
 int g_bear_note = 0;

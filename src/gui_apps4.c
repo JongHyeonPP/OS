@@ -1854,9 +1854,29 @@ int draw_apps_group4(int idx) {
             vga_draw_string_trans(wx+8, vy2+2, pw_vaults[vi], vi==active_pw?pw_txt:pw_sub);
         }
         /* Items list */
+        static const char *pw_items[]={"GitHub","Google","Apple ID","Netflix","Amazon","Spotify"};
+        static const char *pw_users[]={"user@email.com","myname@gmail","me@icloud.com","stream@home","shop@email.com","music@email.com"};
+        int active_item = g_onepassword_item;
+        int visible_items = 0;
+        int first_visible = -1;
+        int display_item = -1;
+        if (active_item < 0 || active_item > 5) active_item = 0;
+        for (vi=0; vi<6; vi++) {
+            if (!gui_search_matches(GUI_SEARCH_ONEPASSWORD, pw_items[vi], pw_users[vi])) continue;
+            if (first_visible < 0) first_visible = vi;
+            visible_items++;
+        }
+        if (visible_items > 0) {
+            if (gui_search_matches(GUI_SEARCH_ONEPASSWORD, pw_items[active_item], pw_users[active_item]))
+                display_item = active_item;
+            else
+                display_item = first_visible;
+        }
         { char vault_title[32]; int vtp=0; vault_title[0]=0;
           apps4_append_text(vault_title, &vtp, sizeof(vault_title), pw_vaults[active_pw]);
-          apps4_append_text(vault_title, &vtp, sizeof(vault_title), " (142)");
+          apps4_append_text(vault_title, &vtp, sizeof(vault_title), " (");
+          apps4_append_uint(vault_title, &vtp, sizeof(vault_title), (uint32_t)visible_items);
+          apps4_append_text(vault_title, &vtp, sizeof(vault_title), ")");
           vga_draw_string_trans(wx+98, wy+TITLEBAR_H+8, vault_title, pw_sub); }
         vga_draw_hline(wx+92, wy+TITLEBAR_H+22, ww-94, RGB(40,48,60));
         /* Search bar */
@@ -1864,22 +1884,33 @@ int draw_apps_group4(int idx) {
                               g_onepassword_search_focused ? RGB(0,60,105) : RGB(30,36,48));
         vga_draw_string_trans(wx+100, wy+TITLEBAR_H+32,
                               gui_search_display_text(GUI_SEARCH_ONEPASSWORD, "Search...", "Search focused"), pw_sub);
-        static const char *pw_items[]={"GitHub","Google","Apple ID","Netflix","Amazon","Spotify"};
         { int shown_op = 0;
           for(vi=0;vi<6;vi++){
               int iy2;
-              if (!gui_search_matches(GUI_SEARCH_ONEPASSWORD, pw_items[vi], "user@email.com")) continue;
+              int is_item;
+              if (!gui_search_matches(GUI_SEARCH_ONEPASSWORD, pw_items[vi], pw_users[vi])) continue;
               iy2=wy+TITLEBAR_H+52+shown_op*26;
-              vga_fill_rect(wx+92, iy2, ww-94, 24, RGB(26,30,42));
+              is_item = vi == display_item;
+              vga_fill_rect(wx+92, iy2, ww-94, 24, is_item ? RGB(30,60,100) : RGB(26,30,42));
               vga_draw_hline(wx+92, iy2+24, ww-94, RGB(36,42,56));
-              gui_draw_rounded_rect(wx+96, iy2+4, 16, 16, 3, pw_acc);
+              gui_draw_rounded_rect(wx+96, iy2+4, 16, 16, 3, is_item ? RGB(0,160,230) : pw_acc);
               vga_draw_string_trans(wx+100, iy2+9, "p", RGB(255,255,255));
-              vga_draw_string_trans(wx+118, iy2+4, pw_items[vi], pw_txt);
-              vga_draw_string_trans(wx+118, iy2+14, "user@email.com", pw_sub);
+              vga_draw_string_trans(wx+118, iy2+4, pw_items[vi], is_item ? RGB(255,255,255) : pw_txt);
+              vga_draw_string_trans(wx+118, iy2+14, pw_users[vi], pw_sub);
               shown_op++;
           }
-          if (shown_op == 0)
+          if (shown_op == 0) {
               vga_draw_string_trans(wx+118, wy+TITLEBAR_H+62, "No items found", pw_sub);
+          } else if (display_item >= 0) {
+              char detail[48];
+              int dp=0;
+              detail[0]=0;
+              apps4_append_text(detail, &dp, sizeof(detail), "Selected: ");
+              apps4_append_text(detail, &dp, sizeof(detail), pw_items[display_item]);
+              apps4_append_text(detail, &dp, sizeof(detail), " / ");
+              apps4_append_text(detail, &dp, sizeof(detail), pw_users[display_item]);
+              vga_draw_string_trans(wx+98, wy+wh-18, detail, pw_sub);
+          }
         }
         return 1;
     }

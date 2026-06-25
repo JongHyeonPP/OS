@@ -812,6 +812,7 @@ extern int g_fantastical_selected_day;
 extern int g_proxyman_session;
 extern int g_istudiez_tab;
 extern int g_onepassword_vault;
+extern int g_onepassword_item;
 extern int g_things_section;
 extern int g_raycast_result;
 extern int g_bear_note;
