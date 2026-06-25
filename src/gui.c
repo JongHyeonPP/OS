@@ -5682,6 +5682,21 @@ have_response:
         }
     }
     safari_reset_page_view();
+    if (safari_header_value(response, "Content-Encoding", header_value, sizeof(header_value)) == 0 &&
+        !safari_ci_contains(header_value, "identity")) {
+        g_safari_page_state = 2;
+        safari_copy(g_safari_page_title, SAFARI_TITLE_MAX, "Unsupported Content Encoding");
+        safari_copy(g_safari_page_text, SAFARI_PAGE_TEXT_MAX,
+                    "The server returned compressed content that this Safari build cannot decode.");
+        sp = 0;
+        safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, "HTTP ");
+        safari_append_uint(g_safari_page_status, &sp, SAFARI_STATUS_MAX, g_safari_page_status_code);
+        safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, " unsupported content encoding: ");
+        safari_append(g_safari_page_status, &sp, SAFARI_STATUS_MAX, header_value);
+        safari_set_tab_title("Encoding Error");
+        if (record_history) safari_history_push_url(g_safari_page_url);
+        return;
+    }
     {
         const char *body = safari_http_body(response);
         if (safari_header_value(response, "Transfer-Encoding", header_value, sizeof(header_value)) == 0 &&
