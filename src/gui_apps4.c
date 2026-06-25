@@ -2949,7 +2949,27 @@ int draw_apps_group4(int idx) {
     /* File content: icon or list view */
     int fcount = 0;
     const folder_icon_t *cur_folders = finder_current_folders(&fcount);
-    if (g_finder_view == 0) {
+    const char *finder_query = gui_search_text(GUI_SEARCH_FINDER);
+    if (finder_query && finder_query[0]) {
+        int lx = content_x + 8;
+        int ry = content_y + 10;
+        int fi_search;
+        int shown_search = 0;
+        vga_draw_string_trans(lx, ry, "Search Results", fn_sb_cat);
+        ry += 18;
+        for (fi_search = 0; fi_search < fcount; fi_search++) {
+            if (!gui_search_matches(GUI_SEARCH_FINDER, cur_folders[fi_search].name, 0))
+                continue;
+            if (ry + 16 > content_y + content_h - 1) break;
+            vga_fill_rect(lx, ry+3, 10, 9, RGB(41,128,185));
+            vga_fill_rect(lx, ry+2, 5, 3, RGB(30,100,160));
+            vga_draw_string_trans(lx+16, ry+4, cur_folders[fi_search].name, fn_sb_txt);
+            ry += 18;
+            shown_search++;
+        }
+        if (shown_search == 0)
+            vga_draw_string_trans(lx, ry, "No items found", fn_sb_cat);
+    } else if (g_finder_view == 0) {
         /* Icon grid view */
         int icon_cell_w = (content_w > 200) ? 100 : content_w / 2;
         int icon_cell_h = 60;

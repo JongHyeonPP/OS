@@ -896,6 +896,7 @@ void gui_search_blur(int owner);
 int  gui_search_handle_key(int owner, int ch);
 const char *gui_search_text(int owner);
 const char *gui_search_display_text(int owner, const char *placeholder, const char *focused_placeholder);
+int  gui_search_matches(int owner, const char *primary, const char *secondary);
 
 /* Calculator helpers */
 void calc_update_disp(int32_t v);

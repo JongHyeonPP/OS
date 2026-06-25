@@ -2739,10 +2739,16 @@ int draw_apps_group1(int idx) {
         if (ww > 320) feat_cols = 3;
         int faw = (ww-8)/feat_cols - 4, fah = 62;
         int fi;
+        int shown_feat = 0;
         for (fi=0; fi<n_feat; fi++) {
-            int fc = fi % feat_cols, fr = fi / feat_cols;
-            int fax = wx+4 + fc*(faw+4);
-            int fay = cy + fr*(fah+4);
+            int fc, fr, fax, fay;
+            if (!gui_search_matches(GUI_SEARCH_APPSTORE, feat_apps[fi].name, feat_apps[fi].sub))
+                continue;
+            fc = shown_feat % feat_cols;
+            fr = shown_feat / feat_cols;
+            fax = wx+4 + fc*(faw+4);
+            fay = cy + fr*(fah+4);
+            shown_feat++;
             if (fay + fah > wy+wh-19-6) break;
             gui_draw_rounded_rect(fax, fay, faw, fah, 6, as_crd);
             gui_draw_rounded_rect_outline(fax, fay, faw, fah, 6, as_sep);
@@ -2770,6 +2776,8 @@ int draw_apps_group1(int idx) {
               gui_draw_rounded_rect(bx, by, bw, 15, 7, bcol);
               vga_draw_string_trans(bx + (bw - plen) / 2, by + 4, label, tcol); }
         }
+        if (shown_feat == 0)
+            vga_draw_string_trans(wx+12, cy+8, "No App Store results", as_sub);
         return 1;
     }
 

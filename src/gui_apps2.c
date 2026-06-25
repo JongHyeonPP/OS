@@ -1492,18 +1492,23 @@ int draw_apps_group2(int idx) {
             { "Henry Chen",     "+1 555-0155", RGB(100,80,220),  'H' },
         };
         int n_ct = 8, li3;
-        /* A section header */
-        vga_draw_string_trans(wx+8, ct_top+48, "A", ct_hdr);
-        vga_draw_hline(wx+8, ct_top+58, list_w-10, ct_bd);
+        int shown_ct = 0;
+        int first_match_ct = -1;
+        char prev_letter_ct = 0;
         for(li3=0; li3<n_ct; li3++) {
-            int ly3 = ct_top+62+li3*32;
+            int ly3;
+            if (!gui_search_matches(GUI_SEARCH_CONTACTS, ct_list[li3].name, ct_list[li3].phone))
+                continue;
+            if (first_match_ct < 0) first_match_ct = li3;
+            ly3 = ct_top+62+shown_ct*32;
             if(ly3+32 > ct_top+ct_h) break;
-            /* Add section headers B, C, D... */
-            if(li3>0 && ct_list[li3].letter != ct_list[li3-1].letter) {
+            if(shown_ct == 0 || ct_list[li3].letter != prev_letter_ct) {
                 char hc[2]; hc[0]=ct_list[li3].letter; hc[1]=0;
-                vga_draw_string_trans(wx+8, ly3-10, hc, ct_hdr);
-                vga_draw_hline(wx+8, ly3, list_w-10, ct_bd);
+                vga_draw_string_trans(wx+8, shown_ct == 0 ? ct_top+48 : ly3-10, hc, ct_hdr);
+                vga_draw_hline(wx+8, shown_ct == 0 ? ct_top+58 : ly3, list_w-10, ct_bd);
+                prev_letter_ct = ct_list[li3].letter;
             }
+            shown_ct++;
             int is_sel = (li3==g_ct_sel);
             if(is_sel) vga_fill_rect(wx+2, ly3, list_w-2, 30, g_pref_darkmode?RGB(0,70,160):RGB(200,218,250));
             /* Avatar circle */
@@ -1515,9 +1520,13 @@ int draw_apps_group2(int idx) {
             vga_draw_string_trans(wx+32, ly3+18, ct_list[li3].phone, ct_sub);
             vga_draw_hline(wx+32, ly3+29, list_w-34, ct_bd);
         }
+        if (shown_ct == 0)
+            vga_draw_string_trans(wx+12, ct_top+62, "No contacts found", ct_sub);
         /* Detail pane (right, showing selected contact) */
         vga_fill_rect(det_x, ct_top+44, ww-1-list_w, ct_h-44, ct_bg);
         { int sel = g_ct_sel < n_ct ? g_ct_sel : 0;
+          if (!gui_search_matches(GUI_SEARCH_CONTACTS, ct_list[sel].name, ct_list[sel].phone))
+              sel = first_match_ct >= 0 ? first_match_ct : 0;
           /* Large avatar */
           int av_x = det_x + (ww-1-list_w)/2;
           int av_y = ct_top+60;

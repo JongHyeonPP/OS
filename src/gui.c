@@ -266,6 +266,33 @@ const char *gui_search_display_text(int owner, const char *placeholder, const ch
     return placeholder ? placeholder : "";
 }
 
+static int gui_search_char_eq_ci(char a, char b) {
+    if (a >= 'A' && a <= 'Z') a = (char)(a - 'A' + 'a');
+    if (b >= 'A' && b <= 'Z') b = (char)(b - 'A' + 'a');
+    return a == b;
+}
+
+static int gui_search_contains_ci(const char *haystack, const char *needle) {
+    int i;
+    if (!needle || !needle[0]) return 1;
+    if (!haystack) return 0;
+    for (i = 0; haystack[i]; i++) {
+        int j = 0;
+        while (needle[j] && haystack[i + j] &&
+               gui_search_char_eq_ci(haystack[i + j], needle[j]))
+            j++;
+        if (!needle[j]) return 1;
+    }
+    return 0;
+}
+
+int gui_search_matches(int owner, const char *primary, const char *secondary) {
+    const char *query = gui_search_text(owner);
+    if (!query || !query[0]) return 1;
+    return gui_search_contains_ci(primary, query) ||
+           gui_search_contains_ci(secondary, query);
+}
+
 int gui_search_handle_key(int owner, int ch) {
     int len;
     if (!gui_search_valid_owner(owner)) return 0;
