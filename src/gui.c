@@ -1437,8 +1437,178 @@ static void safari_tls_random(uint8_t *out, int len) {
     }
 }
 
+
+typedef int64_t safari_x25519_fe_t[16];
+
+static void safari_x25519_set(safari_x25519_fe_t out, const safari_x25519_fe_t in) {
+    int i;
+    for (i = 0; i < 16; i++) out[i] = in[i];
+}
+
+static void safari_x25519_carry(safari_x25519_fe_t out) {
+    int i;
+    int64_t c;
+    for (i = 0; i < 16; i++) {
+        out[i] += 1LL << 16;
+        c = out[i] >> 16;
+        if (i < 15)
+            out[i + 1] += c - 1;
+        else
+            out[0] += 38 * (c - 1);
+        out[i] -= c << 16;
+    }
+}
+
+static void safari_x25519_select(safari_x25519_fe_t p, safari_x25519_fe_t q, int bit) {
+    int i;
+    int64_t c = ~(int64_t)(bit - 1);
+    for (i = 0; i < 16; i++) {
+        int64_t t = c & (p[i] ^ q[i]);
+        p[i] ^= t;
+        q[i] ^= t;
+    }
+}
+
+static void safari_x25519_add(safari_x25519_fe_t out,
+                              const safari_x25519_fe_t a,
+                              const safari_x25519_fe_t b) {
+    int i;
+    for (i = 0; i < 16; i++) out[i] = a[i] + b[i];
+}
+
+static void safari_x25519_sub(safari_x25519_fe_t out,
+                              const safari_x25519_fe_t a,
+                              const safari_x25519_fe_t b) {
+    int i;
+    for (i = 0; i < 16; i++) out[i] = a[i] - b[i];
+}
+
+static void safari_x25519_mul(safari_x25519_fe_t out,
+                              const safari_x25519_fe_t a,
+                              const safari_x25519_fe_t b) {
+    int i;
+    int j;
+    int64_t t[31];
+    for (i = 0; i < 31; i++) t[i] = 0;
+    for (i = 0; i < 16; i++) {
+        for (j = 0; j < 16; j++)
+            t[i + j] += a[i] * b[j];
+    }
+    for (i = 0; i < 15; i++)
+        t[i] += 38 * t[i + 16];
+    for (i = 0; i < 16; i++)
+        out[i] = t[i];
+    safari_x25519_carry(out);
+    safari_x25519_carry(out);
+}
+
+static void safari_x25519_square(safari_x25519_fe_t out, const safari_x25519_fe_t a) {
+    safari_x25519_mul(out, a, a);
+}
+
+static void safari_x25519_inv(safari_x25519_fe_t out, const safari_x25519_fe_t in) {
+    safari_x25519_fe_t c;
+    int a;
+    safari_x25519_set(c, in);
+    for (a = 253; a >= 0; a--) {
+        safari_x25519_square(c, c);
+        if (a != 2 && a != 4)
+            safari_x25519_mul(c, c, in);
+    }
+    safari_x25519_set(out, c);
+}
+
+static void safari_x25519_unpack(safari_x25519_fe_t out, const uint8_t in[32]) {
+    int i;
+    for (i = 0; i < 16; i++)
+        out[i] = (int64_t)in[2 * i] + ((int64_t)in[2 * i + 1] << 8);
+    out[15] &= 0x7FFF;
+}
+
+static void safari_x25519_pack(uint8_t out[32], const safari_x25519_fe_t in) {
+    safari_x25519_fe_t t;
+    safari_x25519_fe_t m;
+    int i;
+    int j;
+    int b;
+    safari_x25519_set(t, in);
+    safari_x25519_carry(t);
+    safari_x25519_carry(t);
+    safari_x25519_carry(t);
+    for (j = 0; j < 2; j++) {
+        m[0] = t[0] - 0xFFED;
+        for (i = 1; i < 15; i++) {
+            m[i] = t[i] - 0xFFFF - ((m[i - 1] >> 16) & 1);
+            m[i - 1] &= 0xFFFF;
+        }
+        m[15] = t[15] - 0x7FFF - ((m[14] >> 16) & 1);
+        b = (int)((m[15] >> 16) & 1);
+        m[14] &= 0xFFFF;
+        safari_x25519_select(t, m, 1 - b);
+    }
+    for (i = 0; i < 16; i++) {
+        out[2 * i] = (uint8_t)(t[i] & 0xFF);
+        out[2 * i + 1] = (uint8_t)((t[i] >> 8) & 0xFF);
+    }
+}
+
+static void safari_x25519_scalarmult(uint8_t out[32],
+                                     const uint8_t scalar[32],
+                                     const uint8_t point[32]) {
+    static const safari_x25519_fe_t fe_121665 = { 0xDB41, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t e[32];
+    safari_x25519_fe_t x1;
+    safari_x25519_fe_t a = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    safari_x25519_fe_t b;
+    safari_x25519_fe_t c = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    safari_x25519_fe_t d = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    safari_x25519_fe_t e_tmp;
+    safari_x25519_fe_t f;
+    int i;
+    for (i = 0; i < 32; i++) e[i] = scalar[i];
+    e[0] &= 248;
+    e[31] &= 127;
+    e[31] |= 64;
+    safari_x25519_unpack(x1, point);
+    safari_x25519_set(b, x1);
+    for (i = 254; i >= 0; i--) {
+        int bit = (e[i >> 3] >> (i & 7)) & 1;
+        safari_x25519_select(a, b, bit);
+        safari_x25519_select(c, d, bit);
+        safari_x25519_add(e_tmp, a, c);
+        safari_x25519_sub(a, a, c);
+        safari_x25519_add(c, b, d);
+        safari_x25519_sub(b, b, d);
+        safari_x25519_square(d, e_tmp);
+        safari_x25519_square(f, a);
+        safari_x25519_mul(a, c, a);
+        safari_x25519_mul(c, b, e_tmp);
+        safari_x25519_add(e_tmp, a, c);
+        safari_x25519_sub(a, a, c);
+        safari_x25519_square(b, a);
+        safari_x25519_sub(c, d, f);
+        safari_x25519_mul(a, c, fe_121665);
+        safari_x25519_add(a, a, d);
+        safari_x25519_mul(c, c, a);
+        safari_x25519_mul(a, d, f);
+        safari_x25519_mul(d, b, x1);
+        safari_x25519_square(b, e_tmp);
+        safari_x25519_select(a, b, bit);
+        safari_x25519_select(c, d, bit);
+    }
+    safari_x25519_inv(c, c);
+    safari_x25519_mul(a, a, c);
+    safari_x25519_pack(out, a);
+}
+
+static void safari_x25519_public_from_private(const uint8_t private_key[32], uint8_t public_key[32]) {
+    static const uint8_t basepoint[32] = { 9 };
+    safari_x25519_scalarmult(public_key, private_key, basepoint);
+}
+
 static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *out, int max) {
     static const uint16_t ciphers[] = {
+        0x1303U, /* TLS_CHACHA20_POLY1305_SHA256 */
         0xC02FU, /* TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 */
         0xC02BU, /* TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 */
         0xC030U, /* TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 */
@@ -1449,6 +1619,8 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
     static const uint16_t groups[] = { 0x001DU, 0x0017U, 0x0018U };
     static const uint16_t sigalgs[] = { 0x0403U, 0x0503U, 0x0401U, 0x0501U, 0x0804U, 0x0805U };
     uint8_t rnd[32];
+    uint8_t x25519_private[32];
+    uint8_t x25519_public[32];
     int pos = 0;
     int rec_len_pos;
     int hs_len_pos;
@@ -1460,6 +1632,8 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
     host_len = str_len(req->host);
     if (host_len <= 0 || host_len > 253) return -1;
     safari_tls_random(rnd, sizeof(rnd));
+    safari_tls_random(x25519_private, sizeof(x25519_private));
+    safari_x25519_public_from_private(x25519_private, x25519_public);
     safari_tls_put8(out, &pos, max, 22U);       /* Handshake record */
     safari_tls_put16(out, &pos, max, 0x0301U);  /* TLS record legacy version */
     rec_len_pos = pos;
@@ -1495,6 +1669,21 @@ static int safari_make_tls_client_hello(const safari_request_t *req, uint8_t *ou
     safari_tls_put16(out, &pos, max, (uint16_t)sizeof(groups));
     for (i = 0; i < (int)(sizeof(groups) / sizeof(groups[0])); i++)
         safari_tls_put16(out, &pos, max, groups[i]);
+
+    /* supported_versions: TLS 1.3, with TLS 1.2 fallback */
+    safari_tls_put16(out, &pos, max, 43U);
+    safari_tls_put16(out, &pos, max, 5U);
+    safari_tls_put8(out, &pos, max, 4U);
+    safari_tls_put16(out, &pos, max, 0x0304U);
+    safari_tls_put16(out, &pos, max, 0x0303U);
+
+    /* key_share: X25519 */
+    safari_tls_put16(out, &pos, max, 51U);
+    safari_tls_put16(out, &pos, max, 38U);
+    safari_tls_put16(out, &pos, max, 36U);
+    safari_tls_put16(out, &pos, max, 0x001DU);
+    safari_tls_put16(out, &pos, max, 32U);
+    safari_tls_append_bytes(out, &pos, max, x25519_public, sizeof(x25519_public));
 
     /* ec_point_formats */
     safari_tls_put16(out, &pos, max, 11U);
@@ -1543,12 +1732,20 @@ static const char *safari_tls_version_name(uint16_t version) {
 }
 
 static const char *safari_tls_cipher_name(uint16_t cipher) {
+    if (cipher == 0x1303U) return "CHACHA20_POLY1305_SHA256";
     if (cipher == 0xC02FU) return "ECDHE_RSA_AES_128_GCM_SHA256";
     if (cipher == 0xC02BU) return "ECDHE_ECDSA_AES_128_GCM_SHA256";
     if (cipher == 0xC030U) return "ECDHE_RSA_AES_256_GCM_SHA384";
     if (cipher == 0xCCA8U) return "ECDHE_RSA_CHACHA20_POLY1305_SHA256";
     if (cipher == 0x009CU) return "RSA_AES_128_GCM_SHA256";
     if (cipher == 0x002FU) return "RSA_AES_128_CBC_SHA";
+    return "";
+}
+
+static const char *safari_tls_group_name(uint16_t group) {
+    if (group == 0x001DU) return "X25519";
+    if (group == 0x0017U) return "secp256r1";
+    if (group == 0x0018U) return "secp384r1";
     return "";
 }
 
@@ -1560,6 +1757,7 @@ static void safari_describe_tls_probe(const safari_request_t *req, const uint8_t
     int saw_certificate = 0;
     uint16_t server_version = 0;
     uint16_t cipher = 0;
+    uint16_t key_share_group = 0;
     if (!out || max <= 0) return;
     out[0] = 0;
     safari_append(out, &pos, max, "TLS TCP connection established.\nClientHello sent with SNI: ");
@@ -1596,6 +1794,24 @@ static void safari_describe_tls_probe(const safari_request_t *req, const uint8_t
                     cpos = body + 35 + sid_len;
                     if (cpos + 2 <= hend)
                         cipher = (uint16_t)(((uint16_t)buf[cpos] << 8) | buf[cpos + 1]);
+                    if (cpos + 5 <= hend) {
+                        int ext_len = (int)(((uint16_t)buf[cpos + 3] << 8) | buf[cpos + 4]);
+                        int ext = cpos + 5;
+                        int ext_end = ext + ext_len;
+                        if (ext_end > hend) ext_end = hend;
+                        while (ext + 4 <= ext_end) {
+                            uint16_t etype = (uint16_t)(((uint16_t)buf[ext] << 8) | buf[ext + 1]);
+                            int elen = (int)(((uint16_t)buf[ext + 2] << 8) | buf[ext + 3]);
+                            int ebody = ext + 4;
+                            int enext = ebody + elen;
+                            if (enext > ext_end) break;
+                            if (etype == 43U && elen >= 2)
+                                server_version = (uint16_t)(((uint16_t)buf[ebody] << 8) | buf[ebody + 1]);
+                            if (etype == 51U && elen >= 4)
+                                key_share_group = (uint16_t)(((uint16_t)buf[ebody] << 8) | buf[ebody + 1]);
+                            ext = enext;
+                        }
+                    }
                 } else if (htype == 11U) {
                     saw_certificate = 1;
                 }
@@ -1612,6 +1828,13 @@ static void safari_describe_tls_probe(const safari_request_t *req, const uint8_t
         if (safari_tls_cipher_name(cipher)[0]) {
             safari_append(out, &pos, max, " ");
             safari_append(out, &pos, max, safari_tls_cipher_name(cipher));
+        }
+        if (key_share_group) {
+            safari_append(out, &pos, max, " key_share ");
+            if (safari_tls_group_name(key_share_group)[0])
+                safari_append(out, &pos, max, safari_tls_group_name(key_share_group));
+            else
+                safari_append_hex16(out, &pos, max, key_share_group);
         }
         safari_append(out, &pos, max, "\n");
     } else {
