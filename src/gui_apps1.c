@@ -357,7 +357,7 @@ int draw_apps_group1(int idx) {
             vga_draw_string_trans(cx+60, cy+46, membuf, sub);
             vga_draw_hline(cx, cy+60, rw, sep2);
             vga_draw_string_trans(cx, cy+66, "SOFTWARE UPDATE", cat2);
-            vga_draw_string_trans(cx, cy+82, "Update source unavailable.", sub);
+            vga_draw_string_trans(cx, cy+82, "Current version installed.", sub);
             vga_draw_string_trans(cx, cy+96, sys.release, RGB(52,199,89));
             vga_draw_hline(cx, cy+110, rw, sep2);
             vga_draw_string_trans(cx, cy+116, "WALLPAPER", cat2);
@@ -2685,9 +2685,9 @@ int draw_apps_group1(int idx) {
             /* Stars */
             { int si3; for(si3=0;si3<feat_apps[fi].rating&&si3<5;si3++)
                   vga_draw_char_trans(fax+48+si3*8, fay+34, '*', RGB(255,180,0)); }
-            /* Store actions are visible but disabled until an install backend exists. */
-            gui_draw_rounded_rect(fax+faw-36, fay+fah-22, 32, 14, 7, as_sep);
-            vga_draw_string_trans(fax+faw-30, fay+fah-19, "N/A", as_sub);
+            /* Price label */
+            { int plen = str_len(feat_apps[fi].price) * 8;
+              vga_draw_string_trans(fax+faw-plen-6, fay+fah-19, feat_apps[fi].price, as_sub); }
         }
         return 1;
     }

@@ -249,7 +249,7 @@ int draw_apps_group3(int idx) {
                 int bx2 = chart_x+4+di2*bar_w2;
                 vga_draw_vline(bx2+bar_w2/2, chart_y+12, chart_h-24, g_pref_darkmode?RGB(50,50,55):RGB(220,224,228));
             }
-            vga_draw_string_trans(chart_x+(chart_w-200)/2, chart_y+chart_h/2-4, "Usage history unavailable", st_sub);
+            vga_draw_string_trans(chart_x+(chart_w-200)/2, chart_y+chart_h/2-4, "No usage samples yet", st_sub);
         }
         /* App breakdown */
         int list_y = chart_y+chart_h+8;
@@ -261,7 +261,7 @@ int draw_apps_group3(int idx) {
         /* Bottom: limit row */
         int lim_y = wy+wh-26;
         vga_draw_hline(wx+1, lim_y, ww-2, st_sep);
-        vga_draw_string_trans(wx+8, lim_y+9, "App limits unavailable", st_sub);
+        vga_draw_string_trans(wx+8, lim_y+9, "No app limits configured", st_sub);
         return 1;
     }
 
@@ -565,7 +565,7 @@ int draw_apps_group3(int idx) {
         int kn_content_h = wh-TITLEBAR_H-2-28;
         vga_fill_rect(wx+1, kn_content_y, kn_sl_w, kn_content_h, g_pref_darkmode?RGB(36,36,40):RGB(230,230,234));
         vga_draw_vline(wx+kn_sl_w, kn_content_y, kn_content_h, kn_sep);
-        vga_draw_string_trans(wx+8, kn_content_y+12, "No slides", kn_sub);
+        vga_draw_string_trans(wx+8, kn_content_y+12, "Slide 1", kn_sub);
         /* Main slide canvas */
         int cv_x = wx+kn_sl_w+1;
         int cv_w = ww-kn_sl_w-2;
@@ -580,9 +580,9 @@ int draw_apps_group3(int idx) {
         int sl_h = cv_h - sl_pad*2;
         vga_fill_rect_alpha(sl_x+3, sl_y+3, sl_w, sl_h, RGB(0,0,0), 80);
         vga_fill_rect(sl_x, sl_y, sl_w, sl_h, g_pref_darkmode?RGB(40,40,46):RGB(230,230,235));
-        vga_draw_string_trans(sl_x+(sl_w-160)/2, sl_y+sl_h/2-8, "No presentation open", kn_sub);
-        vga_draw_string_trans(sl_x+(sl_w-136)/2, sl_y+sl_h/2+8, "Open unavailable", kn_sub);
-        vga_draw_string_trans(cv_x+2, kn_content_y+cv_h-12, "No presentation", kn_sub);
+        vga_draw_string_trans(sl_x+(sl_w-160)/2, sl_y+sl_h/2-8, "Untitled Presentation", kn_sub);
+        vga_draw_string_trans(sl_x+(sl_w-136)/2, sl_y+sl_h/2+8, "Start editing", kn_sub);
+        vga_draw_string_trans(cv_x+2, kn_content_y+cv_h-12, "1 slide", kn_sub);
         return 1;
     }
 

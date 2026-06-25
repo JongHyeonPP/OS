@@ -1648,28 +1648,6 @@ void gui_run(void) {
                 }
                 break;
             }
-            /* App Store action buttons */
-            for (i = 0; i < g_num_windows; i++) {
-                gui_window_t *w = &g_windows[i];
-                if (!w->visible || !w->title || !str_eq(w->title,"App Store")) continue;
-                if (i != top_win_idx) continue;
-                int cy_as = w->y+TITLEBAR_H+1;
-                int feat_cols_as = (w->w > 320) ? 3 : 2;
-                int faw_as = (w->w-8)/feat_cols_as - 4;
-                int fah_as = 62;
-                int feature_y_as = cy_as + 28 + 4 + 26 + 80 + 8 + 14;
-                int ai2;
-                for (ai2=0;ai2<6;ai2++) {
-                    int ac2=ai2%feat_cols_as, ar2=ai2/feat_cols_as;
-                    int ax2=w->x+4+ac2*(faw_as+4), ay2=feature_y_as+ar2*(fah_as+4);
-                    int btn_x2=ax2+faw_as-36, btn_y2=ay2+fah_as-22;
-                    if (ay2 + fah_as > w->y+w->h-19-6) break;
-                    if (mx>=btn_x2 && mx<btn_x2+32 && my>=btn_y2 && my<btn_y2+14) {
-                        toast_show("App Store","Download service unavailable",RGB(120,120,130));
-                        dirty=1; goto end_left_press;
-                    }
-                }
-            }
             /* Calculator button clicks */
             for (i = 0; i < g_num_windows; i++) {
                 gui_window_t *w = &g_windows[i];

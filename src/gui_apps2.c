@@ -2317,7 +2317,7 @@ int draw_apps_group2(int idx) {
         vga_draw_string_trans(cx2, page_y+10, "Preview", pv_txt);
         vga_draw_hline(cx2, page_y+22, page_w-20, pv_sep);
         vga_draw_string_trans(cx2, page_y+46, "No document open", pv_sub);
-        vga_draw_string_trans(cx2, page_y+62, "Open unavailable", pv_sub);
+        vga_draw_string_trans(cx2, page_y+62, "No document selected", pv_sub);
         /* Status bar */
         vga_fill_rect(wx+1, wy+wh-20, ww-2, 18, pv_tb);
         vga_draw_hline(wx+1, wy+wh-20, ww-2, pv_sep);
