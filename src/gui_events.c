@@ -2014,7 +2014,22 @@ void gui_run(void) {
                 gui_window_t *w = &g_windows[i];
                 if (!w->visible || !w->title) continue;
                 if (i != top_win_idx) continue;
-                if (str_eq(w->title,"Motion")) {
+                if (str_eq(w->title,"Focus")) {
+                    int cy_fc=w->y+TITLEBAR_H;
+                    int tog_y=cy_fc+56;
+                    int modes_y=tog_y+42;
+                    int fm_ev;
+                    for (fm_ev=0; fm_ev<5; fm_ev++) {
+                        int fy_ev=modes_y+fm_ev*36;
+                        int mode_id_ev=(fm_ev==0)?2:(fm_ev==1?1:(fm_ev==2?3:(fm_ev==3?4:5)));
+                        if (mx>=w->x+8 && mx<w->x+w->w-8 && my>=fy_ev && my<fy_ev+32) {
+                            g_focus_mode=mode_id_ev;
+                            g_pref_dnd=1;
+                            toast_show("Focus",focus_mode_name(g_focus_mode),RGB(100,60,200));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Motion")) {
                     int cy_mo = w->y + TITLEBAR_H;
                     { static const char *tools_mo[]={"Select","Add","Behaviors","Filters","Generators","3D"};
                       int tx_mo=w->x+4, ti_mo;

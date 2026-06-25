@@ -535,6 +535,8 @@ int draw_apps_group3(int idx) {
         int fm;
         for (fm=0; fm<5; fm++) {
             int fy = modes_y + fm*36;
+            int mode_id = (fm==0) ? 2 : (fm==1 ? 1 : (fm==2 ? 3 : (fm==3 ? 4 : 5)));
+            int is_active = g_pref_dnd && g_focus_mode == mode_id;
             if (fy+32 > wy+wh-30) break;
             /* Mode icon circle */
             gui_draw_circle(wx+20, fy+14, 12, fm_colors[fm]);
@@ -542,15 +544,13 @@ int draw_apps_group3(int idx) {
             /* Mode name */
             vga_draw_string_trans(wx+36, fy+6, fm_names[fm], fc_txt);
             vga_draw_string_trans(wx+36, fy+18, fm_descs[fm], fc_sub);
-            /* Active indicator (Work is active) */
-            if (fm == 0 && g_pref_dnd) {
+            if (is_active) {
                 vga_fill_rect(wx+ww-60, fy+6, 48, 16, fm_colors[fm]);
                 gui_draw_rounded_rect_outline(wx+ww-60, fy+6, 48, 16, 3, fm_colors[fm]);
                 vga_draw_string_trans(wx+ww-52, fy+10, "Active", RGB(255,255,255));
             } else {
-                uint32_t tog_c = (fm==0&&g_pref_dnd)?fm_colors[fm]:fc_sep;
-                gui_draw_rounded_rect_outline(wx+ww-60, fy+6, 48, 16, 3, tog_c);
-                vga_draw_string_trans(wx+ww-52, fy+10, fm==0&&g_pref_dnd?"Active":"Set Up", fc_sub);
+                gui_draw_rounded_rect_outline(wx+ww-60, fy+6, 48, 16, 3, fc_sep);
+                vga_draw_string_trans(wx+ww-52, fy+10, "Set Up", fc_sub);
             }
             if (fm < 4) vga_draw_hline(wx+8, fy+34, ww-16, fc_sep);
         }

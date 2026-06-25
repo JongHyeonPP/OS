@@ -146,6 +146,8 @@ int g_display_brightness = 80;
 /* Sound Settings */
 int g_sound_visible = 0;
 int g_sound_volume = 70;
+int g_sound_output_device = 0;
+int g_sound_input_device = 0;
 
 /* Activity Monitor */
 int g_actmon_visible = 0;

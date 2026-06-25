@@ -204,6 +204,8 @@ extern int g_display_visible;
 extern int g_display_brightness;
 extern int g_sound_visible;
 extern int g_sound_volume;
+extern int g_sound_output_device;
+extern int g_sound_input_device;
 extern int g_actmon_visible;
 extern int g_facetime_visible;
 extern int g_facetime_calling;

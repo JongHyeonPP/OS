@@ -4598,11 +4598,13 @@ void display_settings_draw(void) {
     int ry=bry+50;
     vga_draw_string_trans(dx+24, ry, "Resolution", RGB(200,200,212));
     static const char *res[]={"2560x1600 (Retina)","1920x1200","1680x1050","1440x900"};
+    int active_res = g_pref_resolution;
+    if (active_res < 0 || active_res > 3) active_res = 0;
     int ri; for(ri=0;ri<4;ri++){
         int ry2=ry+24+ri*34;
-        gui_draw_rounded_rect(dx+140, ry2, dw-164, 26, 4, ri==0?RGB(0,90,210):RGB(50,50,60));
-        vga_draw_string_trans(dx+152, ry2+8, res[ri], ri==0?RGB(255,255,255):RGB(185,185,200));
-        if(ri==0){gui_draw_circle(dx+dw-28, ry2+13, 7, RGB(255,255,255)); gui_draw_circle_outline(dx+dw-28, ry2+13, 7, RGB(150,200,255));}
+        gui_draw_rounded_rect(dx+140, ry2, dw-164, 26, 4, ri==active_res?RGB(0,90,210):RGB(50,50,60));
+        vga_draw_string_trans(dx+152, ry2+8, res[ri], ri==active_res?RGB(255,255,255):RGB(185,185,200));
+        if(ri==active_res){gui_draw_circle(dx+dw-28, ry2+13, 7, RGB(255,255,255)); gui_draw_circle_outline(dx+dw-28, ry2+13, 7, RGB(150,200,255));}
     }
     int ty=ry+24+4*34+6; vga_draw_hline(dx, ty, dw, RGB(58,58,72)); ty+=16;
     static const char *togs[]={"True Tone","Night Shift","Auto Brightness"};
@@ -4644,20 +4646,24 @@ void sound_settings_draw(void) {
     int sy2=sy+42;
     vga_draw_string_trans(dx+24, sy2, "Output Device", RGB(200,200,212));
     static const char *od[]={"Built-in Speakers","AirPods Pro","HDMI Output","USB Audio"};
+    int active_out = g_sound_output_device;
+    if (active_out < 0 || active_out > 3) active_out = 0;
     int oi; for(oi=0;oi<4;oi++){
         int oy=sy2+22+oi*32;
-        gui_draw_rounded_rect(dx+130, oy, dw-154, 24, 4, oi==0?RGB(0,85,200):RGB(48,48,60));
-        vga_draw_string_trans(dx+142, oy+7, od[oi], oi==0?RGB(255,255,255):RGB(185,185,205));
-        if(oi==0){gui_draw_circle(dx+dw-28, oy+12, 6, RGB(200,255,200)); gui_draw_circle_outline(dx+dw-28, oy+12, 6, RGB(100,200,100));}
+        gui_draw_rounded_rect(dx+130, oy, dw-154, 24, 4, oi==active_out?RGB(0,85,200):RGB(48,48,60));
+        vga_draw_string_trans(dx+142, oy+7, od[oi], oi==active_out?RGB(255,255,255):RGB(185,185,205));
+        if(oi==active_out){gui_draw_circle(dx+dw-28, oy+12, 6, RGB(200,255,200)); gui_draw_circle_outline(dx+dw-28, oy+12, 6, RGB(100,200,100));}
     }
     vga_draw_hline(dx, sy2+22+4*32+4, dw, RGB(58,58,72));
     int sy3=sy2+22+4*32+20;
     vga_draw_string_trans(dx+24, sy3, "Input Device", RGB(200,200,212));
     static const char *id2[]={"Built-in Microphone","External Mic"};
+    int active_in = g_sound_input_device;
+    if (active_in < 0 || active_in > 1) active_in = 0;
     int ii; for(ii=0;ii<2;ii++){
         int iy=sy3+22+ii*32;
-        gui_draw_rounded_rect(dx+130, iy, dw-154, 24, 4, ii==0?RGB(0,85,200):RGB(48,48,60));
-        vga_draw_string_trans(dx+142, iy+7, id2[ii], ii==0?RGB(255,255,255):RGB(185,185,205));
+        gui_draw_rounded_rect(dx+130, iy, dw-154, 24, 4, ii==active_in?RGB(0,85,200):RGB(48,48,60));
+        vga_draw_string_trans(dx+142, iy+7, id2[ii], ii==active_in?RGB(255,255,255):RGB(185,185,205));
     }
     vga_draw_string_trans(dx+24, sy3+86, "Input Level:", RGB(160,160,180));
     int ilx=dx+130, ilw=dw-154;
@@ -5154,6 +5160,11 @@ int new_overlays_click(int mx, int my) {
         int bry=dy+68;
         int bx=dx+140, bw=dw-170;
         if (HIT(bx, bry, bw, 16)) { g_display_brightness=(mx-bx)*100/bw; if(g_display_brightness>100)g_display_brightness=100; if(g_display_brightness<0)g_display_brightness=0; return 1; }
+        { int ry=dy+68+50, ri;
+          for (ri=0; ri<4; ri++) {
+              int ry2=ry+24+ri*34;
+              if (HIT(dx+140, ry2, dw-164, 26)) { g_pref_resolution=ri; return 1; }
+          } }
         return 1;
     }
 
@@ -5166,6 +5177,16 @@ int new_overlays_click(int mx, int my) {
         int sy=dy+64;
         int vx=dx+178, vw=dw-210;
         if (HIT(vx, sy, vw, 16)) { g_sound_volume=(mx-vx)*100/vw; if(g_sound_volume>100)g_sound_volume=100; if(g_sound_volume<0)g_sound_volume=0; return 1; }
+        { int sy2=sy+42, oi;
+          for (oi=0; oi<4; oi++) {
+              int oy=sy2+22+oi*32;
+              if (HIT(dx+130, oy, dw-154, 24)) { g_sound_output_device=oi; return 1; }
+          }
+          { int sy3=sy2+22+4*32+20, ii;
+            for (ii=0; ii<2; ii++) {
+                int iy=sy3+22+ii*32;
+                if (HIT(dx+130, iy, dw-154, 24)) { g_sound_input_device=ii; return 1; }
+            } } }
         return 1;
     }
 
