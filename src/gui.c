@@ -748,8 +748,9 @@ void launchpad_draw(void) {
             vga_fill_rect_alpha(ix2+3, iy2+3, LP_ICON_SZ, LP_ICON_SZ, RGB(0,0,0), 60);
             gui_draw_rounded_rect(ix2, iy2, LP_ICON_SZ, LP_ICON_SZ, 14, s_lp_icons[fi3].color);
             vga_fill_rect_alpha(ix2+2, iy2+2, LP_ICON_SZ-4, LP_ICON_SZ/3, RGB(255,255,255), 40);
-            vga_draw_string_trans(ix2+(LP_ICON_SZ-8)/2, iy2+(LP_ICON_SZ-8)/2, &s_lp_icons[fi3].letter, RGB(255,255,255));
-            vga_draw_string_trans(ix2+(LP_ICON_SZ-8)/2+1, iy2+(LP_ICON_SZ-8)/2, &s_lp_icons[fi3].letter, RGB(255,255,255));
+            { char icon_ch[2]; icon_ch[0] = s_lp_icons[fi3].letter; icon_ch[1] = 0;
+              vga_draw_string_trans(ix2+(LP_ICON_SZ-8)/2, iy2+(LP_ICON_SZ-8)/2, icon_ch, RGB(255,255,255));
+              vga_draw_string_trans(ix2+(LP_ICON_SZ-8)/2+1, iy2+(LP_ICON_SZ-8)/2, icon_ch, RGB(255,255,255)); }
             int nl2=str_len(nm); int lx2=ix2+(LP_ICON_SZ-nl2*8)/2; if(lx2<gx2)lx2=gx2;
             vga_draw_string_trans(lx2, iy2+LP_ICON_SZ+4, nm, RGB(230,230,230));
             count2++;
@@ -795,8 +796,9 @@ void launchpad_draw(void) {
             /* Shine */
             vga_fill_rect_alpha(ix+2, iy+2, LP_ICON_SZ-4, LP_ICON_SZ/3, RGB(255,255,255), 40);
             /* Letter centered */
-            vga_draw_string_trans(ix+(LP_ICON_SZ-8)/2,   iy+(LP_ICON_SZ-8)/2, &s_lp_icons[fi].letter, RGB(255,255,255));
-            vga_draw_string_trans(ix+(LP_ICON_SZ-8)/2+1, iy+(LP_ICON_SZ-8)/2, &s_lp_icons[fi].letter, RGB(255,255,255));
+            { char icon_ch[2]; icon_ch[0] = s_lp_icons[fi].letter; icon_ch[1] = 0;
+              vga_draw_string_trans(ix+(LP_ICON_SZ-8)/2,   iy+(LP_ICON_SZ-8)/2, icon_ch, RGB(255,255,255));
+              vga_draw_string_trans(ix+(LP_ICON_SZ-8)/2+1, iy+(LP_ICON_SZ-8)/2, icon_ch, RGB(255,255,255)); }
             /* Label */
             {
                 const char *nm = s_lp_icons[fi].name;
