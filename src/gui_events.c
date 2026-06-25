@@ -461,11 +461,9 @@ void gui_run(void) {
                         else if (str_eq(aname,"Disk Utility")) { nw2->x=130;nw2->y=60;nw2->w=340;nw2->h=260; }
                         else if (str_eq(aname,"Weather"))   { nw2->x=180;nw2->y=70;nw2->w=260;nw2->h=280; }
                         else if (str_eq(aname,"FaceTime"))  { nw2->x=200;nw2->y=80;nw2->w=220;nw2->h=260; g_facetime_active=0; g_facetime_contact=0; }
-                        else if (str_eq(aname,"Contacts"))  { nw2->x=80; nw2->y=50;nw2->w=420;nw2->h=360; }
                         else if (str_eq(aname,"AirDrop"))             { nw2->x=240;nw2->y=100;nw2->w=240;nw2->h=220; }
                         else if (str_eq(aname,"Keyboard Shortcuts"))  { nw2->x=90;nw2->y=40;nw2->w=620;nw2->h=500; }
                         else if (str_eq(aname,"Color Picker"))        { nw2->x=220;nw2->y=80; nw2->w=220;nw2->h=310; }
-                        else if (str_eq(aname,"Preview"))             { nw2->x=120;nw2->y=60; nw2->w=360;nw2->h=320; }
                         else if (str_eq(aname,"Script Editor"))       { nw2->x=130;nw2->y=70; nw2->w=340;nw2->h=290; }
                         else if (str_eq(aname,"Migration Assistant")) { nw2->x=170;nw2->y=80; nw2->w=300;nw2->h=290; }
                         else if (str_eq(aname,"Screen Time"))        { nw2->x=160;nw2->y=60; nw2->w=320;nw2->h=320; }
@@ -2367,7 +2365,6 @@ void gui_run(void) {
                                         else if (str_eq(an2,"Activity Monitor")) { nws2->x=140;nws2->y=80; nws2->w=320;nws2->h=270; }
                                         else if (str_eq(an2,"System Info")) { nws2->x=180;nws2->y=100;nws2->w=280;nws2->h=220; }
                                         else if (str_eq(an2,"Color Picker"))        { nws2->x=220;nws2->y=80; nws2->w=220;nws2->h=310; }
-                                        else if (str_eq(an2,"Preview"))             { nws2->x=120;nws2->y=60; nws2->w=360;nws2->h=320; }
                                         else if (str_eq(an2,"Script Editor"))       { nws2->x=130;nws2->y=70; nws2->w=340;nws2->h=290; }
                                         else if (str_eq(an2,"Migration Assistant")) { nws2->x=170;nws2->y=80; nws2->w=300;nws2->h=290; }
                                         else if (str_eq(an2,"Screen Time"))        { nws2->x=160;nws2->y=60; nws2->w=320;nws2->h=320; }
@@ -2389,15 +2386,12 @@ void gui_run(void) {
                                         else if (str_eq(an2,"Keyboard Shortcuts")) { nws2->x=90;nws2->y=40; nws2->w=620;nws2->h=500; }
                                         else if (str_eq(an2,"iStudiez Pro"))       { nws2->x=110;nws2->y=55; nws2->w=400;nws2->h=280; }
                                         else if (str_eq(an2,"Lasso"))              { nws2->x=150;nws2->y=60; nws2->w=340;nws2->h=270; }
-                                        else if (str_eq(an2,"Contacts"))           { nws2->x=80; nws2->y=50; nws2->w=420;nws2->h=360; }
                                         else if (str_eq(an2,"Dictionary"))         { nws2->x=180;nws2->y=80; nws2->w=300;nws2->h=220; g_dict_focused=1; g_dict_input_len=0; g_dict_input[0]=0; }
                                         else if (str_eq(an2,"Chess"))              { nws2->x=170;nws2->y=70; nws2->w=240;nws2->h=240; }
                                         else if (str_eq(an2,"2048"))               { nws2->x=150;nws2->y=60; nws2->w=240;nws2->h=280; g2048_new_game(); }
                                         else if (str_eq(an2,"Health"))             { nws2->x=100;nws2->y=45; nws2->w=280;nws2->h=380; }
                                         else if (str_eq(an2,"Sudoku"))             { nws2->x=90; nws2->y=40; nws2->w=260;nws2->h=320; g_sdk_started=0;g_sdk_errors=0;g_sdk_sel_r=-1;g_sdk_sel_c=-1; }
                                         else if (str_eq(an2,"Photo Booth"))        { nws2->x=140;nws2->y=60; nws2->w=320;nws2->h=280; }
-                                        else if (str_eq(an2,"TextEdit"))           { nws2->x=120;nws2->y=80; nws2->w=310;nws2->h=260; g_edit_focused=1; }
-                                        else if (str_eq(an2,"Notes"))              { nws2->x=90; nws2->y=60; nws2->w=300;nws2->h=320; }
                                         else if (str_eq(an2,"Stickies"))           { nws2->x=160;nws2->y=80; nws2->w=280;nws2->h=220; }
                                         else if (str_eq(an2,"Snake"))              { nws2->x=120;nws2->y=45; nws2->w=316;nws2->h=252; toast_show("Snake","Space=start, Arrows=move",RGB(52,199,89)); }
                                         else if (str_eq(an2,"Wordle"))             { nws2->x=150;nws2->y=40; nws2->w=280;nws2->h=380; { int i2,j2; for(i2=0;i2<WORDLE_ROWS;i2++){for(j2=0;j2<WORDLE_COLS;j2++){g_wordle_guesses[i2][j2]=0;g_wordle_results[i2][j2]=0;} g_wordle_guesses[i2][WORDLE_COLS]=0;} for(i2=0;i2<26;i2++)g_wordle_kb_state[i2]=0; g_wordle_cur_row=0;g_wordle_cur_col=0;g_wordle_state=0; g_wordle_answer_idx=0; g_wordle_focused=1; } toast_show("Wordle","Type 5-letter word, Enter to guess",RGB(108,169,100)); }
@@ -3465,7 +3459,6 @@ void gui_run(void) {
                                     else if (str_eq(aname,"Activity Monitor")) { nw3->x=140;nw3->y=80;nw3->w=320;nw3->h=270; }
                                     else if (str_eq(aname,"System Info"))         { nw3->x=180;nw3->y=100;nw3->w=280;nw3->h=220; }
                                     else if (str_eq(aname,"Color Picker"))        { nw3->x=220;nw3->y=80; nw3->w=220;nw3->h=310; }
-                                    else if (str_eq(aname,"Preview"))             { nw3->x=120;nw3->y=60; nw3->w=360;nw3->h=320; }
                                     else if (str_eq(aname,"Script Editor"))       { nw3->x=130;nw3->y=70; nw3->w=340;nw3->h=290; }
                                     else if (str_eq(aname,"Migration Assistant")) { nw3->x=170;nw3->y=80; nw3->w=300;nw3->h=290; }
                                     else if (str_eq(aname,"Screen Time"))        { nw3->x=160;nw3->y=60; nw3->w=320;nw3->h=320; }
@@ -3537,9 +3530,7 @@ void gui_run(void) {
                                     else if (str_eq(aname,"Apple TV"))    { nw3->x=120;nw3->y=50; nw3->w=400;nw3->h=300; g_atv_sel=0; toast_show("Apple TV","Stream movies and TV shows",RGB(255,255,255)); }
                                     else if (str_eq(aname,"iStudiez Pro"))       { nw3->x=110;nw3->y=55; nw3->w=400;nw3->h=280; }
                                     else if (str_eq(aname,"Lasso"))              { nw3->x=150;nw3->y=60; nw3->w=340;nw3->h=270; }
-                                    else if (str_eq(aname,"Contacts"))           { nw3->x=80; nw3->y=50; nw3->w=420;nw3->h=360; }
                                     else if (str_eq(aname,"Messages"))           { nw3->x=130;nw3->y=60; nw3->w=340;nw3->h=290; }
-                                    else if (str_eq(aname,"Pong"))               { nw3->x=120;nw3->y=40; nw3->w=300;nw3->h=260; g_pong_active=0;g_pong_over=0;g_pong_score_p=0;g_pong_score_a=0; }
                                     else { nw3->x=120;nw3->y=80;nw3->w=280;nw3->h=200; }
                                     nw3->title = aname;
                                     g_num_windows++;
