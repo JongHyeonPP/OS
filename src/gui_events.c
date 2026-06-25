@@ -2378,7 +2378,6 @@ void gui_run(void) {
                                         else if (str_eq(an2,"Fantastical"))        { nws2->x=120;nws2->y=55; nws2->w=380;nws2->h=310; }
                                         else if (str_eq(an2,"Things 3"))           { nws2->x=110;nws2->y=55; nws2->w=400;nws2->h=310; }
                                         else if (str_eq(an2,"Raycast"))            { nws2->x=150;nws2->y=65; nws2->w=340;nws2->h=260; }
-                                        else if (str_eq(an2,"Lungo"))              { nws2->x=200;nws2->y=80; nws2->w=240;nws2->h=260; }
                                         else if (str_eq(an2,"Tot"))                { nws2->x=160;nws2->y=70; nws2->w=300;nws2->h=250; }
                                         else if (str_eq(an2,"Klokki"))             { nws2->x=140;nws2->y=65; nws2->w=320;nws2->h=280; }
                                         else if (str_eq(an2,"Bear"))               { nws2->x=100;nws2->y=50; nws2->w=420;nws2->h=310; }
@@ -2387,10 +2386,7 @@ void gui_run(void) {
                                         else if (str_eq(an2,"Bartender 4"))        { nws2->x=120;nws2->y=60; nws2->w=380;nws2->h=280; }
                                         else if (str_eq(an2,"Alfred"))             { nws2->x=130;nws2->y=65; nws2->w=360;nws2->h=280; }
                                         else if (str_eq(an2,"Scrobbles"))          { nws2->x=180;nws2->y=70; nws2->w=280;nws2->h=290; }
-                                        else if (str_eq(an2,"Keynote Remote"))     { nws2->x=220;nws2->y=70; nws2->w=200;nws2->h=310; }
                                         else if (str_eq(an2,"Keyboard Shortcuts")) { nws2->x=90;nws2->y=40; nws2->w=620;nws2->h=500; }
-                                        else if (str_eq(an2,"Numbers Remote"))     { nws2->x=160;nws2->y=65; nws2->w=320;nws2->h=270; }
-                                        else if (str_eq(an2,"Pages Remote"))       { nws2->x=190;nws2->y=70; nws2->w=270;nws2->h=260; }
                                         else if (str_eq(an2,"iStudiez Pro"))       { nws2->x=110;nws2->y=55; nws2->w=400;nws2->h=280; }
                                         else if (str_eq(an2,"Lasso"))              { nws2->x=150;nws2->y=60; nws2->w=340;nws2->h=270; }
                                         else if (str_eq(an2,"Contacts"))           { nws2->x=80; nws2->y=50; nws2->w=420;nws2->h=360; }
@@ -3522,7 +3518,6 @@ void gui_run(void) {
                                     else if (str_eq(aname,"Fantastical"))        { nw3->x=120;nw3->y=55; nw3->w=380;nw3->h=310; }
                                     else if (str_eq(aname,"Things 3"))           { nw3->x=110;nw3->y=55; nw3->w=400;nw3->h=310; }
                                     else if (str_eq(aname,"Raycast"))            { nw3->x=150;nw3->y=65; nw3->w=340;nw3->h=260; }
-                                    else if (str_eq(aname,"Lungo"))              { nw3->x=200;nw3->y=80; nw3->w=240;nw3->h=260; }
                                     else if (str_eq(aname,"Tot"))                { nw3->x=160;nw3->y=70; nw3->w=300;nw3->h=250; }
                                     else if (str_eq(aname,"Klokki"))             { nw3->x=140;nw3->y=65; nw3->w=320;nw3->h=280; }
                                     else if (str_eq(aname,"Bear"))               { nw3->x=100;nw3->y=50; nw3->w=420;nw3->h=310; }
@@ -3540,9 +3535,6 @@ void gui_run(void) {
                                     else if (str_eq(aname,"Contacts"))    { nw3->x=150;nw3->y=50; nw3->w=420;nw3->h=320; g_contacts_sel=0; toast_show("Contacts","Your address book",RGB(0,122,255)); }
                                     else if (str_eq(aname,"Preview"))     { nw3->x=160;nw3->y=60; nw3->w=380;nw3->h=300; g_preview_page=0; toast_show("Preview","Open documents and images",RGB(170,50,170)); }
                                     else if (str_eq(aname,"Apple TV"))    { nw3->x=120;nw3->y=50; nw3->w=400;nw3->h=300; g_atv_sel=0; toast_show("Apple TV","Stream movies and TV shows",RGB(255,255,255)); }
-                                    else if (str_eq(aname,"Keynote Remote"))     { nw3->x=220;nw3->y=70; nw3->w=200;nw3->h=310; }
-                                    else if (str_eq(aname,"Numbers Remote"))     { nw3->x=160;nw3->y=65; nw3->w=320;nw3->h=270; }
-                                    else if (str_eq(aname,"Pages Remote"))       { nw3->x=190;nw3->y=70; nw3->w=270;nw3->h=260; }
                                     else if (str_eq(aname,"iStudiez Pro"))       { nw3->x=110;nw3->y=55; nw3->w=400;nw3->h=280; }
                                     else if (str_eq(aname,"Lasso"))              { nw3->x=150;nw3->y=60; nw3->w=340;nw3->h=270; }
                                     else if (str_eq(aname,"Contacts"))           { nw3->x=80; nw3->y=50; nw3->w=420;nw3->h=360; }

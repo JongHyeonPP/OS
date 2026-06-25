@@ -59,7 +59,7 @@
 #define LAUNCHPAD_ROWS   7
 #define LP_ICON_SZ      44
 #define LP_ICON_PAD      6
-#define LP_ICON_COUNT   109
+#define LP_ICON_COUNT   105
 
 /* =========================================================================
  * Terminal constants

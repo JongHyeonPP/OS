@@ -1530,67 +1530,6 @@ int draw_apps_group4(int idx) {
         return 1;
     }
 
-    /* ---- Keynote Remote ---- */
-    if (g_windows[idx].title && str_eq(g_windows[idx].title, "Keynote Remote")) {
-        const gui_window_t *win = &g_windows[idx];
-        if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
-        uint32_t kr_bg=RGB(20,20,24); uint32_t kr_txt=RGB(220,220,228); uint32_t kr_sub=RGB(120,120,130);
-        vga_fill_rect(wx+1, wy+TITLEBAR_H, ww-2, wh-TITLEBAR_H, kr_bg);
-        vga_draw_string_trans(wx+(ww-104)/2, wy+TITLEBAR_H+8, "Keynote Remote", kr_txt);
-        vga_draw_hline(wx+2, wy+TITLEBAR_H+22, ww-4, RGB(50,50,56));
-        int sp_x=wx+8, sp_y=wy+TITLEBAR_H+30, sp_w=ww-16, sp_h=(wh-TITLEBAR_H-110);
-        gui_draw_rounded_rect(sp_x, sp_y, sp_w, sp_h, 6, RGB(34,34,40));
-        vga_draw_string_trans(sp_x+(sp_w-176)/2, sp_y+(sp_h-8)/2, "No presentation paired", kr_sub);
-        int ctrl_y = wy+wh-70;
-        gui_draw_rounded_rect(wx+8, ctrl_y, 40, 30, 6, RGB(60,60,70));
-        vga_draw_string_trans(wx+18, ctrl_y+10, "<", kr_txt);
-        gui_draw_rounded_rect(wx+(ww-44)/2, ctrl_y, 44, 30, 6, RGB(60,60,70));
-        vga_draw_string_trans(wx+(ww-24)/2, ctrl_y+10, "[]", kr_txt);
-        gui_draw_rounded_rect(wx+ww-48, ctrl_y, 40, 30, 6, RGB(60,60,70));
-        vga_draw_string_trans(wx+ww-38, ctrl_y+10, ">", kr_txt);
-        vga_draw_string_trans(wx+(ww-152)/2, wy+wh-28, "Remote unavailable", kr_sub);
-        return 1;
-    }
-
-    /* ---- Numbers Remote ---- */
-    if (g_windows[idx].title && str_eq(g_windows[idx].title, "Numbers Remote")) {
-        const gui_window_t *win = &g_windows[idx];
-        if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
-        uint32_t nr_bg=RGB(20,28,20); uint32_t nr_txt=RGB(220,228,220); uint32_t nr_acc=RGB(52,199,89);
-        vga_fill_rect(wx+1, wy+TITLEBAR_H, ww-2, wh-TITLEBAR_H, nr_bg);
-        vga_draw_string_trans(wx+(ww-104)/2, wy+TITLEBAR_H+8, "Numbers Remote", nr_txt);
-        vga_draw_hline(wx+2, wy+TITLEBAR_H+22, ww-4, RGB(40,56,40));
-        int gx=wx+8, gy=wy+TITLEBAR_H+30; int cols=4, rows=5, cw=(ww-16)/cols, rh=22;
-        int ci2,ri2;
-        for(ri2=0;ri2<=rows;ri2++) vga_draw_hline(gx, gy+ri2*rh, cols*cw, RGB(40,60,40));
-        for(ci2=0;ci2<=cols;ci2++) vga_draw_vline(gx+ci2*cw, gy, rows*rh, RGB(40,60,40));
-        vga_fill_rect(gx, gy, cols*cw, rh, RGB(30,50,30));
-        static const char *nh[]={"A","B","C","D"};
-        for(ci2=0;ci2<cols;ci2++) vga_draw_string_trans(gx+ci2*cw+cw/2-4, gy+7, nh[ci2], nr_acc);
-        vga_draw_string_trans(gx+(cols*cw-144)/2, gy+rh*3, "No sheet paired", nr_txt);
-        vga_draw_string_trans(wx+8, wy+wh-18, "Remote unavailable", RGB(120,150,120));
-        return 1;
-    }
-
-    /* ---- Pages Remote ---- */
-    if (g_windows[idx].title && str_eq(g_windows[idx].title, "Pages Remote")) {
-        const gui_window_t *win = &g_windows[idx];
-        if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
-        uint32_t pr_bg=RGB(28,24,18); uint32_t pr_txt=RGB(228,220,210); uint32_t pr_acc=RGB(255,149,0);
-        vga_fill_rect(wx+1, wy+TITLEBAR_H, ww-2, wh-TITLEBAR_H, pr_bg);
-        vga_draw_string_trans(wx+(ww-88)/2, wy+TITLEBAR_H+8, "Pages Remote", pr_txt);
-        vga_draw_hline(wx+2, wy+TITLEBAR_H+22, ww-4, RGB(56,48,36));
-        /* Document preview */
-        int dp_x=wx+12, dp_y=wy+TITLEBAR_H+30, dp_w=ww-24, dp_h=wh-TITLEBAR_H-60;
-        gui_draw_rounded_rect(dp_x, dp_y, dp_w, dp_h, 4, RGB(240,236,230));
-        vga_draw_string_trans(dp_x+(dp_w-144)/2, dp_y+dp_h/2-4, "No document paired", RGB(120,100,80));
-        vga_draw_string_trans(wx+(ww-152)/2, wy+wh-28, "Remote unavailable", pr_acc);
-        return 1;
-    }
-
     /* ---- iStudiez Pro ---- */
     if (g_windows[idx].title && str_eq(g_windows[idx].title, "iStudiez Pro")) {
         const gui_window_t *win = &g_windows[idx];
@@ -1826,30 +1765,6 @@ int draw_apps_group4(int idx) {
         return 1;
     }
 
-    /* ---- Lungo ---- */
-    if (g_windows[idx].title && str_eq(g_windows[idx].title, "Lungo")) {
-        const gui_window_t *win = &g_windows[idx];
-        if (!win->visible) return 1;
-        int wx=win->x, wy=win->y, ww=win->w, wh=win->h;
-        uint32_t lu_bg=RGB(24,16,10); uint32_t lu_txt=RGB(230,210,190); uint32_t lu_acc=RGB(200,80,20);
-        vga_fill_rect(wx+1, wy+TITLEBAR_H, ww-2, wh-TITLEBAR_H, lu_bg);
-        /* Coffee cup icon */
-        int cx2=(wx+wx+ww)/2, cy2=wy+TITLEBAR_H+(wh-TITLEBAR_H)/2-20;
-        vga_fill_rect(cx2-20, cy2+10, 40, 30, lu_acc);
-        vga_fill_rect(cx2-18, cy2+12, 36, 26, lu_bg);
-        vga_fill_rect(cx2+20, cy2+16, 8, 16, lu_acc);
-        /* Steam lines */
-        vga_draw_vline(cx2-8, cy2-6, 12, RGB(180,140,100));
-        vga_draw_vline(cx2, cy2-10, 12, RGB(180,140,100));
-        vga_draw_vline(cx2+8, cy2-6, 12, RGB(180,140,100));
-        vga_draw_string_trans(wx+(ww-112)/2, wy+TITLEBAR_H+16, "Lungo - Inactive", lu_acc);
-        vga_draw_string_trans(wx+(ww-136)/2, cy2+50, "Sleep control off", lu_txt);
-        gui_draw_rounded_rect(wx+(ww-80)/2, cy2+66, 80, 22, 6, RGB(40,28,18));
-        vga_draw_string_trans(wx+(ww-16)/2, cy2+73, "--", lu_txt);
-        vga_draw_string_trans(wx+(ww-152)/2, wy+wh-20, "Service unavailable", RGB(120,90,60));
-        return 1;
-    }
-
     /* ---- Tot ---- */
     if (g_windows[idx].title && str_eq(g_windows[idx].title, "Tot")) {
         const gui_window_t *win = &g_windows[idx];
@@ -2040,16 +1955,16 @@ int draw_apps_group4(int idx) {
         vga_fill_rect(wx+1, wy+TITLEBAR_H, ww-2, wh-TITLEBAR_H, ba_bg);
         vga_draw_string_trans(wx+8, wy+TITLEBAR_H+8, "Bartender 4 — Menu Bar Manager", ba_txt);
         vga_draw_hline(wx+2, wy+TITLEBAR_H+22, ww-4, RGB(44,44,52));
-        /* Simulated menu bar preview */
+        /* Menu bar preview */
         vga_fill_rect(wx+4, wy+TITLEBAR_H+28, ww-8, 22, RGB(28,28,32));
         gui_draw_rounded_rect(wx+4, wy+TITLEBAR_H+28, ww-8, 22, 4, RGB(40,40,48));
         vga_draw_string_trans(wx+10, wy+TITLEBAR_H+35, "Apple  Finder  File  Edit  View", ba_sub);
         /* Hidden items */
         vga_draw_string_trans(wx+8, wy+TITLEBAR_H+56, "Hidden Items:", ba_txt);
-        static const char *ba_items[]={"Dropbox","1Password","Lungo","Klokki","Tot","Alfred"};
-        static const int ba_shown[]={0,0,1,1,0,1};
+        static const char *ba_items[]={"Dropbox","1Password","Klokki","Tot","Alfred"};
+        static const int ba_shown[]={0,0,1,0,1};
         int bi3;
-        for(bi3=0;bi3<6;bi3++){
+        for(bi3=0;bi3<5;bi3++){
             int by3=wy+TITLEBAR_H+68+bi3*24;
             vga_fill_rect(wx+4, by3, ww-8, 22, RGB(28,28,34));
             vga_draw_hline(wx+4, by3+22, ww-8, RGB(40,40,48));
