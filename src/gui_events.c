@@ -2065,6 +2065,87 @@ void gui_run(void) {
                         toast_show("Feedback Assistant","Report submitted",RGB(0,122,255));
                         dirty=1; goto end_left_press;
                     }
+                } else if (str_eq(w->title,"MainStage")) {
+                    int cy_ms=w->y+TITLEBAR_H;
+                    int stage_y_ms=cy_ms+25;
+                    int stage_h_ms=w->h-TITLEBAR_H-25;
+                    int kb_h_ms=40;
+                    int pad_y_ms=stage_y_ms+4;
+                    int pad_h_ms=stage_h_ms-kb_h_ms-8;
+                    int zi_ms;
+                    if (mx>=w->x+w->w-70 && mx<w->x+w->w-6 && my>=cy_ms+4 && my<cy_ms+20) {
+                        g_mainstage_performing ^= 1;
+                        toast_show("MainStage",g_mainstage_performing?"Performing":"Stopped",RGB(200,30,30));
+                        dirty=1; goto end_left_press;
+                    }
+                    for (zi_ms=0; zi_ms<3; zi_ms++) {
+                        int zw_ms=(w->w-4)/3;
+                        int zx_ms=w->x+2+zi_ms*zw_ms;
+                        if (mx>=zx_ms && mx<zx_ms+zw_ms-2 && my>=pad_y_ms && my<pad_y_ms+pad_h_ms) {
+                            g_mainstage_zone=zi_ms;
+                            toast_show("MainStage","Zone selected",RGB(52,199,89));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Instruments")) {
+                    int cy_in=w->y+TITLEBAR_H;
+                    int ti_in;
+                    if ((mx-(w->x+14))*(mx-(w->x+14)) + (my-(cy_in+12))*(my-(cy_in+12)) <= 10*10) {
+                        g_instruments_recording ^= 1;
+                        toast_show("Instruments",g_instruments_recording?"Recording":"Paused",RGB(220,50,50));
+                        dirty=1; goto end_left_press;
+                    }
+                    for (ti_in=0; ti_in<5; ti_in++) {
+                        int ty_in=cy_in+30+ti_in*22;
+                        if (mx>=w->x+1 && mx<w->x+91 && my>=ty_in-2 && my<ty_in+20) {
+                            g_instruments_track=ti_in;
+                            toast_show("Instruments","Track selected",RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"iPhone Mirroring")) {
+                    int cy_ip=w->y+TITLEBAR_H;
+                    int content_h_ip=w->h-TITLEBAR_H;
+                    int ph_w_ip=120;
+                    int ph_h_ip=content_h_ip-20;
+                    int btn_x_ip=w->x+(w->w-92)/2;
+                    int btn_y_ip=cy_ip+content_h_ip-24;
+                    if (ph_h_ip>220) ph_h_ip=220;
+                    { int ph_x_ip=w->x+(w->w-ph_w_ip)/2;
+                      int ph_y_ip=cy_ip+(content_h_ip-ph_h_ip)/2;
+                      if (mx>=btn_x_ip && mx<btn_x_ip+92 && my>=btn_y_ip && my<btn_y_ip+18) {
+                          g_iphone_mirroring_connected ^= 1;
+                          toast_show("iPhone Mirroring",g_iphone_mirroring_connected?"Connected":"Disconnected",RGB(0,122,255));
+                          dirty=1; goto end_left_press;
+                      }
+                      if (mx>=ph_x_ip && mx<ph_x_ip+ph_w_ip && my>=ph_y_ip && my<ph_y_ip+ph_h_ip) {
+                          if (!g_iphone_mirroring_connected) g_iphone_mirroring_connected=1;
+                          else g_iphone_mirroring_taps++;
+                          toast_show("iPhone Mirroring","Phone tapped",RGB(0,122,255));
+                          dirty=1; goto end_left_press;
+                      } }
+                } else if (str_eq(w->title,"Logic Pro")) {
+                    int cy_lp=w->y+TITLEBAR_H;
+                    int lp_lw_ev=80;
+                    int track_h_lp=(w->h-TITLEBAR_H-29)/6;
+                    int ti_lp;
+                    for (ti_lp=0; ti_lp<5; ti_lp++) {
+                        int tx_lp=w->x+4+ti_lp*22;
+                        if (mx>=tx_lp && mx<tx_lp+18 && my>=cy_lp+6 && my<cy_lp+22) {
+                            g_logic_transport=ti_lp;
+                            toast_show("Logic Pro","Transport selected",RGB(48,209,88));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                    if (track_h_lp < 1) track_h_lp = 1;
+                    for (ti_lp=0; ti_lp<6; ti_lp++) {
+                        int ty_lp=cy_lp+29+ti_lp*track_h_lp;
+                        if (mx>=w->x+1 && mx<w->x+lp_lw_ev && my>=ty_lp && my<ty_lp+track_h_lp) {
+                            g_logic_track=ti_lp;
+                            toast_show("Logic Pro","Track selected",RGB(0,160,210));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
                 } else if (str_eq(w->title,"CleanMyMac X")) {
                     int bx_cm = w->x + (w->w - 90) / 2;
                     int by_cm = w->y + TITLEBAR_H + 112;
@@ -2381,6 +2462,182 @@ void gui_run(void) {
                         g_script_running=0;
                         toast_show("Script Editor","Script stopped",RGB(255,59,48));
                         dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"AirPlay")) {
+                    int cy_ap=w->y+TITLEBAR_H;
+                    int di_ap;
+                    for (di_ap=0; di_ap<4; di_ap++) {
+                        int ay_ap=cy_ap+28+di_ap*28;
+                        if (mx>=w->x+8 && mx<w->x+w->w-8 && my>=ay_ap && my<ay_ap+24) {
+                            g_airplay_device=di_ap;
+                            toast_show("AirPlay","Device selected",RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"TestFlight")) {
+                    int cy_tf=w->y+TITLEBAR_H;
+                    int ai_tf;
+                    if (mx>=w->x+w->w-64 && mx<w->x+w->w-4 && my>=cy_tf+6 && my<cy_tf+24) {
+                        g_testflight_invites++;
+                        toast_show("TestFlight","Invite created",RGB(0,122,255));
+                        dirty=1; goto end_left_press;
+                    }
+                    for (ai_tf=0; ai_tf<3; ai_tf++) {
+                        int ay_tf=cy_tf+36+ai_tf*40;
+                        if (mx>=w->x+4 && mx<w->x+w->w-8 && my>=ay_tf && my<ay_tf+36) {
+                            g_testflight_selected=ai_tf;
+                            if (mx>=w->x+w->w-58 && mx<w->x+w->w-8 && my>=ay_tf+10 && my<ay_tf+26) {
+                                g_testflight_updated_mask |= (1 << ai_tf);
+                                toast_show("TestFlight","App updated",RGB(52,199,89));
+                            } else {
+                                toast_show("TestFlight","App selected",RGB(0,122,255));
+                            }
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Clips")) {
+                    int cy_cl=w->y+TITLEBAR_H;
+                    int vh_cl=w->h-TITLEBAR_H-40;
+                    int rb_cl=cy_cl+vh_cl+4;
+                    int cx_cl=w->x+w->w/2;
+                    if ((mx-cx_cl)*(mx-cx_cl)+(my-(rb_cl+17))*(my-(rb_cl+17)) <= 16*16) {
+                        if (g_clips_recording) g_clips_saved_count++;
+                        g_clips_recording ^= 1;
+                        toast_show("Clips",g_clips_recording?"Recording":"Clip saved",RGB(255,59,48));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Transmit")) {
+                    int cy_tr=w->y+TITLEBAR_H;
+                    int pw_tr=(w->w-3)/2;
+                    int mid_x_tr=w->x+pw_tr-16;
+                    int mid_y_tr=cy_tr+(w->h-TITLEBAR_H)/2-10;
+                    if (mx>=mid_x_tr && mx<mid_x_tr+32 && my>=mid_y_tr && my<mid_y_tr+20) {
+                        if (g_transmit_transfer_count < 999) g_transmit_transfer_count++;
+                        toast_show("Transmit","Transfer queued",RGB(255,149,0));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Lasso")) {
+                    int cy_la=w->y+TITLEBAR_H;
+                    int li_la;
+                    for (li_la=0; li_la<6; li_la++) {
+                        int ly_la=cy_la+30+li_la*28;
+                        if (mx>=w->x+2 && mx<w->x+w->w-2 && my>=ly_la && my<ly_la+26) {
+                            g_lasso_selected=li_la;
+                            toast_show("Lasso","App selected",RGB(100,80,200));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Bartender 4")) {
+                    int cy_ba=w->y+TITLEBAR_H;
+                    int bi_ba;
+                    for (bi_ba=0; bi_ba<5; bi_ba++) {
+                        int by_ba=cy_ba+68+bi_ba*24;
+                        if (mx>=w->x+4 && mx<w->x+w->w-4 && my>=by_ba && my<by_ba+22) {
+                            g_bartender_visible_mask ^= (1 << bi_ba);
+                            toast_show("Bartender 4","Visibility toggled",RGB(52,199,89));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Scrobbles")) {
+                    int cy_sc=w->y+TITLEBAR_H;
+                    int si_sc;
+                    for (si_sc=0; si_sc<5; si_sc++) {
+                        int sy_sc=cy_sc+100+si_sc*28;
+                        if (mx>=w->x+2 && mx<w->x+w->w-2 && my>=sy_sc && my<sy_sc+26) {
+                            g_scrobbles_selected=si_sc;
+                            toast_show("Scrobbles","Track selected",RGB(220,40,40));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Grapher")) {
+                    int cy_gr=w->y+TITLEBAR_H;
+                    if (my>=cy_gr+2 && my<cy_gr+20) {
+                        if (mx>=w->x+8 && mx<w->x+80) {
+                            g_grapher_curve = (g_grapher_curve == 1) ? 0 : 1;
+                            toast_show("Grapher","Sine curve toggled",RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                        if (mx>=w->x+88 && mx<w->x+160) {
+                            g_grapher_curve = (g_grapher_curve == 2) ? 0 : 2;
+                            toast_show("Grapher","Cosine curve toggled",RGB(255,59,48));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Health")) {
+                    int cy_h=w->y+TITLEBAR_H;
+                    int sy_h=cy_h+95+78+6;
+                    int cw_h=(w->w-10)/2;
+                    int ch_h=46;
+                    int hi_h;
+                    for (hi_h=0; hi_h<5; hi_h++) {
+                        int hx_h=w->x+3+(hi_h%2)*(cw_h+4);
+                        int hy_h=sy_h+(hi_h/2)*(ch_h+4);
+                        int hw_h=hi_h==4?w->w-8:cw_h;
+                        if (mx>=hx_h && mx<hx_h+hw_h && my>=hy_h && my<hy_h+ch_h) {
+                            g_health_metric=hi_h;
+                            toast_show("Health","Metric selected",RGB(255,45,85));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Reality Composer")) {
+                    int cy_rc=w->y+TITLEBAR_H;
+                    if (mx>=w->x+4 && mx<w->x+w->w-4 && my>=cy_rc+26 && my<cy_rc+w->h-TITLEBAR_H-34) {
+                        g_reality_object = (g_reality_object + 1) % 3;
+                        toast_show("Reality Composer","Object selected",RGB(147,44,246));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Tot")) {
+                    int cy_to=w->y+TITLEBAR_H;
+                    int di_to;
+                    for (di_to=0; di_to<7; di_to++) {
+                        int cell_to=(w->w-12)/7;
+                        int dx_to=w->x+6+di_to*cell_to;
+                        if (mx>=dx_to && mx<dx_to+cell_to && my>=cy_to+1 && my<cy_to+24) {
+                            g_tot_dot=di_to;
+                            toast_show("Tot","Dot selected",RGB(255,149,0));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Digital Color Meter")) {
+                    int cy_dcm=w->y+TITLEBAR_H;
+                    if (mx>=w->x+1 && mx<w->x+w->w-1 && my>=cy_dcm && my<w->y+w->h-1) {
+                        uint8_t rr=(uint8_t)((mx * 3 + my) & 0xff);
+                        uint8_t gg=(uint8_t)((mx + my * 5) & 0xff);
+                        uint8_t bb=(uint8_t)((mx * 7 + my * 2) & 0xff);
+                        g_dcm_sample_color=RGB(rr,gg,bb);
+                        toast_show("Digital Color Meter","Sampled color",RGB(rr,gg,bb));
+                        dirty=1; goto end_left_press;
+                    }
+                } else if (str_eq(w->title,"Klokki")) {
+                    int cy_kl=w->y+TITLEBAR_H;
+                    int ki_kl;
+                    if (mx>=w->x+w->w-38 && mx<w->x+w->w-12 && my>=cy_kl+38 && my<cy_kl+62) {
+                        g_klokki_running ^= 1;
+                        toast_show("Klokki",g_klokki_running?"Timer running":"Timer paused",RGB(52,199,89));
+                        dirty=1; goto end_left_press;
+                    }
+                    for (ki_kl=0; ki_kl<4; ki_kl++) {
+                        int ky_kl=cy_kl+78+ki_kl*26;
+                        if (mx>=w->x+4 && mx<w->x+w->w-4 && my>=ky_kl && my<ky_kl+22) {
+                            g_klokki_project=ki_kl;
+                            g_klokki_running=1;
+                            toast_show("Klokki","Project selected",RGB(52,199,89));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Overflow 3")) {
+                    static const char *ov_apps_ev[]={"Xcode","Terminal","Sketch","Figma","Sublime","VS Code","Tower","Sequel","Paw","Dash"};
+                    int cy_ov=w->y+TITLEBAR_H;
+                    int oi_ov;
+                    for (oi_ov=0; oi_ov<10; oi_ov++) {
+                        int ox_ov=w->x+8+(oi_ov%4)*(w->w/4);
+                        int oy_ov=cy_ov+28+(oi_ov/4)*56;
+                        if (mx>=ox_ov-3 && mx<ox_ov+43 && my>=oy_ov-3 && my<oy_ov+59) {
+                            g_overflow_selected=oi_ov;
+                            (void)gui_open_basic_app(ov_apps_ev[oi_ov]);
+                            toast_show("Overflow 3",ov_apps_ev[oi_ov],RGB(40,120,200));
+                            dirty=1; goto end_left_press;
+                        }
                     }
                 } else if (str_eq(w->title,"Disk Utility")) {
                     int dsb_w=100;
@@ -2997,6 +3254,125 @@ void gui_run(void) {
                         int y_ac=cy_ac+8+ci_ac*28;
                         if (mx>=w->x+1 && mx<w->x+110 && my>=y_ac-4 && my<y_ac+22) {
                             g_accessibility_category=ci_ac; dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Stocks")) {
+                    int ns_st=7;
+                    int row_h_st=(w->h-TITLEBAR_H-50)/ns_st;
+                    int si_st;
+                    if (row_h_st < 28) row_h_st = 28;
+                    for (si_st=0; si_st<ns_st; si_st++) {
+                        int ry_st=w->y+TITLEBAR_H+32+si_st*row_h_st;
+                        if (ry_st+row_h_st>w->y+w->h-22) break;
+                        if (mx>=w->x+2 && mx<w->x+w->w-2 &&
+                            my>=ry_st && my<ry_st+row_h_st) {
+                            g_stocks_selected=si_st;
+                            toast_show("Stocks","Ticker selected",RGB(52,199,89));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Weather")) {
+                    int by_w=w->y+TITLEBAR_H+1;
+                    int hf_y_w=by_w+80;
+                    int hw_w=(w->w-4)/RUNTIME_HOURLY_COUNT;
+                    int wi_w;
+                    if (hw_w < 1) hw_w = 1;
+                    if (my>=hf_y_w+10 && my<hf_y_w+42) {
+                        for (wi_w=0; wi_w<RUNTIME_HOURLY_COUNT; wi_w++) {
+                            int hx_w=w->x+2+wi_w*hw_w;
+                            if (mx>=hx_w && mx<hx_w+hw_w) {
+                                g_weather_selection=wi_w;
+                                toast_show("Weather","Hourly forecast selected",RGB(90,180,255));
+                                dirty=1; goto end_left_press;
+                            }
+                        }
+                    }
+                    { int fc_y_w=by_w+128;
+                      int dw_w=(w->w-4)/RUNTIME_WEATHER_DAYS;
+                      int di_w;
+                      if (dw_w < 1) dw_w = 1;
+                      if (my>=fc_y_w+12 && my<fc_y_w+72) {
+                          for (di_w=0; di_w<RUNTIME_WEATHER_DAYS; di_w++) {
+                              int dx_w=w->x+2+di_w*dw_w;
+                              if (mx>=dx_w && mx<dx_w+dw_w) {
+                                  g_weather_selection=RUNTIME_HOURLY_COUNT+di_w;
+                                  toast_show("Weather","Daily forecast selected",RGB(90,180,255));
+                                  dirty=1; goto end_left_press;
+                              }
+                          }
+                      } }
+                } else if (str_eq(w->title,"Keyboard Shortcuts")) {
+                    int col_count_ks=(w->w>=500)?2:1;
+                    int col_w_ks=(w->w-20)/col_count_ks;
+                    int ns_ks=51;
+                    int rows_per_col_ks=(ns_ks+col_count_ks-1)/col_count_ks;
+                    int ky_ks=w->y+TITLEBAR_H+38+16;
+                    int i_ks;
+                    if (col_w_ks < 1) col_w_ks = 1;
+                    for (i_ks=0; i_ks<ns_ks; i_ks++) {
+                        int col_ks=i_ks/rows_per_col_ks;
+                        int row_ks=i_ks%rows_per_col_ks;
+                        int base_x_ks=w->x+8+col_ks*col_w_ks;
+                        int ry_ks=ky_ks+row_ks*14;
+                        if (col_ks>=col_count_ks || ry_ks+13>w->y+w->h-22) break;
+                        if (mx>=base_x_ks && mx<base_x_ks+col_w_ks-6 &&
+                            my>=ry_ks-2 && my<ry_ks+13) {
+                            g_keyboard_shortcut_selected=i_ks;
+                            toast_show("Keyboard Shortcuts","Shortcut selected",RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"System Info")) {
+                    int sy_si=w->y+TITLEBAR_H+1+52+8;
+                    int i_si;
+                    for (i_si=0; i_si<7; i_si++) {
+                        int ry_si=sy_si+i_si*18;
+                        if (mx>=w->x+4 && mx<w->x+w->w-4 &&
+                            my>=ry_si-2 && my<ry_si+16) {
+                            g_system_info_selected=i_si;
+                            toast_show("System Info","Row selected",RGB(0,122,255));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Stickies")) {
+                    int cy_st=w->y+TITLEBAR_H;
+                    int sw_st=(w->w-10)/2;
+                    int sh_st=(w->h-TITLEBAR_H-10)/2;
+                    int ni_st;
+                    for (ni_st=0; ni_st<4; ni_st++) {
+                        int sx_st=w->x+2+(ni_st%2)*(sw_st+4);
+                        int sy_st=cy_st+2+(ni_st/2)*(sh_st+4);
+                        if (mx>=sx_st && mx<sx_st+sw_st && my>=sy_st && my<sy_st+sh_st) {
+                            g_stickies_selected=ni_st;
+                            toast_show("Stickies","Note selected",RGB(255,204,0));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Fantastical")) {
+                    datetime_t fa_ev_now;
+                    int fa_len_ev, fa_first_ev, cell_w_fa, row_fa, col_fa;
+                    get_current_datetime(&fa_ev_now);
+                    fa_len_ev=datetime_days_in_month(fa_ev_now.year, fa_ev_now.month);
+                    fa_first_ev=datetime_day_of_week(fa_ev_now.year, fa_ev_now.month, 1);
+                    cell_w_fa=(w->w-2)/7;
+                    if (cell_w_fa < 1) cell_w_fa = 1;
+                    for (row_fa=0; row_fa<6; row_fa++) for (col_fa=0; col_fa<7; col_fa++) {
+                        int day_fa=row_fa*7+col_fa-fa_first_ev+1;
+                        int cx_fa=w->x+2+col_fa*cell_w_fa;
+                        int cy_fa=w->y+TITLEBAR_H+46+row_fa*18;
+                        if (day_fa<1 || day_fa>fa_len_ev) continue;
+                        if (mx>=cx_fa && mx<cx_fa+cell_w_fa && my>=cy_fa && my<cy_fa+18) {
+                            g_fantastical_selected_day=day_fa;
+                            toast_show("Fantastical","Day selected",RGB(220,40,40));
+                            dirty=1; goto end_left_press;
+                        }
+                    }
+                } else if (str_eq(w->title,"Configurator")) {
+                    int cy_cf=w->y+TITLEBAR_H, ci_cf;
+                    for (ci_cf=0; ci_cf<6; ci_cf++) {
+                        int y_cf=cy_cf+8+ci_cf*24;
+                        if (mx>=w->x+1 && mx<w->x+100 && my>=y_cf-4 && my<y_cf+18) {
+                            g_configurator_category=ci_cf; dirty=1; goto end_left_press;
                         }
                     }
                 } else if (str_eq(w->title,"Proxyman")) {
@@ -5097,9 +5473,14 @@ void gui_run(void) {
                         else dirty = 1;
                     }
                 } else if (ch == '\t') {
-                    /* Tab completion in Terminal, else toggle Spotlight */
-                    if (!g_edit_focused && !g_safari_url_focused && gui_top_window_named("Terminal") && term_input_len > 0) {
-                        /* Complete to first matching command */
+                    /* Tab cycles Raycast actions, completes Terminal input, or toggles Spotlight. */
+                    if (!g_edit_focused && !g_safari_url_focused && gui_top_window_named("Raycast")) {
+                        g_raycast_result = (g_raycast_result + 1) % 6;
+                        toast_show("Raycast","Action selected",RGB(255,90,30));
+                        dirty = 1;
+                    } else if (!g_edit_focused && !g_safari_url_focused &&
+                               gui_top_window_named("Terminal") && term_input_len > 0) {
+                        /* Complete to first matching command. */
                         static const char *cmds[] = {
                             "ls","ls -la","ls -a","pwd","date","uptime","uname","uname -a",
                             "whoami","hostname","ps","top","htop","df","free","dmesg",

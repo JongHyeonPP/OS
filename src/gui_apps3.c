@@ -745,9 +745,9 @@ int draw_apps_group3(int idx) {
         ty4 += 12;
         {
             static const char *lines[] = {
-                "Lorem ipsum dolor sit amet, consectetur",
-                "adipiscing elit. Sed do eiusmod tempor",
-                "incididunt ut labore et dolore magna.",
+                "Runtime state now drives toolbar output,",
+                "document controls, and preview content.",
+                "Inserted objects appear as editor state.",
                 NULL
             };
             int li2;
@@ -1563,19 +1563,29 @@ int draw_apps_group3(int idx) {
               int gr_y=ph_y+30+gri;
               int shade=22+gri*32/(ph_h-50);
               if (gr_y>ph_y && gr_y<ph_y+ph_h) {
-                  vga_draw_hline(ph_x+1, gr_y, ph_w-2, RGB(shade,shade+8,shade+24));
+                  uint32_t line_col = g_iphone_mirroring_connected ? RGB(shade,shade+8,shade+24) : RGB(shade/2,shade/2,shade/2);
+                  vga_draw_hline(ph_x+1, gr_y, ph_w-2, line_col);
               }
           }
         }
         vga_draw_string_trans(ph_x+(ph_w-48)/2, ph_y+ph_h/2-8, "iPhone", RGB(240,240,248));
-        vga_draw_string_trans(ph_x+(ph_w-72)/2, ph_y+ph_h/2+4, "Mirrored", RGB(210,230,255));
-        vga_draw_string_trans(ph_x+(ph_w-80)/2, ph_y+ph_h/2+20, "Control on", RGB(140,180,230));
+        vga_draw_string_trans(ph_x+(ph_w-(g_iphone_mirroring_connected?72:88))/2, ph_y+ph_h/2+4,
+                              g_iphone_mirroring_connected ? "Mirrored" : "Disconnected", RGB(210,230,255));
+        { char tap_line[24]; int tp_ip=0; tap_line[0]=0;
+          apps3_append_text(tap_line, &tp_ip, sizeof(tap_line), g_iphone_mirroring_connected ? "Taps: " : "Click to pair");
+          if (g_iphone_mirroring_connected) apps3_append_uint(tap_line, &tp_ip, sizeof(tap_line), (uint32_t)g_iphone_mirroring_taps);
+          vga_draw_string_trans(ph_x+(ph_w-str_len(tap_line)*8)/2, ph_y+ph_h/2+20, tap_line, RGB(140,180,230)); }
         /* Home indicator */
         vga_fill_rect(ph_x+ph_w/2-15, ph_y+ph_h-6, 30, 3, RGB(200,200,210));
         /* Side buttons */
         vga_fill_rect(ph_x-8, ph_y+ph_h/4, 4, 20, RGB(40,40,44));
         vga_fill_rect(ph_x+ph_w+4, ph_y+ph_h/3, 4, 30, RGB(40,40,44));
-        vga_draw_string_trans(wx+(ww-112)/2, content_y+6, "iPhone connected", RGB(160,210,255));
+        vga_draw_string_trans(wx+(ww-(g_iphone_mirroring_connected?112:128))/2, content_y+6,
+                              g_iphone_mirroring_connected ? "iPhone connected" : "iPhone available", RGB(160,210,255));
+        gui_draw_rounded_rect(wx+(ww-92)/2, content_y+content_h-24, 92, 18, 5,
+                              g_iphone_mirroring_connected ? RGB(255,59,48) : RGB(0,122,255));
+        vga_draw_string_trans(wx+(ww-80)/2, content_y+content_h-19,
+                              g_iphone_mirroring_connected ? "Disconnect" : "Connect", RGB(255,255,255));
         return 1;
     }
 
@@ -1600,10 +1610,14 @@ int draw_apps_group3(int idx) {
         vga_fill_rect(wx+1, content_y, ww-2, 24, in_hdr);
         vga_draw_hline(wx+1, content_y+24, ww-2, in_sep);
         /* Record button + time */
-        gui_draw_circle(wx+14, content_y+12, 8, in_red);
-        gui_draw_circle(wx+14, content_y+12, 5, RGB(200,20,20));
+        gui_draw_circle(wx+14, content_y+12, 8, g_instruments_recording ? in_red : in_sub);
+        gui_draw_circle(wx+14, content_y+12, 5, g_instruments_recording ? RGB(200,20,20) : in_hdr);
         { char elapsed_buf[12];
-          apps3_format_seconds_centis(timer_ticks() % 600000U, elapsed_buf, sizeof(elapsed_buf));
+          int ep_in = 0;
+          elapsed_buf[0] = 0;
+          if (g_instruments_recording)
+              apps3_format_seconds_centis(timer_ticks() % 600000U, elapsed_buf, sizeof(elapsed_buf));
+          else apps3_append_text(elapsed_buf, &ep_in, sizeof(elapsed_buf), "Paused");
           vga_draw_string_trans(wx+28, content_y+8, elapsed_buf, in_txt); }
         vga_draw_string_trans(wx+100, content_y+8, "MyOS (PID 1)", in_sub);
         /* Instrument track labels left panel */
@@ -1616,8 +1630,9 @@ int draw_apps_group3(int idx) {
           int ti2, ty2=content_y+30;
           for (ti2=0;ti2<5;ti2++){
               if (ty2+20>content_y+content_h-4) break;
+              if (ti2 == g_instruments_track) vga_fill_rect(wx+2, ty2-2, lp2_w-4, 20, g_pref_darkmode?RGB(42,42,52):RGB(210,225,245));
               vga_fill_rect(wx+2, ty2, 4, 16, tc[ti2]);
-              vga_draw_string_trans(wx+10, ty2+5, tracks2[ti2], in_txt);
+              vga_draw_string_trans(wx+10, ty2+5, tracks2[ti2], ti2==g_instruments_track?RGB(0,122,255):in_txt);
               ty2 += 22;
           }
         }
@@ -2146,9 +2161,10 @@ int draw_apps_group3(int idx) {
           static const char *tc3[]={"<<","|<","|>",">|",">>"};
           int ci7;
           for (ci7=0;ci7<5;ci7++){
-              vga_fill_rect(tx6, ty6, 18, 16, RGB(44,44,52));
-              vga_draw_rect_outline(tx6, ty6, 18, 16, lp_sep);
-              vga_draw_string_trans(tx6+3, ty6+4, tc3[ci7], ci7==2?lp_grn:lp_txt);
+              int active_lp_btn = (ci7 == g_logic_transport);
+              vga_fill_rect(tx6, ty6, 18, 16, active_lp_btn ? RGB(36,80,52) : RGB(44,44,52));
+              vga_draw_rect_outline(tx6, ty6, 18, 16, active_lp_btn ? lp_grn : lp_sep);
+              vga_draw_string_trans(tx6+3, ty6+4, tc3[ci7], active_lp_btn?lp_grn:lp_txt);
               tx6 += 22;
           }
           /* Tempo/key */
@@ -2179,11 +2195,12 @@ int draw_apps_group3(int idx) {
           for (ii2=0;ii2<6;ii2++){
               int iy2=content_y+29+ii2*track_h2;
               if (iy2+track_h2>content_y+content_h-2) break;
+              if (ii2 == g_logic_track) vga_fill_rect(wx+2, iy2+1, lp_lw-4, track_h2-2, RGB(40,46,58));
               vga_draw_hline(wx+1, iy2, lp_lw, lp_sep);
               /* Instrument color bar */
               vga_fill_rect(wx+2, iy2+2, 4, track_h2-4, ic2[ii2]);
               /* Name */
-              vga_draw_string_trans(wx+10, iy2+track_h2/2-4, inst2[ii2], lp_txt);
+              vga_draw_string_trans(wx+10, iy2+track_h2/2-4, inst2[ii2], ii2==g_logic_track?lp_acc:lp_txt);
               /* Mute/Solo micro-buttons */
               vga_fill_rect(wx+lp_lw-18, iy2+3, 8, 8, RGB(255,214,10));
               vga_fill_rect(wx+lp_lw-8,  iy2+3, 6, 8, RGB(80,80,90));
@@ -2216,6 +2233,7 @@ int draw_apps_group3(int idx) {
               int rstart=ri6%3, rw3=(ri6%2==0)?lp_tw/2:lp_tw/3;
               int rx3=lp_tx+rstart*lp_tw/8;
               gui_draw_rounded_rect(rx3, ry3+2, rw3, track_h3-4, 2, rc2[ri6]);
+              if (ri6 == g_logic_track) gui_draw_rounded_rect_outline(rx3, ry3+2, rw3, track_h3-4, 2, RGB(255,255,255));
               vga_fill_rect_alpha(rx3+1, ry3+3, rw3-2, track_h3/4, RGB(255,255,255), 25);
               /* MIDI notes or waveform */
               if (ri6<4){

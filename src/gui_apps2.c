@@ -376,17 +376,24 @@ int draw_apps_group2(int idx) {
             { "TSLA",  "Tesla",            248, 95, -201, 0 },
         };
         int ns = 7, si2;
+        int active_stock = g_stocks_selected;
+        if (active_stock < 0 || active_stock >= ns) active_stock = 0;
         int row_h = (wh - TITLEBAR_H - 50) / ns;
         if (row_h < 28) row_h = 28;
         for (si2=0; si2<ns; si2++) {
             int ry2 = wy + TITLEBAR_H + 32 + si2*row_h;
             if (ry2 + row_h > wy+wh-22) break;
-            if (si2 % 2 == 0) {
-                uint32_t stripe = g_pref_darkmode ? RGB(25,25,28) : RGB(238,238,243);
+            if (si2 == active_stock || si2 % 2 == 0) {
+                uint32_t stripe = (si2 == active_stock) ?
+                    (g_pref_darkmode ? RGB(34,44,36) : RGB(222,244,228)) :
+                    (g_pref_darkmode ? RGB(25,25,28) : RGB(238,238,243));
                 vga_fill_rect(wx+2, ry2, ww-4, row_h-1, stripe);
             }
+            if (si2 == active_stock)
+                vga_draw_rect_outline(wx+2, ry2, ww-4, row_h-1, stocks[si2].pos ? sk_up : sk_dn);
             /* Symbol */
-            vga_draw_string_trans(wx+8, ry2+4, stocks[si2].sym, sk_txt);
+            vga_draw_string_trans(wx+8, ry2+4, stocks[si2].sym,
+                                  si2 == active_stock ? (stocks[si2].pos ? sk_up : sk_dn) : sk_txt);
             /* Name (truncated) */
             vga_draw_string_trans(wx+8, ry2+14, stocks[si2].name, sk_sub);
             /* Mini sparkline */
@@ -439,7 +446,9 @@ int draw_apps_group2(int idx) {
           sp500[sp++] = (char)('0' + s_delta / 100); sp500[sp++] = '.';
           sp500[sp++] = (char)('0' + (s_delta / 10) % 10); sp500[sp++] = (char)('0' + s_delta % 10); sp500[sp++] = '%'; sp500[sp] = 0;
           vga_draw_string_trans(wx+8, sb_y+4, nasdaq, sk_up);
-          vga_draw_string_trans(wx+ww/2-20, sb_y+4, sp500, sk_up); }
+          vga_draw_string_trans(wx+ww/2-20, sb_y+4, sp500, sk_up);
+          vga_draw_string_trans(wx+8, wy+wh-18, stocks[active_stock].name,
+                                stocks[active_stock].pos ? sk_up : sk_dn); }
         (void)t_sk;
         return 1;
     }
@@ -1574,6 +1583,9 @@ int draw_apps_group2(int idx) {
         int phase_wth = (int)((t_wth / 5000) % 64);
         runtime_weather_info_t weather;
         runtime_get_weather_info(&weather);
+        int active_weather = g_weather_selection;
+        if (active_weather < 0 || active_weather >= RUNTIME_HOURLY_COUNT + RUNTIME_WEATHER_DAYS)
+            active_weather = 0;
         /* Pick sky colors for morning (blue gradient) */
         int row3;
         for (row3=0; row3<bh; row3++) {
@@ -1637,6 +1649,11 @@ int draw_apps_group2(int idx) {
           if (hw < 1) hw = 1;
           for(hi4=0;hi4<n_hr;hi4++) {
               int hx=wx+2+hi4*hw;
+              if (active_weather == hi4)
+              { int sel_w = hw > 2 ? hw - 2 : 1;
+                  vga_fill_rect_alpha(hx+1, hf_y+10, sel_w, 30,
+                                      RGB(255,255,255), 70);
+              }
               vga_draw_string_trans(hx+(hw-str_len(weather.hourly_label[hi4])*8)/2, hf_y+12, weather.hourly_label[hi4], RGB(200,220,255));
               /* Icon: sun=yellow circle, pc=half cloud */
               int ic_x=hx+hw/2, ic_y=hf_y+28;
@@ -1663,6 +1680,12 @@ int draw_apps_group2(int idx) {
           get_current_datetime(&now_w);
           for(di=0;di<RUNTIME_WEATHER_DAYS;di++) {
               int dx2=wx+2+di*dw2;
+              int day_sel = RUNTIME_HOURLY_COUNT + di;
+              if (active_weather == day_sel)
+              { int sel_w2 = dw2 > 2 ? dw2 - 2 : 1;
+                  vga_fill_rect_alpha(dx2+1, fc_y+12, sel_w2, 58,
+                                      RGB(255,255,255), 70);
+              }
               int dc=fc_y+14;
               const char *day_name = datetime_weekday_short((now_w.weekday + di) % 7);
               vga_draw_string_trans(dx2+(dw2-24)/2, dc, day_name, RGB(200,220,255));
@@ -1981,6 +2004,8 @@ int draw_apps_group2(int idx) {
         };
         int ns2 = (int)(sizeof(shortcuts) / sizeof(shortcuts[0]));
         int rows_per_col = (ns2 + col_count - 1) / col_count;
+        int active_ks = g_keyboard_shortcut_selected;
+        if (active_ks < 0 || active_ks >= ns2) active_ks = 0;
         int i_ks;
         for (i_ks=0; i_ks<ns2; i_ks++) {
             int col = i_ks / rows_per_col;
@@ -1988,13 +2013,18 @@ int draw_apps_group2(int idx) {
             int base_x = wx + 8 + col * col_w;
             int ry2 = ky + row*14;
             if (col >= col_count || ry2+13 > wy+wh-22) break;
+            if (i_ks == active_ks)
+                vga_fill_rect(base_x, ry2-2, col_w-8, 14,
+                              g_pref_darkmode ? RGB(34,44,62) : RGB(224,236,255));
             /* Key badge */
             int kw = str_len(shortcuts[i_ks].key)*8 + 6;
-            vga_fill_rect(base_x, ry2-1, kw, 12, ks_key);
-            gui_draw_rounded_rect_outline(base_x, ry2-1, kw, 12, 2, ks_sep);
-            vga_draw_string_trans(base_x+3, ry2+1, shortcuts[i_ks].key, ks_kbd);
+            vga_fill_rect(base_x, ry2-1, kw, 12, i_ks == active_ks ? ks_acc : ks_key);
+            gui_draw_rounded_rect_outline(base_x, ry2-1, kw, 12, 2, i_ks == active_ks ? ks_acc : ks_sep);
+            vga_draw_string_trans(base_x+3, ry2+1, shortcuts[i_ks].key,
+                                  i_ks == active_ks ? RGB(255,255,255) : ks_kbd);
             /* Action label */
-            vga_draw_string_trans(base_x+86, ry2+1, shortcuts[i_ks].action, ks_val);
+            vga_draw_string_trans(base_x+86, ry2+1, shortcuts[i_ks].action,
+                                  i_ks == active_ks ? ks_acc : ks_val);
             /* Row separator */
             vga_draw_hline(base_x, ry2+12, col_w-6, ks_sep);
         }
@@ -2073,10 +2103,15 @@ int draw_apps_group2(int idx) {
                 { "Network",    net ? net->name : "none" },
             };
             int ns = 7;
+            int active_si = g_system_info_selected;
+            if (active_si < 0 || active_si >= ns) active_si = 0;
             int i_si;
             for (i_si=0; i_si<ns; i_si++) {
                 int ry = sy + i_si*18;
-                vga_draw_string_trans(wx+8,   ry, specs[i_si].lbl, si_lbl);
+                if (i_si == active_si)
+                    vga_fill_rect(wx+4, ry-2, ww-8, 16,
+                                  g_pref_darkmode ? RGB(34,44,62) : RGB(226,238,255));
+                vga_draw_string_trans(wx+8,   ry, specs[i_si].lbl, i_si == active_si ? si_acc : si_lbl);
                 vga_draw_string_trans(wx+100, ry, specs[i_si].val, si_val);
                 vga_draw_hline(wx+4, ry+14, ww-8, si_sep);
             }
