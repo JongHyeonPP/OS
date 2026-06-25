@@ -350,6 +350,10 @@ char g_safari_page_text[SAFARI_PAGE_TEXT_MAX] = "";
 static char g_safari_response_buf[SAFARI_RESPONSE_MAX];
 static char g_safari_decoded_body_buf[SAFARI_RESPONSE_MAX];
 static char g_safari_local_response_buf[SAFARI_RESPONSE_MAX];
+static char g_safari_cookie_hosts[SAFARI_COOKIE_MAX][64];
+static char g_safari_cookie_names[SAFARI_COOKIE_MAX][SAFARI_COOKIE_NAME_MAX];
+static char g_safari_cookie_values[SAFARI_COOKIE_MAX][SAFARI_COOKIE_VALUE_MAX];
+static int  g_safari_cookie_next = 0;
 int  g_safari_page_scroll = 0;
 int  g_safari_link_count = 0;
 char g_safari_link_urls[SAFARI_MAX_LINKS][SAFARI_URL_MAX];
@@ -1089,6 +1093,126 @@ static void safari_make_local_body(const safari_request_t *req, const char *requ
 }
 
 
+
+static int safari_header_name_eq(const char *line, const char *name);
+
+static void safari_append_cookie_header(char *request, int *pos, int max, const char *host) {
+    int i;
+    int wrote = 0;
+    if (!request || !pos || !host || !host[0]) return;
+    for (i = 0; i < SAFARI_COOKIE_MAX; i++) {
+        if (!g_safari_cookie_hosts[i][0] || !g_safari_cookie_names[i][0]) continue;
+        if (!safari_eq_ci(g_safari_cookie_hosts[i], host)) continue;
+        if (!wrote) {
+            safari_append(request, pos, max, "\r\nCookie: ");
+            wrote = 1;
+        } else {
+            safari_append(request, pos, max, "; ");
+        }
+        safari_append(request, pos, max, g_safari_cookie_names[i]);
+        safari_append(request, pos, max, "=");
+        safari_append(request, pos, max, g_safari_cookie_values[i]);
+    }
+}
+
+static void safari_cookie_clear_slot(int slot) {
+    if (slot < 0 || slot >= SAFARI_COOKIE_MAX) return;
+    g_safari_cookie_hosts[slot][0] = 0;
+    g_safari_cookie_names[slot][0] = 0;
+    g_safari_cookie_values[slot][0] = 0;
+}
+
+static int safari_cookie_slot_for(const char *host, const char *name) {
+    int i;
+    int empty = -1;
+    if (!host || !name || !host[0] || !name[0]) return -1;
+    for (i = 0; i < SAFARI_COOKIE_MAX; i++) {
+        if (g_safari_cookie_hosts[i][0] && g_safari_cookie_names[i][0] &&
+            safari_eq_ci(g_safari_cookie_hosts[i], host) &&
+            str_eq(g_safari_cookie_names[i], name))
+            return i;
+        if (empty < 0 && !g_safari_cookie_names[i][0]) empty = i;
+    }
+    if (empty >= 0) return empty;
+    i = g_safari_cookie_next++ % SAFARI_COOKIE_MAX;
+    if (g_safari_cookie_next < 0) g_safari_cookie_next = 0;
+    return i;
+}
+
+static void safari_store_cookie_pair(const char *host, const char *name,
+                                     const char *value, int clear_cookie) {
+    int slot = safari_cookie_slot_for(host, name);
+    if (slot < 0) return;
+    if (clear_cookie) {
+        safari_cookie_clear_slot(slot);
+        return;
+    }
+    safari_copy(g_safari_cookie_hosts[slot], sizeof(g_safari_cookie_hosts[slot]), host);
+    safari_copy(g_safari_cookie_names[slot], SAFARI_COOKIE_NAME_MAX, name);
+    safari_copy(g_safari_cookie_values[slot], SAFARI_COOKIE_VALUE_MAX, value ? value : "");
+}
+
+static int safari_cookie_attr_has_max_age_zero(const char *line, int len) {
+    int i;
+    for (i = 0; i + 8 < len; i++) {
+        if (safari_starts_with_ci(line + i, "max-age")) {
+            const char *p = line + i + 7;
+            while (p < line + len && (*p == ' ' || *p == '\t')) p++;
+            if (p < line + len && *p == '=') p++;
+            while (p < line + len && (*p == ' ' || *p == '\t')) p++;
+            return p < line + len && *p == '0';
+        }
+    }
+    return 0;
+}
+
+static void safari_store_set_cookie_line(const char *host, const char *line, int len) {
+    char name[SAFARI_COOKIE_NAME_MAX];
+    char value[SAFARI_COOKIE_VALUE_MAX];
+    int ni = 0;
+    int vi = 0;
+    int i = 0;
+    int clear_cookie;
+    if (!host || !host[0] || !line || len <= 0) return;
+    while (i < len && (line[i] == ' ' || line[i] == '\t')) i++;
+    while (i < len && line[i] && line[i] != '=' && line[i] != ';' &&
+           line[i] != '\r' && line[i] != '\n' && ni + 1 < (int)sizeof(name)) {
+        name[ni++] = line[i++];
+    }
+    name[ni] = 0;
+    while (ni > 0 && (name[ni - 1] == ' ' || name[ni - 1] == '\t')) name[--ni] = 0;
+    if (i >= len || line[i] != '=' || !name[0]) return;
+    i++;
+    while (i < len && (line[i] == ' ' || line[i] == '\t')) i++;
+    while (i < len && line[i] && line[i] != ';' && line[i] != '\r' &&
+           line[i] != '\n' && vi + 1 < (int)sizeof(value)) {
+        value[vi++] = line[i++];
+    }
+    while (vi > 0 && (value[vi - 1] == ' ' || value[vi - 1] == '\t')) vi--;
+    value[vi] = 0;
+    clear_cookie = (vi == 0) || safari_cookie_attr_has_max_age_zero(line, len);
+    safari_store_cookie_pair(host, name, value, clear_cookie);
+}
+
+static void safari_store_cookies_from_response(const safari_request_t *req, const char *response) {
+    const char *p = response;
+    if (!req || !req->host[0] || !response) return;
+    while (*p) {
+        if ((p[0] == '\r' && p[1] == '\n') || p[0] == '\n') break;
+        if (safari_header_name_eq(p, "Set-Cookie")) {
+            const char *v = p;
+            int len = 0;
+            while (*v && *v != ':') v++;
+            if (*v == ':') v++;
+            while (*v == ' ' || *v == '\t') v++;
+            while (v[len] && v[len] != '\r' && v[len] != '\n') len++;
+            safari_store_set_cookie_line(req->host, v, len);
+        }
+        while (*p && *p != '\n') p++;
+        if (*p == '\n') p++;
+    }
+}
+
 static void safari_append_http_request(char *request, int *pos, int max,
                                        const safari_request_t *req,
                                        const char *method,
@@ -1103,6 +1227,7 @@ static void safari_append_http_request(char *request, int *pos, int max,
     safari_append_host_header(request, pos, max, req);
     if (raw_network)
         safari_append(request, pos, max, "\r\nUser-Agent: MyOS-Safari/1.0\r\nAccept: text/html,text/plain,*/*");
+    safari_append_cookie_header(request, pos, max, req->host);
     safari_append(request, pos, max, "\r\nAccept-Encoding: identity\r\nConnection: close");
     if (safari_eq_ci(verb, "POST")) {
         safari_append(request, pos, max, "\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: ");
@@ -1141,7 +1266,7 @@ static int safari_fetch_local_http(const safari_request_t *req, const char *meth
     n = vfs_read(accepted, server_req, sizeof(server_req) - 1);
     if (n < 0) goto fail;
     server_req[n] = 0;
-    safari_make_local_body(req, server_req, local_response, sizeof(local_response));
+    safari_make_local_body(req, server_req, local_response, SAFARI_RESPONSE_MAX);
     while (local_response[off] && total + 1 < max) {
         n = vfs_write(accepted, local_response + off, (uint32_t)str_len(local_response + off));
         if (n <= 0) break;
@@ -1925,6 +2050,7 @@ static void safari_load_url_internal(const char *url, const char *method,
         return;
     }
     g_safari_page_status_code = (uint32_t)safari_http_status_code(response);
+    safari_store_cookies_from_response(&req, response);
     if (safari_is_redirect_status(g_safari_page_status_code)) {
         char location[SAFARI_URL_MAX];
         char resolved[SAFARI_URL_MAX];

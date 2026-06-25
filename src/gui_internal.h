@@ -98,6 +98,9 @@
 #define SAFARI_FORM_NAME_MAX 32
 #define SAFARI_FORM_VALUE_MAX 64
 #define SAFARI_FORM_QUERY_MAX 160
+#define SAFARI_COOKIE_MAX 16
+#define SAFARI_COOKIE_NAME_MAX 32
+#define SAFARI_COOKIE_VALUE_MAX 96
 
 /* =========================================================================
  * Calendar constants
